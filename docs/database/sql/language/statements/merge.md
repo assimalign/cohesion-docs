@@ -41,7 +41,7 @@ MERGE inserts one row and returns `1`. WITH RECURSIVE before the same MERGE repo
 - **`source`** — The read sources accepted by UPDATE FROM: stored tables, system relations, views,
   aliased derived queries (with optional complete output renames), and supported joined sources,
   including INNER, LEFT and CROSS joins. A derived SELECT may contain RIGHT/FULL joins.
-  VALUES relations, table functions, LATERAL, NATURAL JOIN and aliasless derived queries retain
+  VALUES relations, table functions, LATERAL, direct NATURAL mutation-source joins and aliasless derived queries retain
   UPDATE FROM's refusals. USING contains one source relation with its joins, not a comma source list.
 - **`condition`** — A Boolean ON association predicate or optional WHEN action predicate.
 - **`expression`** — An assignment/INSERT value or RETURNING projection. Whole-item DEFAULT is

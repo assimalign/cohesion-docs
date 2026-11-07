@@ -33,8 +33,10 @@ catalog publishes/loads the table, not fully by this constructor.
 MissingValueLiteral is the frozen canonical ADD COLUMN literal used for physically absent trailing
 fields; null means a missing field reads NULL. It is independent of the current insert DefaultLiteral
 and is preserved through SET/DROP DEFAULT, renames and restart. Reading old rows never executes the
-insert default. Validation-only full-definition narrowing checks the frozen literal even without live rows. Table
-extension 6 introduced this split in format 17. Current format 37 uses extension 8, which adds ON UPDATE metadata and also
+insert default. Precision tightening and VARBINARY narrowing validate visible values, including
+visible missing tails. Historical numeric/binary literals bind independently of current bounds;
+an unused historical literal does not prevent tightening. New defaults and assignments must fit
+the declaration. Character-width assignment retains trimming/padding rules. Table extension 6 introduced this split in format 17. Current format 37 uses extension 8, which adds ON UPDATE metadata and also
 persists the TYPE default-assignment flag. Rewriting TYPE materializes missing tails in the new
 owner; old descriptions retain their original missing literals for old snapshots.
 

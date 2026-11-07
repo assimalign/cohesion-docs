@@ -24,7 +24,9 @@ CASE, CAST and EXTRACT remain evaluator forms; CASE is a clause rather than a fu
 diagnostics and identifier quoting. Unsupported calls report CK00001 before planning; an unknown
 function outside that vocabulary reports CS01016 during planning. Recognition is not an execution
 promise. SupportsJoin returns true for Inner, LeftOuter, RightOuter, FullOuter and Cross.
-INNER/LEFT/RIGHT/FULL require ON or USING; CROSS accepts neither. FULL execution additionally
+Non-NATURAL INNER/LEFT/RIGHT/FULL require ON or USING; CROSS accepts neither.
+SqlClauses.Natural is enabled: the binder derives USING names. Qualified SELECT stars execute;
+LATERAL retains CK00001. FULL execution additionally
 requires a safe mandatory hash equality and proven non-throwing ON evaluation (CS05070).
 These accessors introduce no validation exceptions. Savepoint, ReleaseSavepoint and
 RollbackToSavepoint add three named clauses; [SqlTransactionExpression](sql-transaction-expression.md)
@@ -53,7 +55,7 @@ TRIM/SUBSTRING/POSITION have standard grammar normalized onto calls. Bare CURREN
 read clock values without parentheses. New T1 builtin names are reserved at all arities. Identifier
 quoting includes those names and BOTH/LEADING/TRAILING (format 18), then PERCENT/TIES (format 19).
 Current storage format is 37, with no upgrade path from an earlier format. The executable
-profile now measures 91 of 93 declared clauses, including aggregate FILTER, CREATE TABLE AS, executable MERGE and
+profile now measures 92 of 93 declared clauses, including aggregate FILTER, CREATE TABLE AS, executable MERGE and
 executable RECURSIVE with demand-driven fixpoints and shared readers.
 merge_action() is contextual
 to its RETURNING clause and is not a standalone executable function-table entry.

@@ -314,6 +314,10 @@ UPDATE/DELETE WHERE conditions retain bound source order.
 See [performance](../../performance.md#joined-mutations).
 EXPLAIN ANALYZE remains SELECT-only.
 
+An actual root sort spill adds `spilled_bytes`, `spill_peak_bytes`, `spill_runs` and
+`spill_merge_passes` to EXPLAIN ANALYZE sorting detail, beneath With/Subqueries wrappers.
+EXPLAIN fields remain unchanged. See [root sort spilling](../../performance.md#root-sort-spilling).
+
 ## Sources
 
 - **Join search and wire example** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/src/Internal/Planning/SqlPlanner.Describe.cs` and `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql.Client/tests/SqlJoinOrderSearchWireTests.cs`.

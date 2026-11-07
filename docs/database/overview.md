@@ -57,8 +57,9 @@ The former replication and governance placeholder projects and contracts are abs
 features have no current runtime API.
 
 The [temporary-space substrate](../dotnet-apis/resources/database/assimalign-cohesion-database-storage/design.md#disposable-query-storage)
-provides quotas, checked runs, sorting and hash partitions. SQL owns its configuration; no query
-operator uses it yet, so large queries still refuse on their memory grant.
+provides quotas, checked runs, sorting and hash partitions. SQL root ORDER BY and ordered DISTINCT
+use it, including CTAS source roots in sessions and scripts. Other shapes retain memory
+refusals; see [spill eligibility and lazy result lifetime](sql/performance.md#root-sort-spilling).
 
 ## Host composition
 
@@ -510,7 +511,7 @@ dbo remains protected and code-first provisioning stays there. [Set operations](
 execute in every query position. Document adds [34 SQL++ scalars](document/language/functions/scalar-functions.md),
 and Graph supports [streaming stage composition](graph/language/clauses/next.md), including Cypher WITH/UNWIND.
 
-The current SQL contract measures 91 of 93 declared clauses, including executable MERGE with
+The current SQL contract measures 92 of 93 declared clauses, including executable MERGE with
 ordered actions and RETURNING, and executable [WITH RECURSIVE](sql/language/clauses/with.md).
 Aggregate [FILTER](sql/language/clauses/filter.md) and
 [Boolean/statistical aggregates](sql/language/functions/aggregate-functions.md#boolean-and-statistical-aggregates) execute.

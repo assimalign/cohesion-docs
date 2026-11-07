@@ -13,6 +13,7 @@ Namespace: `Assimalign.Cohesion.Database.Graph.Language`.
 ```csharp
 public static class GqlClauses
 {
+    public const string CreateTextIndex = "CREATE TEXT INDEX";
     public const string QuantifiedPath = "QUANTIFIED PATH";
     public const string PathMode = "PATH MODE";
     public const string PathSelector = "PATH SELECTOR";
@@ -45,6 +46,11 @@ public static class GqlClauses
     public const string PatternComprehension = "PATTERN COMPREHENSION";
 }
 ```
+
+CreateTextIndex is enabled beside CreateIndex. It parses a standalone node-label/property
+[CREATE TEXT INDEX](../../../../database/graph/language/statements/create-index.md#text-indexes)
+using GqlSchemaCommand.IsText. The constant adds no exceptions. TEXT is contextual after CREATE;
+DROP TEXT INDEX and composite/relationship forms retain CK00001.
 
 GroupBy is enabled by GqlLanguageProfile.Instance. It admits explicit ISO RETURN names/expressions
 and GROUP BY (); implicit grouping uses nonaggregate RETURN keys when aggregates are present.

@@ -22,6 +22,9 @@ Database instances expose a nullable immutable `Provisioning` observation for mo
 
 ## Reference pages
 
+- **[DatabaseEngine](database-engine.md)** — Protected journal admission composition.
+- **[DatabaseInstance](database-instance.md)** — Live journal admission observation.
+
 - **[DatabaseTransaction](database-transaction.md)** — Protected kernel binding, savepoint observations and isolation replacement.
 - **[DatabaseException](database-exception.md)** — Public contract and usage.
 - **[DatabaseTransactionAbortedException](database-transaction-aborted-exception.md)** — Retryable abort kind and copied, ordered diagnostics.

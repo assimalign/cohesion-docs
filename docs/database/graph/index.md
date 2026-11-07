@@ -45,9 +45,16 @@ each member must already carry implied labels and satisfy property types/NOT NUL
 and properties remain writable. Proposed types validate existing members (CG03010). Edge declarations
 are stored but their properties and endpoints are not yet enforced. Text graph-type DDL remains refused.
 
-Graph catalog records are v3; v2 and other record versions refuse at open with CG06019
-and require recreation. There is no legacy reader. Graph entity/tree format remains 5.
+Graph catalog records are v4; v3 and other record versions refuse at open with CG06019
+and require recreation. There is no legacy reader. Graph entity/registration format remains 5;
+B-tree pages require format 3. Format-2 trees refuse CK06101 before writes; when both stamps
+are old this precedes CG06019. See [combined refusals](../error-codes.md#combined-format-refusals).
 SHOW PROPERTY KEYS reports effective rules and SHOW OBJECT OWNERSHIP includes CONSTRAINT rows.
+
+[CREATE TEXT INDEX](language/statements/create-index.md#text-indexes) serves string equality,
+STARTS WITH, ENDS WITH and CONTAINS through the first trigram with mandatory recheck. Short
+patterns scan; text access never moves the chosen plan anchor. Exact and text indexes coexist.
+Their posting-maintenance costs are an exception to the ordinary 100,000-row envelope.
 
 ## Transactions and traversal
 
@@ -93,6 +100,9 @@ mandatory clause; bindings supplied only by optionals are refused during plannin
 [OFFSET/SKIP and LIMIT](language/clauses/limit-offset.md) page rows or supported path returns;
 offset precedes limit. The output tail follows all mutations and DISTINCT, while reads stream and unordered LIMIT can stop upstream work. Ordered finite pages
 use bounded top-N; retained state and final results share statement memory/work budgets. Default NULL order is last ascending, first descending.
+
+Text-index extraction and posting maintenance are an exception to the 100,000-row envelope;
+see [write costs and capacity](language/statements/create-index.md#write-costs-and-capacity).
 
 The default retained-memory budget is 256 MiB. It admits 100,000 one-property rows for SET,
 FOR … INSERT, RETURN n and QueryPaths; much larger retained workloads refuse with `CG05020`.

@@ -26,6 +26,10 @@ value comparator, so signed zeros form one class and all floating-point NaNs for
 argument tuples within each group; it executes independently of SELECT DISTINCT.
 Explicit `SELECT ALL` is also unsupported; omit the modifier to retain duplicates.
 
+Ordered DISTINCT at an eligible root SELECT or CTAS source can spill its sorting work while
+retaining the first sorted representative. Its seen set still must fit StatementMemoryBudget.
+See [spill eligibility and lazy delivery](../../performance.md#root-sort-spilling).
+
 ## Examples
 
 These examples use the [conformance fixture](../statements/select.md#a-create-the-conformance-fixture).

@@ -11,6 +11,7 @@ public sealed record GqlSchemaCommand
 {
     public bool Drop { get; init; }
     public GqlSchemaObjectKind Kind { get; init; }
+    public bool IsText { get; init; }
     public string? Name { get; init; }
     public bool IfExists { get; init; }
     public string? Definition { get; init; }
@@ -35,6 +36,10 @@ dropping. Name may be null for generated index/constraint names. Definition is t
 relationship-type name, Property the single property key and Variable the FOR binding.
 Relationship selects a relationship constraint. A null Type denotes existence; a non-null
 type denotes a type rule. Drops and label/type commands need Name and no rule fields.
+
+IsText selects case-sensitive Unicode trigram indexing. It is admitted only on CREATE INDEX,
+not a constraint or DROP; malformed programmatic combinations refuse CG05001. Rendering retains
+CREATE TEXT INDEX. Exact/text pair equivalence includes this flag; SHOW columns stay unchanged.
 
 ToString renders semantic fields with escaped double-quoted identifiers and canonical scalar
 names. Relationship arrows normalize to an undirected pattern. Construction does not validate

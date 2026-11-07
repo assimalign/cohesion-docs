@@ -43,7 +43,7 @@ operator, target, index, detail, estimated_rows, actual_rows. Nodes are depth-fi
 available anchor estimates populate estimated_rows; actual_rows stays NULL. GQL uses ordinary row-result frames, including for an
 explained statement whose normal projection is a graph entity.
 
-Operators include NodeScan, LabelScan, IndexSeek and Expand for fixed or quantified segments.
+Operators include NodeScan, LabelScan, IndexSeek, TextIndexSeek and Expand for fixed or quantified segments.
 LabelScan and IndexSeek report the actual chosen label in target and the zero-based pattern node
 ordinal in detail, including anchors supplied by positive WHERE label conjunctions or later
 pattern nodes. IndexSeek also reports the chosen index and property bound. LabelScan seeks
@@ -52,6 +52,13 @@ chooses among label scans, property seeks and type anchors. Ties prefer equality
 candidates, then relationship candidates, each in source order. A pure pattern union reports target `A|B`
 and appends `combine=union` to detail. The full pattern and WHERE remain residual checks. Anchor selection
 can change row order in queries without ORDER BY, which have no guaranteed row order.
+
+TextIndexSeek reports `predicate`, `parameter`, `decision=execution`, `anchor=first_trigram`
+and `recheck=stored_value`. Bound patterns shorter than three code points show LabelScan with
+`fallback=shorter_than_3_code_points`. Text access substitutes only the node/label scan already
+chosen without text indexes; it never moves the plan anchor or takes another node's tie.
+Its estimate uses label cardinality, and it reads only the first trigram without intersection.
+See [text indexes](create-index.md#text-indexes).
 
 RelationshipTypeScan reports selected type names in target, a NULL index, and detail containing
 `edge=0; direction=Outgoing; postings=(type_id,relationship); combine=union;

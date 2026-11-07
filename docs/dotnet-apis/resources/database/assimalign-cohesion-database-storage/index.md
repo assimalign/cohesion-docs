@@ -34,7 +34,8 @@ components of their engine assemblies, with their existing namespaces.
 ## Scope
 
 - **Disposable query storage** — Quotas, free-space admission, checked runs, sorting and hash
-  partitions. No query operator uses this substrate yet; temporary failures keep durable databases online.
+  partitions. Eligible SQL root ORDER BY and ordered DISTINCT use it, including CTAS source
+  sorts. Temporary failures keep durable databases online.
 - **Pages** — 8 KiB `Page` unit with a 96-byte header (id, LSN, CRC-32C checksum, type,
   flags, slot bookkeeping), `SlottedPage` variable-length record layout, `PageSlot`
   directory entries.

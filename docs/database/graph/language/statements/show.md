@@ -50,7 +50,8 @@ Name columns are strings, identity columns are GUIDs, and `IS_REQUIRED` and `IS_
 Booleans. `DEFINITION_TYPE` is `LABEL` or `RELATIONSHIP TYPE`. `DATA_TYPE` is a declared
 `DatabaseType` name or null for an unconstrained key. PROPERTY KEYS reports effective type and
 requiredness from declarations plus named type/existence constraints. Current node-property
-indexes are nonunique.
+indexes are nonunique. Exact and text indexes coexist on a pair and use these same six
+SHOW INDEXES columns; no text-kind column is added. Typed GraphIndexMetadata.IsText distinguishes them.
 
 Ownership is `Adhoc` or `Schema`, with nullable `OWNING_SCHEMA`. Property and index rows report
 their parent definition's authority. Named constraints add OBJECT_TYPE `CONSTRAINT` rows whose

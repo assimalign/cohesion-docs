@@ -44,7 +44,9 @@ refused without an upgrade reader. Compiled schema artifacts remain version 12.
 The node's accessors add no validation exceptions. Parser.Parse returns diagnostics for invalid
 text; SqlQueryRequest.FromSql and session execution reject parser errors with DatabaseParseException.
 Unknown/out-of-scope names and invalid USING pairs fail planning with CS01015; duplicate
-bindings use CS01019. Qualified `t.*` remains CK00001.
+bindings use CS01019. Qualified `t.*` and `schema.table.*` use
+[SqlQualifiedStarExpression](sql-qualified-star-expression.md). Syntactic and expanded SELECT/RETURNING
+lists are limited to 1,664 entries (CS05097 / 54011), including nested bodies and view expansion.
 
 GroupBy retains plain keys and [SqlGroupingSetExpression](sql-grouping-set-expression.md) nodes.
 IsGroupByDistinct removes duplicate expanded sets; false preserves them (omitted quantifier or ALL).

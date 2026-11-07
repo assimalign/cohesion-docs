@@ -64,7 +64,8 @@ provisioning. Data writes that use a label do not alter its definition.
 
 Property metadata supports an optional shared `DatabaseType` and a required flag. The engine uses
 these declarations for schema checks; the catalog does not inspect node content. Indexes carry a
-name and property key, and are nonunique. The physical tree identity and registration stay entirely
+name, property key and IsText discriminator, and are nonunique. Exact and text kinds may coexist
+once per label/property pair. The physical tree identity and registration stay entirely
 in `Graph.Storage`. A catalog index save cannot silently retarget an existing name to another
 property.
 
@@ -89,12 +90,12 @@ The payload begins at byte 16:
 | Offset / order | Encoding | Meaning |
 | --- | --- | --- |
 | 16 | byte | Kind: 1 label, 2 relationship type, 3 property key, 4 named index, 5 named constraint, 6 current type, 7 node type, 8 edge type |
-| 17 | byte | Format version 3 for every kind |
+| 17 | byte | Format version 4 for every kind |
 | 18 | 16 bytes | CLR `Guid.ToByteArray()` representation: definition ID for kinds 1/2, parent ID for kinds 3/4/5, private current-type GUID for kinds 6/7/8 |
 | 34 | string | Definition name, property key, index name, or constraint name |
 | Following name, kinds 1/2 | byte, string | `DatabaseObjectOwner` value and owning schema |
 | Following name, kind 3 | byte, byte | Shared `DatabaseType` value (255 means unconstrained), required flag (0 or 1) |
-| Following name, kind 4 | string | Indexed scalar property key |
+| Following name, kind 4 | string, byte | Property key and index kind: 0 exact, 1 text |
 | Following name, kind 5 | string, byte | Property key and DatabaseType (255 denotes existence) |
 
 Kinds 6/7/8 persist the current-type marker and immutable node/edge declarations. An empty type
@@ -103,11 +104,11 @@ are projected through [GraphSchema](graph-schema.md#graph-type-operations), rath
 the catalog's internal declaration types. Changed and removed rules publish atomically with token
 discovery; unchanged declarations retain their physical identity and version chain.
 
-Only catalog v3 is admitted. Earlier/future record versions refuse with CG06019 before logical
+Only catalog v4 is admitted. Earlier/future record versions refuse with CG06019 before logical
 recovery scrub, with no legacy reader or upgrade path; recreate the database. The gate uses a
 recovered read-only preflight when replay is needed, before any writes. Clean and crashed refusals
 preserve all files byte for byte. Empty catalogs have no versioned records to refuse. The graph
-entity/tree format remains 5.
+entity/registration format remains 5; B-tree pages require format 3.
 
 All fixed-width numeric values are little-endian. Strings use a signed 32-bit little-endian UTF-8
 byte length followed by exactly that many strict UTF-8 bytes. Length -1 represents null, accepted
@@ -120,6 +121,11 @@ Encoding validates the complete UTF-8 record against the 8,092-byte SlottedPage.
 before physical apply. Names, owning schema and index property text all count, including headers
 and lengths; this is not a character-count limit. Exact fit is accepted. Overflow throws
 GraphElementTooLargeException at the catalog and becomes structured CG02009 through the engine.
+
+Catalog v4's kind-4 discriminator is immutable: 0 exact, 1 text. Unknown values refuse CG06006.
+Physical index-definition revisions and signed registration receipts are also checked by the
+recovered read-only gate. With both old B-tree pages and old catalog records, CK06101 occurs
+before CG06019; all files remain unchanged. See [combined refusal order](../../../../database/error-codes.md#combined-format-refusals).
 
 ## MVCC, mutation, and recovery
 

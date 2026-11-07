@@ -32,7 +32,7 @@ an incoming clause, with optional RETURN. They are not standalone leading statem
 
 ## Schema statements
 
-- **[CREATE INDEX](create-index.md)** and **[DROP INDEX](drop-index.md)** — named node-property indexes.
+- **[CREATE INDEX](create-index.md)** and **[DROP INDEX](drop-index.md)** — named exact and trigram node-property indexes.
 - **[CREATE CONSTRAINT](create-constraint.md)** and **[DROP CONSTRAINT](drop-constraint.md)** — type/existence rules for node and relationship properties.
 - **[CREATE LABEL](create-label.md)** and **[DROP LABEL](drop-label.md)** — Cohesion label definitions.
 - **[CREATE RELATIONSHIP TYPE](create-relationship-type.md)** and **[DROP RELATIONSHIP TYPE](drop-relationship-type.md)** — Cohesion relationship-type definitions.

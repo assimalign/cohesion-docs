@@ -338,7 +338,7 @@ columns use CS03025. Stable/Volatile defaults execute per assignment; subqueries
 
 | Code | Meaning and trigger | SQLSTATE |
 | --- | --- | --- |
-| `CS03105` | Permanent policy/metadata planning refusal before steps or intent save: includes conversions outside the lossless whitelist without destructive opt-in, namespace/dependency refusals and default changes without any TYPE rewrite | — |
+| `CS03105` | Permanent policy/metadata planning refusal before steps or intent save: includes conversions outside the lossless whitelist without destructive opt-in, namespace/dependency refusals and default changes without destructive opt-in | — |
 | `CS03402` | Joint migration preparation, reservation or space admission failed, or an unpublished target/route was discarded; old schema stays online unless an independent storage latch fires; space refusals include needed/available bytes | — |
 | `CS03403` | Joint catalog publication commit is unconfirmed; old/new outcome is unknown and reopen/recovery decides the schema | — |
 | `CS03404` | CREATE TABLE, CTAS, CREATE VIEW, CREATE SEQUENCE or table rename targets a name reserved by a queued/running joint plan | — |
@@ -347,10 +347,29 @@ Joint preparation has no automatic retry. A later explicit apply or Build declar
 can retry; a Build declaring the old schema opens normally. After successful publication, returning
 to an earlier declaration is a reverse migration with the same destructive-change gate.
 Provisioning health retains the failure code until a successful apply/Build, including an
-already-applied skip or successful Verify. Every deferred migration uses joint publication and
-`CS03402` before publication; non-TYPE inline per-step application keeps compensation and `CS03104`.
+already-applied skip or successful Verify. Every deferred and inline migration uses joint
+publication and `CS03402` before publication. Imperative cancellation/timeout clears Provisioning.
 See [code-first type changes](statements/alter-table.md#code-first-type-changes) and
 [health and recovery](../index.md#typed-migration-health-and-recovery).
+
+## Target list width
+
+CS05097 (54011, too_many_columns) refuses SELECT or RETURNING lists above 1,664 syntactic
+or expanded entries, naming the limit and attempted count. This includes nested query bodies,
+compound operands and view expansion. At syntactic entry 1,665 the parser abandons the remaining
+text and discards its partial tree. See [qualified wildcards](clauses/join.md#qualified-wildcards).
+
+## Journal admission
+
+`CK04014` (57014) means a statement deadline expired waiting for a journal checkpoint, or
+admission refused immediately because the statement retained metadata/gates. Session DDL
+refuses immediately at paused admission. Failed-statement work and new grants release while
+the SQL session and explicit transaction remain usable. Caller cancellation retains its meaning.
+Migrations wait outside physical/publication gates and resume prepared work. StatementTimeout
+is zero by default: a normal admission wait has no default deadline. Reads retain ordinary
+snapshot and locking behavior. A pending pause reports Degraded/CK06006 while remaining online;
+persistent checkpoint/write-back failures retain the offline window. See
+[admission and concurrent DDL](../../../dotnet-apis/resources/database/assimalign-cohesion-database/design.md#journal-admission).
 
 ## Database creation and open
 
@@ -508,16 +527,17 @@ The shared StatementFailed event takes its payload code from non-null Diagnostic
 
 ## Hash-build refusal
 
-CS05067 reports exhausted statement memory for retained SELECT buffers and materialized results,
-hash builds, retained joined-DML state or CTAS source/copy buffers
-(SQLSTATE 53200, out_of_memory). Its diagnostic message is unprefixed. Configure
-SqlDatabaseEngineOptions.StatementMemoryBudget; there is no spill. See
-[hash joins](clauses/join.md#hash-joins-and-memory) and [CTAS](statements/create-table.md#create-table-as).
+CS05067 (53200) reports exhausted retained SELECT, hash-build, joined-DML or CTAS source/copy
+memory. Eligible root ORDER BY and ordered DISTINCT sorts, including CTAS source roots, now
+spill at this boundary. Excluded shapes still refuse; an unordered CTAS refuses at its budget
+while the same statement with an eligible ORDER BY spills. CS05067 also refuses a ninth live
+spilled result, an unsupported spill cell/key, or a reader exceeding the result grant.
 
-Plain SELECT bytes that fill the grant first also make a window or JSON memory refusal report
-CS05067. With no plain bytes live, their grants retain CS05079 and CS05094. Large sorts/results
-need a larger budget; no query operator spills yet. A declared-script CTAS refusal remains online
-and a later Build with a larger budget resumes at the refused statement.
+Plain bytes filling the grant first can make window/JSON refusal report CS05067; with no plain
+bytes live those owners retain CS05079/CS05094. CK05001–CK05006 remain located temp errors and
+leave durable storage online and an explicit transaction active. At the default four-grant
+physical quota, seven grants of 20 three-byte characters refuse CK05002; six fit. See
+[the complete spill exclusions, capacity and lifetime](../performance.md#root-sort-spilling).
 
 ## CREATE TABLE AS conditions
 

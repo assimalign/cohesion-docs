@@ -634,6 +634,13 @@ counts; a corrupt page they read still emits PageChecksumFailed (Error). See
 [shared format preflight](../assimalign-cohesion-database-storage/design.md#read-only-recovered-format-preflight).
 Evidence: this model project's `tests/RefusedOpenTests.cs` and `tests/FormatProbeFixTests.cs`.
 
+## B-tree compatibility
+
+Current B-tree pages use format 3. Format-2 trees refuse CK06101 through recovered read-only
+preflight before recovery or any other write. Clean and crashed file sets remain unchanged.
+When both model metadata and B-tree stamps are old, the entry-space marker precedes B-tree roots, so the
+single refusal is CV06107. See [combined refusal order](../../../../database/error-codes.md#combined-format-refusals).
+
 ## Sources
 
 - **Lane isolation evidence** — `cohesion/resources/Database/Assimalign.Cohesion.Database.KeyValuePair/tests/KeyValueWorkerResilienceTests.cs` and `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/tests/MaintenanceCapacityTests.cs`.
