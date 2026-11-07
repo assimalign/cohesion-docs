@@ -12,7 +12,11 @@ public sealed class TransactionCheckpointInterlock
     public static TransactionCheckpointInterlock ForStorage(
         Assimalign.Cohesion.Database.Storage.Storage storage);
     public Lease Enter(string bracketClass, long owner = 0,
-        CancellationToken cancellationToken = default);
+        CancellationToken cancellationToken = default,
+        bool waitForAdmission = true, bool drain = false);
+    public long JournalSizeLimit { get; set; }
+    public bool IsAdmissionPaused { get; }
+    public bool ObserveAdmissionPause();
     public bool TryCheckpoint(TimeSpan gateTimeout,
         CancellationToken cancellationToken = default);
 
@@ -48,6 +52,23 @@ bracket at checkpoint, throws StorageTransactionException. Offline storage or a 
 failure can throw StorageOfflineException. Other checkpoint failures retain their original exception;
 a deferred operational failure is rethrown by the next call, preserving its identity.
 
+## Journal admission
+
+JournalSizeLimit is a byte limit; zero disables the backstop and resumes a pause, and a negative
+value throws ArgumentOutOfRangeException. IsAdmissionPaused is a pure live-state read.
+ObserveAdmissionPause observes appended bytes and requests a checkpoint/pause at `ceil(J/2)`.
+Reads opening no physical write bracket remain admitted.
+
+Enter normally waits for checkpoint completion. `waitForAdmission: false` refuses a pause
+immediately, including one beginning during physical-gate acquisition, when a monitor or metadata
+lease must remain held. `drain: true` admits mandatory cleanup through a pause. Nested scopes
+reuse outer admission. A canceled pause wait or non-waiting refusal throws
+[TransactionAdmissionCanceledException](transaction-admission-canceled-exception.md); ordinary
+acquisition cancellation retains OperationCanceledException. Offline storage throws
+StorageOfflineException and closed admission throws ObjectDisposedException.
+
+See [policy, failures and SQL deadlines](../assimalign-cohesion-database/design.md#journal-admission).
+
 ## Lease
 
 Lease is a thread-affine readonly value type. Copies share one disposal identity. Dispose on the
@@ -56,10 +77,9 @@ The outermost disposal releases admission and can service a checkpoint. A refuse
 disposal emits CheckpointLeaseThreadMismatch (Error 22), asserts in Debug and throws
 StorageTransactionException without releasing admission.
 
-The thread check precedes the disposal-identity lookup whenever the entering thread holds
-synchronous admission. An already disposed copy therefore also refuses cross-thread disposal
-while that thread holds another scope. Default/inert leases and disposed copies when that
-thread holds no scope do nothing.
+An ended nested copy still refuses cross-thread disposal within the same outer acquisition.
+A stale copy from an earlier outer acquisition is inert after re-entry. Default/inert leases
+and copies whose entering thread holds no admission do nothing.
 Use synchronous scopes without an await that could move disposal to another thread.
 
 CheckpointBlocked (Verbose 21, Checkpoints keyword) reports the deferred holder class and owner.

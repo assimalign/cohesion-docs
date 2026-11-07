@@ -240,11 +240,23 @@ datatype_mismatch). Full-definition default/implicit collation changes retain CS
 Identity, view, CHECK/domain, FK, index, lock and conversion failures retain their existing codes;
 see [SQL diagnostics](sql/language/diagnostics.md#alter-column-type-conditions).
 
+## Journal admission
+
+| Code | Meaning and trigger | SQLSTATE |
+| --- | --- | --- |
+| CK04014 | Statement deadline during checkpoint admission, or immediate refusal while retaining metadata/gates | 57014 |
+| CK06006 | Journal admission paused for a pending checkpoint; Degraded health while online | — |
+
+At appended bytes `ceil(J/2)` for J above zero, new write brackets pause even with the size trigger
+off. A non-failing pending checkpoint can pause indefinitely. Persistent checkpoint/write-back
+failures retain the offline window. SQL StatementTimeout defaults to zero; normal waits have no
+default deadline. See [admission policy](../dotnet-apis/resources/database/assimalign-cohesion-database/design.md#journal-admission).
+
 ## SQL typed schema migrations
 
 | Code | Meaning and trigger | SQLSTATE |
 | --- | --- | --- |
-| CS03105 | Typed migration policy/metadata planning refused before steps or intent save, including conversions not proven lossless without destructive opt-in, namespace/dependency refusals and default changes without a TYPE rewrite | — |
+| CS03105 | Typed migration policy/metadata planning refused before steps or intent save, including conversions not proven lossless without destructive opt-in, namespace/dependency refusals and default changes without destructive opt-in | — |
 | CS03402 | Joint preparation, reservation or space admission failed, or an unpublished target/route was discarded; old schema retained online unless an independent storage latch fires; space refusals report needed/available bytes | — |
 | CS03403 | Joint publication commit unconfirmed; recovery decides whether the old or new schema is current | — |
 | CS03404 | Session relation creation or table rename names a relation reserved by a pending joint plan | — |
@@ -252,8 +264,8 @@ see [SQL diagnostics](sql/language/diagnostics.md#alter-column-type-conditions).
 See [typed migration diagnostics](sql/language/diagnostics.md#typed-schema-migrations),
 [conversion safety](sql/language/statements/alter-table.md#conversion-safety-and-application-rollback)
 and [health/recovery](sql/index.md#typed-migration-health-and-recovery). Failed joint preparation
-does not retry automatically. Every deferred migration uses joint publication; non-TYPE inline
-per-step application retains compensation and CS03104. Formats 36 and 35 are refused with CS06041
+does not retry automatically. Every deferred and inline schema apply uses joint publication.
+Formats 36 and 35 are refused with CS06041
 before writes; SQL record-space format 37 is current.
 
 ## SQL MERGE

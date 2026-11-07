@@ -298,7 +298,7 @@ assigned SQLSTATE. See [creation diagnostics](../../../../database/sql/language/
 Typed migrations add `CS03402` for failed joint preparation/reservation/space admission,
 `CS03403` for an unconfirmed publication and `CS03404` for a pending joint name reservation.
 `CS03105` refuses permanent planning/policy changes before steps or intent save, including
-unproven conversions without destructive opt-in and default changes without TYPE. None has
+unproven conversions and default changes without destructive opt-in. None has
 an assigned SQLSTATE. These are engine admission/publication rules and add no syntax or AST.
 See [typed migration diagnostics](../../../../database/sql/language/diagnostics.md#typed-schema-migrations).
 

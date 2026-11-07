@@ -259,10 +259,9 @@ classDiagram
   engine or network stack. The former root schema's collection shape was removed;
   the document model will define its own vocabulary in its own model family.
   If another model needs a different shape, it does not belong in this root.
-  Every deferred SQL migration publishes jointly in one catalog commit, whether TYPE is present
-  or not. Before-publication failure leaves the old schema online (CS03402); an unconfirmed
-  commit reports CS03403 and recovery decides old or new. Non-TYPE inline per-step application
-  keeps compensation and CS03104. The root's Provisioning observation reports this model-owned
+  Every SQL schema apply publishes jointly in one catalog commit, across deferred and inline
+  entry points. Before-publication failure leaves the old schema online (CS03402); an unconfirmed
+  commit reports CS03403 and recovery decides old or new. The root's Provisioning observation reports this model-owned
   work; see [SQL provisioning](../assimalign-cohesion-database-sql/design.md#joint-migrations).
 - **`Object` ownership separates code-first provisioning from ad-hoc statements.**
   `DatabaseObjectOwner.Adhoc` objects remain fully mutable through session
@@ -397,6 +396,37 @@ serialization live in `Database.Sql.Schema`.
 | `Assimalign.Cohesion.Web` | `CohesionPrivateProjectReference` |
 
 [Assembly overview](index.md) · [Examples](examples/index.md)
+
+## Journal admission
+
+For a resolved journal size limit J above zero, appended bytes at or above `ceil(J/2)` request
+a checkpoint and pause new physical write brackets, even when the ordinary size trigger is off.
+The completed checkpoint record is excluded from this measurement. A successful checkpoint
+resumes admission. A pending checkpoint that is not failing can pause indefinitely online;
+health is Degraded with `CK06006`. Reads keep their ordinary snapshot and locking behavior.
+
+Persistent checkpoint and page write-back failures still take the database offline after the
+existing failure window (100 seconds and at least three failed passes by default), paused or not.
+Two failed checkpoints with a journal past J can take it offline sooner. Offline wakes parked
+writers with the original error. One admitted bracket, mandatory undo and already-enrolled
+lifecycle records can overshoot J; there is no refusal inside an admitted bracket. Shutdown
+disables pausing before server/worker joins and mandatory cleanup.
+
+SQL statement-deadline expiry during admission reports `CK04014` (57014). A statement that must
+retain metadata/gates refuses immediately with that code, including session DDL that reaches
+the paused storage. Caller cancellation keeps its token and cancellation meaning. The failed
+statement stays atomic and the SQL session and explicit transaction remain usable.
+`StatementTimeout` defaults to zero, so ordinary waits have no deadline by default.
+
+SQL migrations release physical/publication gates, wait with the job token, reacquire and
+revalidate, then resume the same prepared boundary without repeating committed copy/index work.
+Fitting and spilled CTAS copies retain their shared metadata lease; a declared script also
+retains its apply lease. Checkpoint work needs neither. Concurrent CREATE VIEW refuses at
+metadata admission (`CS03066`). An unrelated CREATE TABLE uses the independent catalog journal
+and can succeed during a data-journal pause; DDL that builds a data index refuses `CK04014`.
+
+See [interlock members](../assimalign-cohesion-database-transactions/transaction-checkpoint-interlock.md)
+and [admission events](../assimalign-cohesion-database-transactions/design.md#journal-admission-events).
 
 ## Deferred checkpoint lanes
 

@@ -13,6 +13,7 @@ Selected members:
 public abstract class Storage : IAsyncDisposable, IDisposable
 {
     public bool HasActiveTransactions { get; }
+    public IReadOnlyList<PageId> GetOwnerIndexPages(ulong ownerId);
     public StorageTransaction BeginTransaction();
     public StorageTransaction BeginTransaction(string bracketClass, long owner = 0);
     public StorageTransaction BeginTransaction(long sequence);
@@ -44,6 +45,14 @@ advisory, allocation-free read for engine retry admission: another transaction m
 after it returns. It neither excludes writers nor proves that a later checkpoint will succeed.
 The interlock reads it while holding admission after its own brackets have ended to detect
 remaining outside blockers.
+
+## GetOwnerIndexPages
+
+Returns a point-in-time snapshot of the owner's index pages in ascending page order, including
+unregistered trees; empty when it owns none. Later allocations/releases do not change the result.
+Released pages leave the directory on transaction commit. Open rebuilds the directory from
+recovered page headers, including pages of trees no longer registered. Joint retirement admission
+uses this to count separate tree pages without charging stranded pages of a kept heap.
 
 ## Example
 

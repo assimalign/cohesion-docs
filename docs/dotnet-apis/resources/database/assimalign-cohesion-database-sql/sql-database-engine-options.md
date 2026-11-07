@@ -41,8 +41,15 @@ than a session override. Expiration throws SqlTimeoutException with CS04044 / 55
 
 For a [joint migration](design.md#joint-migrations), including every deferred migration, nonzero engine LockTimeout
 also bounds the touched-table reservation before queueing. A reservation timeout reports
-`CS03402` in both the thrown diagnostic and Provisioning, preserving the lock-manager cause.
+`CS03402`, preserving the lock-manager cause. Imperative cancellation/timeout clears Provisioning;
+deferred failures stay sticky.
 Untouched tables remain usable; definition DDL is refused database-wide while queued/running.
+
+Journal admission pauses new brackets at `ceil(JournalSizeLimit/2)`, even with the size trigger
+off. A SQL deadline during this wait reports CK04014 / 57014. With the default StatementTimeout
+of zero, there is no statement deadline. Session DDL retaining metadata refuses immediately;
+migrations wait outside physical/publication gates and resume prepared work. See the
+[shared policy](../assimalign-cohesion-database/design.md#journal-admission).
 
 ## Example
 

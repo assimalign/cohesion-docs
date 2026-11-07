@@ -120,8 +120,8 @@ still lose that result. See [COMMIT](language/statements/commit-transaction.md).
 
 Compiled schemas own their tables and indexes. Session DDL cannot alter/drop schema-owned tables
 or drop schema-owned indexes, although ordinary row DML remains available. Provisioning records
-canonical state only after catalog convergence. Every deferred migration and every TYPE-rewrite
-plan publishes jointly; non-TYPE inline application keeps per-step commits and compensation.
+canonical state with the complete target in one catalog commit. Every schema apply publishes
+jointly, including deferred work, `RunMigrationsInline`, empty-table Build and `ApplySchemaAsync`.
 
 ## Execution limits
 
@@ -177,7 +177,7 @@ schema**, unless an independent storage latch fires. Nothing retries on its own.
 reported condition, then explicitly apply or Build the target again. A rolled-back application's
 Build declaring the old schema opens normally. A successful apply or Build clears the earlier
 failure, including an already-applied schema skip; health then returns to Healthy if no other
-condition prevents it. Non-TYPE inline per-step application keeps compensation and `CS03104`.
+condition prevents it. Inline apply uses the same joint publication boundary.
 
 After a crash before publication, only a Build declaring the same pending target resumes the
 migration by replanning preparation. A different-target Build discards with `CS03402` and replans
