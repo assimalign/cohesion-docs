@@ -156,17 +156,15 @@ and [shared engine health](../overview.md#engine-health-and-version-purge).
 
 ### Typed migration health and recovery
 
-Every deferred migration, whether TYPE is present or not, and every
-[TYPE-rewrite plan](language/statements/alter-table.md#code-first-type-changes) prepares the whole
-target unpublished and publishes it in one catalog commit. Classification is
-per table: index additions and CHECK, NOT NULL, UNIQUE and foreign-key changes can keep an
-unchanged table's physical storage and retained indexes. Only new index trees are built for
-such tables. A dropped or replaced pre-existing index whose pages belong to the table forces
-that table to rewrite. Separately owned trees can be dropped or replaced while keeping the table.
-An additive index can keep a table that already has a primary key, and the key's observed name
-survives both kept and rewritten publication. Script-declared indexes on typed tables survive,
-including uniqueness, unless explicitly dropped or replaced by a same-name schema declaration.
-TYPE, default, column-order and primary-key changes still rewrite. See
+Every schema apply, including deferred work, `RunMigrationsInline`, empty-table Build and
+`ApplySchemaAsync`, prepares the whole target unpublished and publishes it in one catalog commit.
+Classification is per table. Nullable append, DROP COLUMN, compatible facet changes, SET/DROP
+DEFAULT and supported constraint/index changes keep the heap without rewriting rows; validation
+or new tree builds still run when required. A heap-owned DROP INDEX without a same-name
+replacement keeps the heap and leaves its pages allocated until heap retirement. A same-name
+heap-owned replacement requires a full rewrite; separately owned trees can be replaced while
+keeping the heap. Primary-key changes and required TYPE replacements rewrite. Script-declared
+indexes survive unless explicitly dropped or replaced by a same-name schema declaration. See
 [kept-table preparation](../../dotnet-apis/resources/database/assimalign-cohesion-database-sql/design.md#joint-tables-that-keep-storage).
 Hosting health is
 Degraded while it is queued/running. Every touched table, including affected foreign-key neighbors,

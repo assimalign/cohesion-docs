@@ -48,8 +48,8 @@ it must be at least FanIn + 1. Overloads without it default to 1,024. SQL sets 6
 input/output runs and the directory lease are additional, and concurrent statements add up.
 
 RunsCreated counts initial sorted runs; MergePasses is the maximum stages traversed by an output
-row. Complete transfers at most FanIn runs to a reader retaining count × (8192 + maximum record
-length) bytes. The final merge streams without writing another file. Dispose deletes remaining
+row. Complete transfers at most FanIn runs to a reader retaining count × (8192 + max(16, actual
+maximum framed record length)) bytes. The final merge streams without writing another file. Dispose deletes remaining
 intermediates; a successfully returned reader owns its runs.
 
 Append after Complete, or repeated Complete, throws InvalidOperationException; disposed owners

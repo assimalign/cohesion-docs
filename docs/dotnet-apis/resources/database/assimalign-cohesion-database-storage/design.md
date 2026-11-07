@@ -64,7 +64,8 @@ without paths, keys or rows.
 The sorter can drain an already sorted prefix before allocating its arena, and a maximumOpenRuns
 overload bounds live handles including merge output. Complete returns an owning merge; its
 OpenReader forks independent cursors while it stays unstarted and alive. Each cursor's BufferBytes
-is `run count * (8192 + maximumRecordLength)`. SQL uses a 64-run ceiling per sort. See
+uses the actual final-run maximum framed record length (at least 16):
+`run count * (8192 + actual maximum)`. SQL uses a 64-run ceiling per sort. See
 [sorter](storage-temp-sorter.md) and [reader ownership](storage-temp-sort-reader.md#openreader).
 
 ## The page model

@@ -310,7 +310,7 @@ those identifier forms. The mapper uses the same retained names, so its quoted D
 deployed by this renderer without another naming convention.
 
 Every schema apply prepares its complete target unpublished and publishes in one catalog commit.
-This covers deferred work, empty-table Build, `RunMigrationsInline`, declared scripts and explicit
+This covers deferred work, empty-table Build, `RunMigrationsInline`, Build with declared scripts and explicit
 `ApplySchemaAsync`. Preparation failure leaves the old schema online (`CS03402`); an unconfirmed
 publication reports `CS03403`. SET/DROP DEFAULT also publishes jointly, with destructive opt-in
 required (`CS03105` without it).
@@ -374,12 +374,12 @@ See [space admission and offline exceptions](storage-design.md#joint-migration-s
 ### Joint tables that keep storage
 
 A joint migration classifies each existing table separately. Nullable append, DROP COLUMN,
-compatible VARCHAR/DECIMAL widening, aliases, default changes, relaxed nullability and dropped
-CHECK/FK constraints keep the heap without rewriting rows. SET NOT NULL, DECIMAL/VARBINARY
+compatible VARCHAR/DECIMAL widening, equivalent built-in type spellings, default changes,
+relaxed nullability and dropped CHECK/FK constraints keep the heap without rewriting rows. SET NOT NULL, DECIMAL/VARBINARY
 tightening, ADD CHECK, required or checked-domain appends and ADD FK keep the heap while validating
 visible values. Only changed columns/domains are coerced or rechecked; unrelated domains and
 unchanged defaults are not revalidated. Additive indexes and supported UNIQUE changes build only
-new trees. TYPE changes and other required physical replacements rewrite.
+new trees. Primary-key changes, TYPE changes and other required physical replacements rewrite.
 
 A table that already has a primary key can keep its heap when adding an index. Planning identifies
 the key by its primary-key marker and columns and preserves its generated name across both keep
@@ -2103,7 +2103,11 @@ retains CS03402. A classification mismatch during planning stops Restarted and c
 Replan. A no-target open emits no provisioning trace or observation. Successful Verify clears a
 declared discard observation. Stop outcomes also include Applied, Verified, Error and Cancelled.
 
-Deferred events describe the complete joint job using Joint/ kinds. Kind, Table and Position
+IDs 18–21 describe the complete joint job for deferred, inline, empty-table and ApplySchemaAsync
+work using Joint/ kinds. A zero-operation reconciliation uses Joint/Schema with one progress
+position. Inline failure ID 15 uses JointMigration and CS03402/CS03403; IDs 15 and 21 report
+the inner cause's exception type. Imperative cancellation/timeout clears Provisioning; deferred
+failures remain sticky, and a rejected handoff keeps the producer's outcome. Kind, Table and Position
 retain the first executable operation through preparation; they do not identify later table work.
 Row counts restart at each table and phase; unknown totals are -1. Constraint-only validation
 reports unknown total while scanning and the exact count at completion, without a counting scan.

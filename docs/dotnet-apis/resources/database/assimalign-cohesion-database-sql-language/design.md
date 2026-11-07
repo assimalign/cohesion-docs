@@ -144,10 +144,11 @@ model-specific diagnostic; `CS00002` remains the unknown-command diagnostic.
   while excluded clauses such as ALL remain absent. Ranking/navigation windows execute.
   RECURSIVE executes demand-driven fixpoints with shared readers. Views and DML RETURNING execute. Non-recursive WITH, FETCH and
   lexical SELECT TOP execute; PERCENT, WITH TIES and DML TOP retain capability diagnostics. `ParseCore` scans a copy of its configured
-  lexer before recursive descent and attaches the first rejected clause to the
+  lexer after the bounded parse completes and attaches the first rejected clause to the
   statement, so analyzers observe `CK00001` with the token location and the `SQL`
   surface name. An actually unknown leading command still receives `CS00002`, even
-  when a later recognized token is also unsupported.
+  when a later recognized token is also unsupported. A target-list refusal above 1,664 abandons
+  the tail before whole-text lexical/capability diagnostics, avoiding allocations for that text.
 
 ## SELECT evaluation
 

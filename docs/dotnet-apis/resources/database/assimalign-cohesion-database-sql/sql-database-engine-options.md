@@ -129,8 +129,9 @@ shared with window-frame recomputation and is independent of the configured byte
 ## Temporary space
 
 These three options configure the disposable-storage substrate. They exist only on the SQL
-engine options on this branch. No query operator uses the substrate yet; SQL retains memory
-refusals and raising StatementMemoryBudget remains necessary for large sorts/results.
+engine options on this branch. Eligible root ORDER BY and ordered DISTINCT, including CTAS
+source roots, use it when their memory reservation would refuse. Excluded shapes retain
+memory refusals; see [eligibility and capacity](../../../../database/sql/performance.md#root-sort-spilling).
 
 | Member | Default and validation |
 | --- | --- |

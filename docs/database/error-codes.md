@@ -57,7 +57,7 @@ SQLSTATE mappings are documented code mappings, not separate wire fields.
 
 StorageTempException exposes Code separately from its unprefixed message. These conditions
 refuse disposable work without taking durable databases offline; they have no assigned SQLSTATE.
-No query operator uses the temporary-space substrate yet.
+Eligible root SQL ORDER BY and ordered DISTINCT use this substrate, including CTAS source roots.
 
 | Code | Meaning and trigger |
 | --- | --- |
@@ -76,7 +76,9 @@ and [SQL configuration](../dotnet-apis/resources/database/assimalign-cohesion-da
 
 CS05067 (53200) covers every retained plain SELECT buffer and materialized result, including
 joins, sorts, grouping, set operations and caches. The default StatementMemoryBudget is 64 MiB;
-large sorts and results refuse until the budget is raised. No query operator spills yet.
+eligible root ORDER BY and ordered DISTINCT, including CTAS source roots, spill where their
+reservation would refuse. Other retained results and excluded operators still need sufficient
+memory. See [spill exclusions and lifetime](sql/performance.md#root-sort-spilling).
 When plain bytes fill the grant first, window/JSON memory refusals also use CS05067. With no
 plain bytes live, their grants retain CS05079 and CS05094. A declared-script CTAS refusal stays
 online, publishes no table and resumes at that statement on a later Build with a larger budget.
@@ -188,7 +190,7 @@ Unresolved predicate registrations use existing CS01009 (42883) for table writes
 | CG03011 | Invalid graph-type mutation name/reference or identifying/implied label overlap | — |
 | CG03012 | Node write omits an implied label required by its node type | — |
 | CG04025 | Schema write inside an explicit transaction, including typed writes and conditional no-ops; aborts the transaction | — |
-| CG06019 | Catalog record version differs from v3; recreate the database, no legacy reader | — |
+| CG06019 | Catalog record version differs from v4; recreate the database, no legacy reader | — |
 
 See [GraphSchema](../dotnet-apis/resources/database/assimalign-cohesion-database-graph/graph-schema.md)
 for the typed surface and [schema DDL](graph/language/statements/create-index.md) for text commands.

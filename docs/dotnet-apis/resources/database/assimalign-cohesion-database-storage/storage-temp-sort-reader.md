@@ -41,8 +41,9 @@ or a fork cannot open another cursor (InvalidOperationException). Disposing a cu
 only its buffers; disposing the owner or statement invalidates every cursor.
 
 BufferBytes is the page-and-record workspace required by one active cursor:
-`run count * (8192 + maximumRecordLength)`. It describes the required buffer size even when
-the ownership-only template has released its workspace.
+`run count * (8192 + max(16, actual maximum framed record length))`. Complete uses the
+actual maximum across final runs rather than the sorter's declared record bound. BufferBytes
+still describes the required size when the ownership-only template has released its workspace.
 
 ## Related reference
 
