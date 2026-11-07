@@ -22,11 +22,34 @@ labels and CG03003 property violations or declared-token drops. CG03009 refuses 
 independent property types in either publication order. All schema mutations refuse explicit
 transactions with CG04025, including no-ops.
 
-Catalog v3 adds kinds 6/7/8 for the current-type marker, node and edge declarations. A set empty
+Catalog v3 introduced kinds 6/7/8 for the current-type marker, node and edge declarations;
+current v4 retains them. A set empty
 type differs from absence. Publication writes only changed records in one logical transaction,
 discovering tokens atomically; drop retains tokens and independent constraints. Recovery preserves
-the complete committed type or prior state. V2, including journal-only images, refuses with CG06019
-before writes, preserving every file. Entity/tree format remains 5. See [catalog format](catalog-design.md#on-disk-format).
+the complete committed type or prior state. V3, including journal-only images, refuses with CG06019
+before writes, preserving every file. Entity/registration format remains 5. See [catalog format](catalog-design.md#on-disk-format).
+
+## Text indexes
+
+[CREATE TEXT INDEX](../../../../database/graph/language/statements/create-index.md#text-indexes)
+builds ordinal Unicode trigram postings for equality, STARTS WITH, ENDS WITH and CONTAINS.
+Each seek reads the pattern's first trigram only and mandatorily rechecks stored values.
+Patterns under three code points scan, with parameters rechecked at execution. Text access
+only substitutes the already chosen node/label scan; it never moves the plan anchor or wins
+another node's tie. EXPLAIN reports the access, execution decision, anchor and recheck.
+
+Each node version maintains at most N-2 distinct tokens for N code points; short strings have
+none. Work and memory for extraction/postings are charged before retention; unrelated SET
+changes still maintain tokens. These costs are an exception to the ordinary 100,000-row
+envelope; see [formulas and measured boundaries](../../../../database/graph/language/statements/create-index.md#write-costs-and-capacity).
+Exact and text definitions coexist once per pair and kind. SHOW INDEXES keeps its columns.
+Dropped trees retire after snapshot pins release; maintenance persists a receipt and frees
+at most 64 owner pages per pass. Snapshot writers maintain dropped exact trees they still see.
+
+Catalog v4 stores the text-kind discriminator and refuses v3 with CG06019 before writes,
+preserving all files. Graph entity/registration format remains 5; B-tree page format is 3.
+If both catalog and B-tree stamps are old, CK06101 occurs first in its existing message-only
+carrier. See [combined refusal order](../../../../database/error-codes.md#combined-format-refusals).
 
 ## Model component boundaries
 
@@ -419,11 +442,13 @@ and abort it, even for conditional no-ops. Argument checks precede admission. In
 discovers missing label/property tokens; text constraints also discover missing owner tokens.
 Failure rolls discovery back with publication. Owner-posting validation and index backfill
 charge statement work/memory (CG05004/CG05020); invalid limits retain CG08021. Typed writes
-use engine ceilings; text requests may lower limits. Catalog is v3; entity/tree format remains 5.
+use engine ceilings; text requests may lower limits. Catalog is v4; entity/registration format
+remains 5 and B-tree pages use format 3.
 
-Catalog v2 introduced kind-5 constraint records; current v3 also stores graph types and refuses other versions with
+Catalog v2 introduced kind-5 constraints and v3 introduced graph types. Current v4 also stores
+text-index kinds and refuses other versions with
 CG06019 before recovery writes. Clean and crashed refusals preserve every file byte for byte. Recreate
-affected databases; there is no upgrade reader. Entity/tree format remains 5.
+affected databases; there is no upgrade reader. Entity/registration format remains 5.
 
 | Code | Named-schema condition (no assigned SQLSTATE) |
 | --- | --- |
@@ -433,7 +458,7 @@ affected databases; there is no upgrade reader. Entity/tree format remains 5.
 | CG03009 | Duplicate constraint kind or incompatible property type rule |
 | CG03010 | Existing data violates a new constraint |
 | CG04025 | Typed/text schema write inside an explicit transaction; aborts it |
-| CG06019 | Catalog record version differs from v3 |
+| CG06019 | Catalog record version differs from v4 |
 
 Labels, relationship types and discovered property keys persist even when the last data object is
 deleted. Discovery sees the session snapshot. `New` data introduces ad-hoc definitions. A supplied
@@ -1140,6 +1165,9 @@ duplicate owner bookkeeping charges. Physical work includes visited anchors, sel
 candidates, merge initialization, dead ends and FOR elements. This is retained-state accounting,
 not a process heap limit.
 
+Text-index extraction and posting maintenance are an exception to the 100,000-row envelope;
+see [write costs and capacity](../../../../database/graph/language/statements/create-index.md#write-costs-and-capacity).
+
 Default options admit 100,000 one-property rows for SET, FOR … INSERT, RETURN n and QueryPaths;
 the ten-times-larger regression workloads refuse with `CG05020`. Wider rows and retained
 intermediate stages reduce capacity. Raise the server engine ceilings for larger workloads.
@@ -1304,6 +1332,8 @@ counts; a corrupt page they read still emits PageChecksumFailed (Error). See
 Evidence: this model project's `tests/RefusedOpenTests.cs` and `tests/FormatProbeFixTests.cs`.
 
 ## Sources
+
+- **Text indexes and format v4** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Graph/docs/DESIGN.md`, `src/Storage/GraphStore.TextIndexes.cs`, `tests/GraphTextIndexTests.cs` and each model's `tests/FormatOrderIntegrationTests.cs`.
 
 - **Inline CALL** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Graph/tests/GqlCallSubqueryTests.cs`, `GqlCallReviewTests.cs` and `cohesion/resources/Database/Assimalign.Cohesion.Database.Graph.Client/tests/GraphCallSubqueryWireTests.cs`.
 - **Memory-only MERGE and lifecycle precedence** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Graph/tests/SavepointMergeLockTests.cs`, `src/Internal/Execution/GraphMergeLocks.cs` and `cohesion/resources/Database/Assimalign.Cohesion.Database/tests/SavepointSeamTests.cs`.

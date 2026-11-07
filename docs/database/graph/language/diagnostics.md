@@ -47,10 +47,12 @@ These conditions have no assigned SQLSTATE:
 | CG03011 | Invalid graph-type mutation name/reference or identifying/implied label overlap |
 | CG03012 | Node write omits an implied label required by its node type |
 | CG04025 | Schema write inside an explicit transaction, including typed writes and conditional no-ops; aborts the transaction |
-| CG06019 | Catalog record version is not v3; recreate the database, with no legacy reader |
+| CG06019 | Catalog record version is not v4; recreate the database, with no legacy reader |
 
-CG06019 refuses before any write, including for v2 journal-only images. Recovered read-only
-preflight preserves every file byte for byte. This is distinct from graph entity/tree format 5
+CG06019 refuses before any write, including for v3 journal-only images. Recovered read-only
+preflight preserves every file byte for byte. If B-tree pages are also old, CK06101 occurs
+first in its existing message-only carrier; current pages require format 3. See
+[combined refusals](../../error-codes.md#combined-format-refusals). This is distinct from graph entity/registration format 5
 and its CG06017/CG06018 checks. An empty catalog
 has no versioned records to refuse. SHOW CONSTRAINTS returns independently named rules.
 DDL validates GraphQueryLimits inside the admitted operation (CG08021). Owner scans and

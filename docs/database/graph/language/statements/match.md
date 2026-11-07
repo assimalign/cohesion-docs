@@ -189,6 +189,11 @@ segments, and does not change OPTIONAL MATCH NULL extension. See
 WALK even with LIMIT report CK00001. [Selectors](../path-selectors.md) and inline WHERE prefilters
 execute and support EXPLAIN, including selected unbounded WALK. Every mode retains hop/work and memory limits.
 
+[Text indexes](create-index.md#text-indexes) can replace an eligible required-label scan for
+property equality, STARTS WITH, ENDS WITH or CONTAINS. They read the first trigram and recheck
+the stored value. Patterns under three code points scan, decided again at execution for a
+parameter. Text access never moves the chosen node/label anchor.
+
 ## Sources
 
 - **Type anchors, estimates and accounting** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Graph/tests/GraphRelationshipTypeAnchorTests.cs`, `GraphRelationshipTypeAnchorTests.Estimates.cs` and `GraphRelationshipTypeAnchorTests.Accounting.cs`.
