@@ -50,7 +50,7 @@ Reference for the supported data definition, data manipulation, and transaction-
 
 ## Scope
 
-The [dialect hub](../index.md) describes the 91-of-93 clause measure. Recognition alone is not
+The [dialect hub](../index.md) describes the 92-of-93 clause measure. Recognition alone is not
 execution support; use [diagnostics](../diagnostics.md) and the
 [unsupported-syntax matrix](../unsupported.md) when a form is rejected.
 

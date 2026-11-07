@@ -10,6 +10,9 @@ Namespace: `Assimalign.Cohesion.Database.Sql.Language`.
 public sealed class SqlJoinClause
 {
     public SqlJoinType JoinType { get; }
+    public bool IsNatural { get; }
+    public Location? Location { get; }
+    public Location? KeywordLocation { get; }
     public SqlRelationReference Table { get; }
     public SqlExpression? Condition { get; }
     public IReadOnlyList<string> UsingColumns { get; }
@@ -19,9 +22,12 @@ public sealed class SqlJoinClause
 ## Behavior and exceptions
 
 The parser owns construction. Condition holds ON, or null for USING/CROSS. UsingColumns preserves
-written order and is empty for ON/CROSS. SqlJoinType has Inner, LeftOuter, RightOuter, FullOuter
+written order and is empty for ON/CROSS/NATURAL. IsNatural asks the binder to derive USING
+names in left-input order. Location spans the join through its right input/condition;
+KeywordLocation spans the join keywords, including NATURAL. SqlJoinType has Inner, LeftOuter, RightOuter, FullOuter
 and Cross values; [SupportsJoin](sql-language-profile.md) accepts all five.
-INNER/LEFT/RIGHT/FULL require exactly one ON or USING. CROSS accepts neither.
+Non-NATURAL INNER/LEFT/RIGHT/FULL require exactly one ON or USING. CROSS accepts neither.
+NATURAL has neither an explicit condition nor explicit USING names; NATURAL CROSS is a syntax error.
 Table is now a [SqlRelationReference](sql-relation-reference.md), with named-table and
 [derived-query](sql-derived-table-reference.md) leaves, plus
 [unaliased grouped joins](sql-joined-table-reference.md).

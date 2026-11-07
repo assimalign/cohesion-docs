@@ -51,10 +51,10 @@ var options = new SqlDatabaseEngineOptions { StatementMemoryBudget = 32L * 1024 
 await using var engine = SqlDatabaseEngine.Create("orders", options);
 ```
 
-The positive byte budget defaults to 64 MiB and covers every retained SELECT buffer, including
-its materialized result. Exhaustion reports CS05067 (53200). Large sorts and results can refuse
-at the default grant; raise StatementMemoryBudget to admit them. Query operators do not spill
-on this branch, even though the temporary-space substrate exists.
+The positive byte budget defaults to 64 MiB and covers retained SELECT buffers. Eligible root
+ORDER BY and ordered DISTINCT spill when they would otherwise refuse CS05067 (53200). Other
+retained results/operators still need a sufficient grant. File engines use configured temporary
+space; in-memory engines need an explicit TempDirectory. Fitting sorts retain their existing path.
 
 ## Statement memory
 
@@ -78,14 +78,16 @@ candidate, even at LIMIT 0. Eligible EXISTS/scalar bodies retain at most two res
 still evaluate every projection the ordinary body would reach. EXISTS stops reading the completed
 result after one row; a scalar result's second row establishes its cardinality error.
 Paths that preserve volatile evaluation or resolve deferred collations can still stage input.
-The final selected result materializes before delivery and remains subject to the grant.
+Evaluation completes before delivery. Fitting results retain their existing materialization;
+spilled results decode lazily within their reader grant.
 Plan-sized traversal, current-row state, storage iterator scratch and transient planning are
 outside it. INSERT SELECT and DML subquery sources keep their existing policy.
 
 [CTAS](language/statements/create-table.md#create-table-as) charges like any SELECT, including
 sorting, grouping and caches, then charges kept output and copy buffers. Pagination does not
 reserve collection capacity. [Joined mutations](#joined-mutations) and recursive query state
-retain their existing accounting. Refusal stops input immediately, even before a later input error.
+retain their existing accounting. Refusal stops input immediately, even before a later input error,
+unless an eligible root sort hands retained rows to temporary storage.
 
 [SQL/JSON paths](language/functions/json-path.md#limits) charge transient DOM, result references
 and selected-result serialization to the same statement memory grant (CS05094 / 54000).
@@ -158,6 +160,58 @@ StatementMemoryBudget. About 840 bytes per two-column row limits a default 64 Mi
 about 79,900 rows, less when other statement work is retained. There is no cascade depth limit.
 CS05067 (53200) refuses exhaustion before writes; cleanup releases abandoned attempts.
 
+## Root sort spilling
+
+A root plain SELECT ORDER BY, its OFFSET + LIMIT heap, and ordered DISTINCT can spill under
+the same statement grant. Rows, headers, stable ties, DISTINCT's first sorted representative,
+volatile/sequence evaluation, access paths and pagination are unchanged. Ordered DISTINCT's
+seen set must still fit. CTAS source roots have the same permission in sessions and declared
+scripts; see [CTAS](language/statements/create-table.md#create-table-as).
+
+Spill permission does not extend to nested/subquery or derived/CTE operand bodies, compounds,
+correlated frames, recursion, windows, grouping sets, SQL/JSON statements, inferred SQL/JSON
+domain checks during CTAS assignment, deferred subqueries, plain ordered index scans without
+DISTINCT, ordered aggregates, ordered sequence deferral, or preceding operator buffers without
+a handoff. DML sources gain no spill permission; INSERT SELECT retains its existing source
+budgeting gap. Window/SQL/JSON owners keep their own grant code when they fill first.
+
+CS05067 also remains without temp space, with a nonfixed ordering collation, an unsupported
+row/key family, a binary cell returned by an application function (including through CASE or
+a projected cell), or a record beyond the sort bound. Binary columns, parameters and built-in
+binary results remain eligible. For grant G, encoded key + row + 16 framing bytes must fit
+`(G - 32768) / 16 - 8192`; G must be at least 65,536 and the bound at least 16. Before publishing
+a result, one reader plus its maximum decoded row and one decoding overlap must fit the grant.
+
+The default physical statement quota is four grants (256 MiB at the default 64 MiB grant).
+Ten grants of 20- or 50-character ASCII rows complete; session and declared-script CTAS complete
+ten grants of 20-character ASCII input. Twenty three-byte characters fit six grants, but seven
+refuse CK05002: payload capacity before rounding is 6.66 grants. Framing, width, run tails and
+intermediate merges determine capacity. A physical quota is not a fixed multiple of decoded rows.
+
+CK05001–CK05006 remain located statement/delivery errors, releasing temp files while leaving
+durable storage online and an explicit transaction active. Cleanup cannot replace a statement
+error or completed wire delivery. EXPLAIN keeps its fields; an actual spill adds `spilled_bytes`,
+`spill_peak_bytes`, `spill_runs` and `spill_merge_passes` to EXPLAIN ANALYZE.
+
+### Spilled result lifetime
+
+Delivery is lazy after evaluation completes. A result supports repeated or concurrent
+enumerations until disposed, session close or engine disposal; a later statement leaves it
+valid. Dispose ExecuteAsync results even after enumeration completes or is canceled. A session
+permits at most eight undisposed spilled results; a further spill refuses CS05067 until one
+is disposed. CTAS borrows a slot only while its source is live and releases it before statement end.
+
+Active reader workspace and retained decoded rows, including one row of old/new decoding
+overlap, share the result grant. A further reader exceeding it refuses CS05067 at its first
+MoveNextAsync, naming live/requested bytes and leaving existing readers intact. Canceling one
+reader ends only that reader. A real temp read failure closes the result and every reader sees
+the same coded failure. Disposal invalidates readers and releases files exactly once.
+
+A client canceling an exchange aborts its transport so blocked server delivery can unwind.
+An uncanceled stalled delivery has no time bound; IdleTimeout applies at the next-frame read.
+Temp quotas and MaxSessions bound retained files and accepted sessions until connection end
+or shutdown.
+
 ## Window frame work
 
 [Window stages](language/clauses/window.md) retain full partitions under the statement memory
@@ -168,6 +222,8 @@ restart evaluation when the head moves; this fallback can also hit CS05084 for n
 ANALYZE reports frame_visits, transitions, inverse_transitions and boundary_visits. LIMIT cannot shorten this work.
 
 ## Sources
+
+- **Root sort/CTAS spilling** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql.Language/docs/DIALECT.md` and `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/tests/SqlSortSpillConformanceTests*.cs`.
 
 - **SELECT retention and memory** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/tests/SqlSelectRetentionTests.cs`, `SqlSelectMemoryTests.cs`, `SqlSelectWideMemoryTests.cs` and `SqlJointTypeMigrationTests.BatchIntegration.cs` in the same directory; implementation is `src/Internal/Execution/SqlPlanExecutor.Retention.cs` and `SqlSelectMemory.cs` in that project.
 - **Large-join planning and memory admission** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/src/Internal/Execution/SqlPlanExecutor.JoinSearch.Greedy.cs`, `SqlPlanExecutor.JoinSearch.cs` in the same directory, and `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/tests/SqlJoinSearchFixTests.cs`.

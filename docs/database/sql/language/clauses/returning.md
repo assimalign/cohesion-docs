@@ -83,6 +83,9 @@ identifiers retain their quoting rules. UPDATE accepts bare output as a target a
 AS output because its bare spelling is reserved for OUTPUT detection. Other expression and write
 diagnostics retain their codes.
 
+SELECT and RETURNING target lists are limited to 1,664 entries syntactically and after
+expansion (CS05097 / 54011). Qualified RETURNING wildcards retain CK00001.
+
 ## Examples
 
 ```sql

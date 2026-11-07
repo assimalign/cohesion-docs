@@ -1706,7 +1706,7 @@ visibility. It retains format 37 and uses CS04003 inside explicit transactions.
 
 ## Non-goals (current cut)
 
-NATURAL joins, qualified wildcards, `Serializable` isolation (rejected at begin), persisted statistics and hash spill, and
+LATERAL joins, `Serializable` isolation (rejected at begin), persisted statistics and hash spill, and
 index-only result production (a seek always fetches the row). (Row-level MVCC visibility and
 secondary indexes — DDL, write-path maintenance, and planner seek adoption — were non-goals of
 earlier cuts and are now delivered; see "The MVCC integration", "Secondary indexes", and the
@@ -2179,7 +2179,8 @@ The engine owns an internal StorageTempSpace when a file root or explicit TempDi
 configured. TempDirectory, TempSpaceQuota and StatementTempSpaceQuota are copied from options;
 see [defaults, admission floor and permissions](sql-database-engine-options.md#temporary-space).
 One directory belongs to one spilling engine. Temporary setup/I/O failures use CK05005 without
-taking durable databases offline. This is the substrate only; no query operator uses it yet.
+taking durable databases offline. Eligible root SELECT and CTAS source sorts now consume it.
+See [sort eligibility, physical capacity and lazy lifetime](../../../../database/sql/performance.md#root-sort-spilling).
 
 ## Probe costing and hash builds
 
@@ -2192,8 +2193,8 @@ execution releases its charge. Costs follow retained rows, not collection capaci
 Cells of at least 256 bytes pay payload once per buffer owner by reference identity plus 64 bytes
 per distinct cell; further references pay slots. Smaller cells and hash-build references still
 pay per reference. Separate equal objects each pay. Outputs and keys share a collector map;
-two live buffers each pay for a shared value. Large sorts and results refuse CS05067 until the
-budget is raised; query operators do not spill yet. Plain bytes that fill the grant first also
+two live buffers each pay for a shared value. Eligible root ORDER BY and ordered DISTINCT spill
+where their reservation would refuse CS05067; other retained buffers keep their existing policy. Plain bytes that fill the grant first also
 cause window/JSON memory refusals to use CS05067. Without plain bytes live, those retain CS05079
 and CS05094. INSERT SELECT and DML subquery sources keep their existing policy.
 See [statement memory](../../../../database/sql/performance.md#statement-memory).

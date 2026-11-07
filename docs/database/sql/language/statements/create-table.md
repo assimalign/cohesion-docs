@@ -126,11 +126,25 @@ table atomically. Once it is published, a snapshot taken before the builder tran
 sees the new table empty; a snapshot taken after that commit sees every row. No snapshot sees a
 partial build. Source reads use one statement snapshot.
 
-CTAS sources charge like any SELECT, including joins, sorts, grouping state, caches and retained
-results. Copy buffers and output kept after pagination also charge StatementMemoryBudget;
-collection capacity does not. Exhaustion reports CS05067 (53200) before publication; there is no
-query spill. A declared-script CTAS refusal keeps the database online, preserves completed script
-statements and publishes no destination. A later Build with a larger budget resumes at that CTAS.
+CTAS source root ORDER BY and ordered DISTINCT can spill in a session or a declared script,
+under the [root sort rules](../../performance.md#root-sort-spilling). A spilled source streams
+into 64-row copy brackets and is disposed before commit/publication, releasing its files and
+result slot. WITH NO DATA executes no sort and creates no temp files.
+
+**An unordered CTAS refuses at StatementMemoryBudget while the same statement with an eligible
+ORDER BY spills.** For example, `CREATE TABLE a AS SELECT * FROM t` retains all output and refuses
+CS05067 at the grant; `CREATE TABLE b AS SELECT * FROM t ORDER BY id` can spill for an unindexed
+source and complete at ten grants. A plain ordered primary-key scan still retains output and
+refuses at the budget. An ordered statement whose fitting source is just below the grant can
+still refuse during copying while a larger source spills and completes. With 1,024-character
+notes at a 262,144-byte grant, 85 rows fit, 86–113 refuse, and 114 spill successfully.
+
+Fitting source output and encoded copy buffers share StatementMemoryBudget. CS05067 leaves no
+table. Temp quota/I/O errors retain CK05 codes and leave the database online. A declared script
+keeps its completed prefix; a later Build resumes the failed CTAS. After completed copying, a
+counted temp close failure cannot prevent commit/publication; next open sweeps a leftover file.
+Oversized stored records refuse CS05042 before batch admission for fitting and spilled sources.
+
 A running CTAS
 holds the same metadata lease as CREATE INDEX: other sessions' definition DDL for views, functions,
 domains and schemas fails immediately while it runs. Unrelated table DDL can proceed.

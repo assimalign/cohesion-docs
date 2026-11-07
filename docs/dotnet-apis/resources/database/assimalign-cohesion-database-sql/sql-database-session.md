@@ -39,6 +39,14 @@ probe receives that retryable abort rather than a false FK violation. RewriteTab
 database maintenance call; session timeout overrides do not configure its lock acquisition.
 See [execution and transactions](design.md#sql-transaction-control-and-the-b7-seam).
 
+## Spilled results
+
+Dispose every ExecuteAsync result even after enumeration completes or is canceled. Eligible
+root sorts return lazy, rewindable results that survive later statements. The session holds at
+most eight live spilled results. Canceling one reader ends only its cursor; session close
+disposes every owned result. A client's exchange cancellation aborts its transport. See
+[spill limits and ownership](../../../../database/sql/performance.md#root-sort-spilling).
+
 ## Example
 
 Execution, constraint and DDL failures expose stable codes through DatabaseException.Diagnostics.

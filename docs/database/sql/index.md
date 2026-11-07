@@ -2,7 +2,7 @@
 
 The relational Database engine parses, plans, and executes a measured SQL subset over the shared durable kernel.
 
-> **Status:** Partial. The profile measures 91 of 93 declared language clauses against the live engine.
+> **Status:** Partial. The profile measures 92 of 93 declared language clauses against the live engine.
 
 Model Catalog and Storage components ship inside their model assembly. Wire messages, codecs and
 transferred values ship in the model Protocol package, shared by engine and client. Remote clients
@@ -17,7 +17,9 @@ expressions, functions, types, and diagnostics. Start with
 The measured surface includes table and index data definition language (DDL), row mutations,
 session transactions, column constraints, and queries over stored tables and virtual system
 relations with N-way [INNER, LEFT, RIGHT, FULL, CROSS and comma joins](language/clauses/join.md).
-INNER/LEFT/RIGHT/FULL accept ON or USING; USING merges each named pair into one common-typed visible column.
+Non-NATURAL INNER/LEFT/RIGHT/FULL accept ON or USING; USING merges each named pair into one
+common-typed visible column. [NATURAL](language/clauses/join.md#natural-joins) derives those names;
+qualified SELECT wildcards expand each input's own columns.
 FULL preserves unmatched rows from both sides and requires a safe mandatory hash equality.
 Queries support filtering, grouping, aggregates, aliases and ordinals in ordering, pagination,
 collation, and bounded correlated and uncorrelated [subqueries](language/expressions/subqueries.md). `INSERT ... SELECT` uses transactional destination
@@ -44,10 +46,10 @@ rows and counts. Snapshot conflicts abort retryably; ReadCommitted skips or upda
 committed row. Multi-row UPDATE checks foreign keys against its
 [final replacements](language/constraints.md#update-final-row-examples), permitting consistent self-reference moves.
 
-The 91-of-93 measure includes aggregate [FILTER](language/clauses/filter.md), executable MERGE
+The 92-of-93 measure includes aggregate [FILTER](language/clauses/filter.md), executable MERGE
 and executable RECURSIVE and is not a percentage
 of complete SQL. The
-[unsupported matrix](language/unsupported.md) lists the 2 excluded named clauses and the further
+[unsupported matrix](language/unsupported.md) lists the one excluded named clause and the further
 boundaries inside supported clauses. [Operators and predicates](language/expressions/operators.md)
 describes PostgreSQL precedence, NULL-safe distinct predicates, Boolean truth tests and LIKE ESCAPE.
 

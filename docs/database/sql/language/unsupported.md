@@ -4,8 +4,8 @@ Lists recognized but unimplemented SQL forms and commands outside the declared d
 
 > **Status:** Partial. Recognition does not imply execution support.
 
-The profile measures 91 of 93 named clauses against the live engine. The 2 excluded names are
-`NATURAL` and `ALL`. Further subset restrictions do not increase that denominator.
+The profile measures 92 of 93 named clauses against the live engine. The excluded name is
+`ALL`. Further subset restrictions do not increase that denominator.
 
 The measure includes executable MERGE with ordered actions and RETURNING, and WITH RECURSIVE
 fixpoints with on-demand execution and shared readers.
@@ -36,14 +36,14 @@ Other cells retain their actual diagnostic rather than assigning a capability co
 | SELECT ... FOR UPDATE / FOR NO KEY UPDATE / FOR SHARE / FOR KEY SHARE | `CK00001` | Complete locking strengths in SELECT tails, including CTEs and subqueries |
 | Aggregate-window DISTINCT; FROM FIRST/LAST | `CK00001` | [Aggregate windows and frame value functions](clauses/window.md) execute; missing OVER uses CS05076 (42P20) |
 | TOP/FETCH PERCENT, WITH TIES, DML TOP, explicit SELECT ALL | `CK00001` | [FETCH and lexical SELECT TOP](clauses/limit-offset.md) execute |
-| `NATURAL JOIN` | `CK00001` | INNER, LEFT, RIGHT, FULL and CROSS execute |
+| Direct NATURAL mutation-source join | `CK00001` | SELECT NATURAL executes; aliased source groups use a derived SELECT |
 | FULL condition without a safe mandatory hash equality or proven non-throwing ON | `CS05070` | Refused before input reads; no loop fallback |
 | Direct RIGHT, FULL or unaliased grouped joined-DML source | `CS05069` | UPDATE FROM / DELETE USING refuse before reads/writes; derived SELECT sources containing RIGHT or FULL execute |
-| INNER/LEFT join without ON or USING | `CK00001` | Exactly one condition required |
+| Non-NATURAL INNER/LEFT join without ON or USING | `CK00001` | Exactly one condition required |
 | CROSS JOIN with ON or USING | `CS00003` | Products accept neither condition |
 | Malformed USING list, or both ON and USING | `CS00003` | One nonempty USING name list or one ON predicate |
 | Missing/repeated/ambiguous USING name, or no common type | `CS01015` | Fails binding even on empty inputs |
-| Qualified wildcard, such as `t.*` | `CK00001` | Use unqualified star or explicit columns |
+| Qualified RETURNING or row-valued wildcard, such as COUNT(t.*) | `CK00001` | SELECT t.* and schema.table.* execute; grouped wildcards retain CS05017 |
 | Derived query without an alias | `CS00003` | FROM/JOIN derived relations require an alias |
 | Derived column list with wrong width or blank output name | `CS05013` | Rename every output by position |
 | Quantified ANY/SOME/ALL with arrays or value lists | `CK00001` | [Single-column subquery forms](expressions/quantified-comparisons.md) execute; row-value syntax uses CS00003 |
@@ -130,8 +130,9 @@ Eligible aggregation and DISTINCT stream input; joins can stream matches but sti
 after limited projection stops. Eligible EXISTS/scalar bodies retain at most two result rows,
 without skipping ordinary projection work. Volatile evaluation and deferred collations can require staging.
 All retained SELECT buffers and results charge StatementMemoryBudget; CS05067 refuses exhaustion.
-Selected index order avoids sorting. Selected rows still materialize before delivery; spillable
-sorts and streaming result execution are unavailable.
+Selected index order avoids sorting. Eligible root ORDER BY and ordered DISTINCT spill,
+including CTAS source roots. Evaluation completes first; spilled delivery is lazy. See
+[spill eligibility and result ownership](../performance.md#root-sort-spilling).
 
 ## See also
 

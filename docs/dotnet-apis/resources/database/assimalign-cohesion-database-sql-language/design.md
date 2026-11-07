@@ -14,7 +14,7 @@ basic SQL, declared precisely — and structured to be extended without churning
 [SqlCreateIndexExpression](sql-create-index-expression.md).KeyOrders stores effective per-column
 ASC/DESC and NULL placement. Defaults are ASC NULLS FIRST and DESC NULLS LAST, matching ORDER BY. Canonical SQL
 omits ASC and direction-default NULL placement. Constraint lists reject options with CS00003.
-CREATE INDEX KEY ORDER adds one clause. With SQL/JSON and COPY, the current profile measures 91 of 93.
+CREATE INDEX KEY ORDER adds one clause. With SQL/JSON and COPY, the current profile measures 92 of 93.
 
 ## SQL/JSON and COPY nodes
 
@@ -23,7 +23,7 @@ path, RETURNING, wrapper, quote and empty/error policies. Quoted ordinary calls 
 function-call identity. [SqlCopyToExpression](sql-copy-to-expression.md) retains table, ordered
 columns and validated [SqlCopyOptions](sql-copy-options.md); its canonical renderer spells out
 resolved defaults. [SqlClauses](sql-clauses.md) exposes JsonValue, JsonQuery, JsonExists and CopyTo;
-the current profile measures 91 of 93 clauses.
+the current profile measures 92 of 93 clauses.
 
 ## JSON expressions
 
@@ -41,7 +41,7 @@ alternatives in JSON positions. See [language behavior and examples](../../../..
 
 SqlCreateIndexExpression.Predicate is the optional WHERE expression tree. Canonical statement
 rendering emits it after the ordered column list. CREATE INDEX WHERE adds one measured clause
-beside CREATE INDEX; the current total is 91 of 93. Engine admission uses CS05091 (42P17) for
+beside CREATE INDEX; the current total is 92 of 93. Engine admission uses CS05091 (42P17) for
 prohibited expressions or calls/conversions not proven immutable. Catalog metadata uses
 CS03082 (42P16) for partial primary keys, CS03083 (0A000) for predicate-column TYPE changes
 and CS03084 (42P17) for inconsistent predicate text/dependencies.
@@ -141,7 +141,7 @@ model-specific diagnostic; `CS00002` remains the unknown-command diagnostic.
   and window functions are lexed so diagnostics can
   say "unsupported" precisely rather than mis-parsing them as identifiers. Gateable
   names live in `SqlClauses`; supported names are present in `SqlLanguageProfile`,
-  while excluded clauses such as NATURAL remain absent. Ranking/navigation windows execute.
+  while excluded clauses such as ALL remain absent. Ranking/navigation windows execute.
   RECURSIVE executes demand-driven fixpoints with shared readers. Views and DML RETURNING execute. Non-recursive WITH, FETCH and
   lexical SELECT TOP execute; PERCENT, WITH TIES and DML TOP retain capability diagnostics. `ParseCore` scans a copy of its configured
   lexer before recursive descent and attaches the first rejected clause to the
@@ -215,7 +215,7 @@ treating `ROLLBACK TO` as a complete rollback.
 [Named savepoints](../../../../database/sql/language/statements/savepoint.md) execute through
 SqlTransactionExpression.SavepointName and its Savepoint, ReleaseSavepoint and
 RollbackToSavepoint commands. Unquoted names fold to lowercase; rendering quotes normalized
-names. With SQL/JSON and COPY, the current profile measures 91 of 93. BEGIN isolation options and
+names. With SQL/JSON and COPY, the current profile measures 92 of 93. BEGIN isolation options and
 [SET TRANSACTION](../../../../database/sql/language/statements/set-transaction.md) execute through
 SqlTransactionExpression.IsolationLevels. The session retains one root transaction; early SET
 preserves its identity and original BEGIN snapshot.
@@ -240,12 +240,22 @@ NO ACTION (the SQL default), SET NULL and SET DEFAULT. ON UPDATE accepts and exe
 RESTRICT is immediate; NO ACTION checks statement-final rows. CS05085 (27000) refuses conflicting
 replacements from different action origins. See [constraint semantics](../../../../database/sql/language/constraints.md).
 
+## NATURAL and wildcard binding
+
+[SqlJoinClause](sql-join-clause.md) records IsNatural and source/keyword locations. The binder
+derives common names in left order and lowers to USING. [SqlQualifiedStarExpression](sql-qualified-star-expression.md)
+represents t.* or schema.table.*; it expands local input columns with outer nullability. Views
+store the expanded form and explicit USING/ON TRUE, so ADD COLUMN changes neither rows nor columns.
+Generated columnN provenance and conservative format-37 ambiguities require authored aliases
+(CS01015). SELECT/RETURNING lists have at most 1,664 syntactic and expanded targets
+(CS05097 / 54011). See the [complete rules and exclusions](../../../../database/sql/language/clauses/join.md#natural-joins).
+
 ## T1 literal, type and request forms
 
 [SqlSelectExpression.From](sql-select-expression.md) contains comma-separated [SqlFromItem](sql-from-item.md)
 join trees. Each [SqlJoinClause](sql-join-clause.md) carries ON or ordered UsingColumns; INNER,
-LEFT, RIGHT, FULL and CROSS execute, while NATURAL and qualified wildcards stay
-excluded. Table members use [SqlRelationReference](sql-relation-reference.md), with named-table and
+LEFT, RIGHT, FULL, CROSS and NATURAL execute. Qualified SELECT wildcards expand local input
+columns; LATERAL stays excluded. Table members use [SqlRelationReference](sql-relation-reference.md), with named-table and
 [derived-query](sql-derived-table-reference.md) leaves. A derived alias is required and its optional
 column list must rename the full output width. SELECT and UPDATE/DELETE WHERE accept correlated
 and uncorrelated subqueries; SET remains row-local. Local names shadow outer scopes. A real derived
@@ -359,8 +369,8 @@ FILTER retains its condition in depth, source extent, rendering, child walks, st
 and aggregate-level correlation. The catalog rejects scalar-call FILTER with CS05072 (42809),
 same-scope condition aggregates with CS05073 (42803), and non-Boolean conditions with CS02003
 (42804). Child queries bind independently; aggregate windows also accept FILTER. SqlClauses.Filter adds one
-named clause and nine Boolean/statistical function names join the executable profile: 91 of 93
-clauses including the two exclusions. See [FILTER](../../../../database/sql/language/clauses/filter.md).
+named clause and nine Boolean/statistical function names join the executable profile: 92 of 93
+clauses with one excluded name. See [FILTER](../../../../database/sql/language/clauses/filter.md).
 
 ## Views, NULL placement and RETURNING
 
@@ -404,7 +414,7 @@ partial unique arbiter without filtering proposals. Non-row-local target predica
 CS05092 (no assigned SQLSTATE); unproven inference uses CS03035 (42P10). The
 [target](sql-on-conflict-target-kind.md) and [action](sql-on-conflict-action.md) enums keep that
 shape explicit. SqlClauses.OnConflict enables the named clause. With quantified comparisons,
-UPDATE FROM, DELETE USING and CREATE TABLE AS, the profile measures 91 of 93 declared clauses,
+UPDATE FROM, DELETE USING and CREATE TABLE AS, the profile measures 92 of 93 declared clauses,
 including executable MERGE, executable RECURSIVE and nonexecuting plain EXPLAIN. Existing
 keywords/identifier quoting and format 37 are unchanged.
 
@@ -472,7 +482,7 @@ dedicated [CREATE](sql-create-sequence-expression.md), [ALTER](sql-alter-sequenc
 and [DROP](sql-drop-sequence-expression.md) nodes. [SqlNextValueExpression](sql-next-value-expression.md)
 is distinct from ordinary function calls. DISCARD ALL uses SqlTransactionExpression with
 SqlQueryCommandType.Discard. The profile enables CreateSequence, AlterSequence, DropSequence,
-NextValue and DiscardAll; GROUPING SETS, ROLLUP and CUBE also execute. The measured total is 91 of 93.
+NextValue and DiscardAll; GROUPING SETS, ROLLUP and CUBE also execute. The measured total is 92 of 93.
 
 | Code | Meaning and trigger | SQLSTATE |
 | --- | --- | --- |

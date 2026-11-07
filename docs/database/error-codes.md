@@ -240,6 +240,12 @@ datatype_mismatch). Full-definition default/implicit collation changes retain CS
 Identity, view, CHECK/domain, FK, index, lock and conversion failures retain their existing codes;
 see [SQL diagnostics](sql/language/diagnostics.md#alter-column-type-conditions).
 
+## SQL target list width
+
+CS05097 (54011, too_many_columns) refuses a SELECT or RETURNING target list above 1,664
+syntactic or expanded entries, including nested bodies and view expansion. The diagnostic names
+the limit and attempted count. See [target list limits](sql/language/clauses/join.md#qualified-wildcards).
+
 ## Journal admission
 
 | Code | Meaning and trigger | SQLSTATE |
