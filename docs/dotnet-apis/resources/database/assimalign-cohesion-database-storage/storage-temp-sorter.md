@@ -44,7 +44,7 @@ Invalid bounds throw ArgumentOutOfRangeException; a null statement throws Argume
 FanIn is derived from grant and record size, capped at 16. Fixed buffers fit the grant; the
 FileStream objects, handles, paths and run registry entries grow with live runs outside it.
 The maximumOpenRuns overload bounds simultaneously open runs, including a merge-output slot;
-it must be at least FanIn + 1. Overloads without it default to 1,024. SQL sets 64 per sort; staged
+it must be at least FanIn + 1. Overloads without it keep 64 * FanIn, which is 1,024 at FanIn 16. SQL sets 64 per sort; staged
 input/output runs and the directory lease are additional, and concurrent statements add up.
 
 RunsCreated counts initial sorted runs; MergePasses is the maximum stages traversed by an output
