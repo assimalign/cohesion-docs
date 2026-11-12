@@ -53,8 +53,9 @@ separate normalization; see [common types](../expressions/case.md#common-types).
 
 Eligible root plain GROUP BY spills fixed-size native states at the existing statement grant
 boundary, using eight partitions per level and at most eight levels. A single group's state
-must fit. Text/binary MIN/MAX, STRING_AGG, ARRAY_AGG, DISTINCT/ordered aggregates and the other
-[excluded states](../../performance.md#hash-aggregation-and-distinct-spilling) retain CS05067.
+must fit. Text/binary MIN/MAX, STRING_AGG, DISTINCT/ordered aggregates and the other
+[excluded states](../../performance.md#hash-aggregation-and-distinct-spilling) retain their
+existing memory refusal. ARRAY_AGG remains unavailable (CS01016).
 Fitting charges, first-seen results, calls, counters and first errors are unchanged.
 
 ### Grouping sets, ROLLUP and CUBE

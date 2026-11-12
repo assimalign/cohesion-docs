@@ -118,8 +118,8 @@ copying, and O is the larger retiring/prepared owner count.
 
 K is `BufferPoolCapacity + 1 MiB` when the job allocates pages and data-file growth can be
 sparse, otherwise zero. A zero-operation marker refresh, including an empty Build, needs only
-the declaration-derived metadata floor. Heap-owned dropped-index pages of a kept heap are not
-retirement pages and do not enter the reclamation estimate. Unix file
+the declaration-derived metadata floor. Every index now has a separate owner; dropped-tree
+pages enter that owner's retirement estimate even when its heap is kept. Unix file
 growth is conservatively sparse. Windows checks the actual file and containing directory:
 compressed, sparse or integrity-stream attributes, UNC/network paths, and unknown/inaccessible
 allocation modes count as sparse. Ordinary local Windows files use eager allocation. Memory

@@ -180,7 +180,8 @@ accumulating while new-group inputs partition. A single skewed group's state mus
 | Subquery-bearing group inputs/expressions or unproved MIN/MAX argument families | Existing refusal |
 
 COUNT(x) partitions nullness only. The SUM/AVG proof prevents an overflow error from moving
-later during replay. Keys, FILTER and accepted arguments evaluate once before evaluated values
+later during replay. ARRAY_AGG remains unavailable (CS01016); the spill lane does not add it.
+Keys, FILTER and accepted arguments evaluate once before evaluated values
 are written. Results retain first-seen group order, the first complete DISTINCT representative,
 collated spelling, calls, sequence state, counters and first expression errors. Statements that
 fit keep their original charges. Completed groups pass through an ordinal sort before HAVING
