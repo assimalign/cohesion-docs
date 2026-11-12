@@ -19,6 +19,15 @@ The provider supplies a safe exclusive horizon for unique-insert pruning. Withou
 
 See [pruning design](design.md#safe-index-history-pruning) and [coordinator](../assimalign-cohesion-database-transactions/transaction-coordinator.md).
 
+## Physical owner identity
+
+CreateIndexAsync's objectId identifies the index's physical page owner. Model catalogs map it
+to logical objects. DropIndexAsync removes the directory entry without walking/freeing its
+pages; the model records durable retirement intent and waits for every reader horizon before
+bounded owner reclamation. Pruning live entries and retiring complete owners are separate work.
+IndexCreated/IndexDropped event objectId has this same physical meaning. See
+[build and reclamation lifecycle](design.md#physical-owners-bounded-builds-and-retirement).
+
 ## Sources
 
 - `cohesion/resources/Database/Assimalign.Cohesion.Database.Indexing/src/BTreeIndexManager.cs`.

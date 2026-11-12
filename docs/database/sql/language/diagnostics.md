@@ -369,7 +369,10 @@ text and discards its partial tree. See [qualified wildcards](clauses/join.md#qu
 
 `CK04014` (57014) means a statement deadline expired waiting for a journal checkpoint, or
 admission refused immediately because the statement retained metadata/gates. Session DDL
-refuses immediately at paused admission. Failed-statement work and new grants release while
+catalog mutations refuse immediately at paused admission. Index-owner reservations release the
+catalog monitor and wait per refusal up to LockTimeout (0 unlimited), then use CK04014. An ordinary
+build's first data-allocation refusal remains immediate; later roots/chunks wait outside the
+apply gate under StatementTimeout/cancellation. Failed-statement work and new grants release while
 the SQL session and explicit transaction remain usable. Caller cancellation retains its meaning.
 Migrations wait outside physical/publication gates and resume prepared work. StatementTimeout
 is zero by default: a normal admission wait has no default deadline. Reads retain ordinary

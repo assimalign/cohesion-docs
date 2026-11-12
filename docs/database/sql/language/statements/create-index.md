@@ -141,6 +141,23 @@ permits it. Partial uniqueness never establishes unconditional DISTINCT or join 
 
 ### Building over existing data
 
+Every index has a separate physical page owner. Builds commit at most 64 retained source rows
+per durable bracket, keeping the table lock, creator and snapshot pins across all chunks, then
+publish the definition once. Failure abandons the unpublished owner for safe reclamation.
+
+Build workspace is newly charged in this batch: 6,544 B per 64-entry chunk before its first
+row, plus each retained row. CREATE [UNIQUE] INDEX and UNIQUE/PRIMARY KEY constraints refuse
+CS05067 directly. A schema-apply migration or rollback rebuild reports CS03402 with CS05067
+as its cause. One INT row refuses at grants 4,096–6,927 B; two INT rows refuse at 4,096 B.
+At 262,144 B, a chunk of 64 (INT, 4,000-character TEXT) rows needs 555,408 B and refuses.
+These builds previously completed at those grants. Increase StatementMemoryBudget to build them.
+
+Owner reservation releases the catalog monitor and waits up to session/engine LockTimeout per
+refusal, then reports CK04014; default 0 has no limit. Other session catalog mutations retain
+immediate refusal. The ordinary build's first data-allocation refusal is still immediate;
+later roots and chunk retries wait outside the apply gate, bounded by StatementTimeout and
+cancellation. Checkpoints can run between chunks.
+
 The build holds the table's Exclusive lock through construction, validation and publication;
 concurrent writers wait. It includes stored historical versions so older snapshots can use the
 index, but checks uniqueness against current live keys even if a writer committed after the

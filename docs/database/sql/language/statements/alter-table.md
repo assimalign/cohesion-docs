@@ -124,10 +124,9 @@ worker; empty-table work runs synchronously. `RunMigrationsInline`, any declared
 explicit `ApplySchemaAsync` also run the joint migration synchronously.
 
 Classification is per table. Index additions and constraint-only changes can keep unchanged
-physical storage and retained trees, building only new indexes. A heap-owned DROP INDEX without
-a same-name replacement keeps the heap and leaves its pages allocated until heap retirement.
-A same-name heap-owned replacement requires a rewrite; separately owned trees can be replaced
-while keeping the heap.
+physical storage and retained trees, building only new indexes. Every index has its own physical
+owner; drops and same-name replacements keep the heap when the remaining layout permits and
+reclaim exactly the old tree after its last readable snapshot.
 The complete migration still publishes in one commit. See
 [kept-table preparation](../../../../dotnet-apis/resources/database/assimalign-cohesion-database-sql/design.md#joint-tables-that-keep-storage).
 

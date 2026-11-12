@@ -904,6 +904,26 @@ preflight before recovery or any other write. Clean and crashed file sets remain
 When both model metadata and B-tree stamps are old, catalog kind/version headers precede B-tree roots, so the
 single refusal is CD06105. See [combined refusal order](../../../../database/error-codes.md#combined-format-refusals).
 
+## Index builds and reclamation
+
+Index format 4 gives every physical generation a separate page owner and signed-root retirement
+receipts. DROP waits for the last readable snapshot, then reclaims exactly its owner in durable
+batches of at most 64 pages. Open discovers orphan owners through Storage's resident directory
+rather than scanning every page again. Clean and abruptly stopped version-3 indexes refuse
+CD06105 before writes; recreate batch 4 databases.
+
+Builds commit at most 64 postings per bracket and publish once. Workspace now charges
+StatementMemoryBudget and can refuse CD05018; a raw standalone DocumentCatalog defaults to
+256 MiB. Use a larger engine grant or that standalone build. See
+[validation order and witnesses](../../../../database/document/language/statements/create-index.md#build-memory-and-validation).
+Graph and Documents' receipt path yields to checkpoints and admission pauses.
+
+IndexBuildBegan/IndexBuildEnded (15/16) carry database and physical objectId; end adds succeeded.
+Every begun build ends once on publication, failure, cancellation or abandonment. PagesReclaimed
+(17) reports only nonempty committed batches, with database, objectId and pages (at most 64).
+These Informational build events use Info opcode; payloads contain no indexed values. See
+[shared lifecycle events](../assimalign-cohesion-database-indexing/design.md#build-and-reclamation-events).
+
 ## Sources
 
 - **Implicit aliases and refusals** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Documents/tests/DocumentImplicitAliasTests.cs`, `DocumentImplicitAliasBindingTests.cs` and `DocumentImplicitAliasFixTests.cs` in the same directory.

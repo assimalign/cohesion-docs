@@ -49,6 +49,12 @@ The final query still returns `1`; removing an index does not remove the table's
 
 [Statements](index.md) · [Language (SQL)](../index.md)
 
+DROP unpublishes the index and stages a durable retirement intent atomically. Its physical
+owner remains for every older snapshot and detached statement that could read it. After that
+horizon, maintenance frees exactly those pages in batches of at most 32, preserving the heap
+and other indexes. Intent removal follows data durability and an empty owner directory.
+Maintenance yields to checkpoint/admission signals; reopen resumes interrupted retirement.
+
 ## Sources
 
 - **Dialect contract** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql.Language/docs/DIALECT.md`

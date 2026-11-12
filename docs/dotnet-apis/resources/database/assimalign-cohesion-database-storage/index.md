@@ -6,7 +6,7 @@ The physical storage kernel of the Cohesion Data Platform: fixed-size pages, a b
 
 ## Reference pages
 
-- **[Storage](storage.md)** — Physical bracket attribution and advisory active-transaction state.
+- **[Storage](storage.md)** — Physical brackets, index-owner counts and bounded owner enumeration.
 - **[Page](page.md)** — Bounded caller-memory spans and reserved overflow geometry.
 - **[StorageTransactionException](storage-transaction-exception.md)** — Machine-readable foreign-storage refusal.
 - **[StorageTransactionErrorCode](storage-transaction-error-code.md)** — Unspecified and ForeignStorage reasons.
@@ -35,7 +35,7 @@ components of their engine assemblies, with their existing namespaces.
 
 - **Disposable query storage** — Quotas, free-space admission, checked runs, sorting and hash
   partitions. Eligible SQL root ORDER BY and ordered DISTINCT use it, including CTAS source
-  sorts. Temporary failures keep durable databases online.
+  sorts, hash aggregation/DISTINCT and eligible hash joins. Temporary failures keep durable databases online.
 - **Pages** — 8 KiB `Page` unit with a 96-byte header (id, LSN, CRC-32C checksum, type,
   flags, slot bookkeeping), `SlottedPage` variable-length record layout, `PageSlot`
   directory entries.

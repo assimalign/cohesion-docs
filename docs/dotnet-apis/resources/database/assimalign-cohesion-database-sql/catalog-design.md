@@ -90,13 +90,12 @@ those same transforms for uniqueness enforcement.
 - **`Index` directory persistence lives here** — the index manager stays a physical
   component (`Database.Indexing`'s documented split): the catalog stores the
   exported `BTreeIndexRegistration` set and hands it back for re-attachment on
-  open. `Root` page ids drift on splits; the engine re-saves at its persistence
+  open. `Root` page ids remain fixed through splits; the engine re-saves at its persistence
   points (checkpoint/shutdown).
 - **`Index` descriptions are schema metadata, one record per index (kind 5)** —
   `SqlCatalogIndex`: name (unique per table, case-insensitive), owning table
   object id, ordered key columns, uniqueness. The description is deliberately
-  separate from the physical registration: the description is stable while root
-  page ids drift, and the planner needs columns/uniqueness the registration
+  separate from the physical registration: the planner needs columns/uniqueness the registration
   doesn't carry. **Description and registration writes are atomic** —
   `CreateIndexAsync`/`DropIndexAsync` take the registration set and persist both
   records in one self-committing transaction, because a crash must never leave a
@@ -410,6 +409,15 @@ Snapshots capture immutable view definitions alongside the rest of the catalog.
 
 Allocator exhaustion uses CS02002 (22003); disappearing identity or unplanned live referential
 default sequence grants use CS04067 (40001). Retry replans before defaults or row mutation.
+
+## Physical index registrations
+
+Format 39 uses kind 21 to persist logical table id, index name/kind/uniqueness, fixed root and
+distinct physical owner. Kind 3 is retired. Recovered validation checks root-owner agreement
+before writes. A physical owner cannot alias the heap, a sequence, another tree or a retired
+owner. DROP persists kind-14 retirement intent atomically with description/registration removal;
+prepared publication removes its abandonment intent. See
+[owner lifetimes and bounded builds](design.md#per-index-page-owners-and-builds).
 
 ## Applied-schema history
 

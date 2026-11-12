@@ -849,7 +849,7 @@ binds them.
   policy); the statement's bracket has rolled back, the session stays usable.
   Unique keys treat nulls as values (stricter than ANSI; consistent with the
   codec's nulls-first ordering — documented dialect decision).
-- **Registrations re-export at persistence points** (root page ids drift on
+- **Registrations re-export at persistence points** (root page ids stay fixed through
   splits): index DDL itself, each checkpoint pass, and instance disposal — each
   compares against the stored set first, so an idle checkpoint writes nothing.
 
@@ -2077,6 +2077,41 @@ session deadline that wins the abort transition, even with events disabled or wa
 Normal peer-close linger expiry and a server hard abort do not emit this event. Capacity refusals
 have no session and do not increment this session counter. This warning adds no diagnostic code
 or SQLSTATE.
+
+## Per-index page owners and builds
+
+Format 39 registration kind 21 maps each logical table/index to a separate physical owner and
+fixed root. Owners cannot alias a table, sequence, retired owner or another live tree. Recovered
+read-only validation checks the map and root before writes; kind 3 registrations are retired.
+SQL open reads Storage's owner directory rather than scanning every allocated page again.
+
+Reservation persists a monotonic identity and kind-14 abandonment intent before root allocation.
+Successful publication removes the intent in its catalog commit. DROP atomically removes the
+description/registration and adds retirement intent. Transaction snapshots and statement epochs
+protect detached readers; reclamation frees exactly one retired owner in 32-page durable batches,
+then removes intent after data durability and directory emptiness. It yields to due/pending
+checkpoints and admission pauses. Small physical managers share the global 64-leaf prune grant.
+
+The shared build loop commits at most 64 source rows per bracket and publishes once. Table X,
+creator and reader pins span all chunks. It charges 6,544 B per chunk plus retained rows;
+these are new build-budget refusals relative to batch 4. Direct CREATE INDEX and UNIQUE/PRIMARY
+KEY builds refuse CS05067; schema-apply/rollback rebuilds report CS03402 with that cause.
+See [witnesses and the larger-budget workaround](../../../../database/sql/language/statements/create-index.md#building-over-existing-data).
+Ordinary builds decode once; only a progress consumer requests a preliminary counting pass.
+Same-name index replacement keeps the heap and rewrites zero rows when the remaining layout permits.
+
+Owner reservations wait outside the catalog monitor up to LockTimeout per refusal (0 unlimited),
+then refuse CK04014. Session catalog mutations keep immediate admission refusal. The ordinary
+build's first data-allocation refusal stays immediate; later roots/chunks retry outside the apply
+gate under StatementTimeout/cancellation.
+
+IndexBuildBegan/IndexBuildEnded (28/29) are Informational Info-opcode events carrying engineName,
+database and physical objectId; end adds succeeded. Every begun build ends once: true after
+publication, false on failure, cancellation, abandonment or unconfirmed publication. This covers
+schema provisioning, CREATE INDEX, TRUNCATE and rewrites. PagesReclaimed (30) reports only
+nonempty committed batches, with the same identities and pages (at most 32). Existing
+TableReclamationStarted/Completed (23/24) and Yielded (27) also identify physical index owners;
+Completed adds pages reclaimed in this process. No indexed values are emitted.
 
 ## CASE and COALESCE common types
 

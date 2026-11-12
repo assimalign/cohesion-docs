@@ -197,9 +197,20 @@ tree instead of holding a stale manager object. Current B+Tree erase/purge remov
 without merging nodes or collapsing roots, so undo does not change the persisted root.
 
 Dropping an index tombstones its definition and keeps the physical tree for readers with older
-snapshots. Recreating the name allocates a new physical generation. Tree reclamation for dropped or
-rolled-back definitions is deferred; the shared index manager has no tree-page vacuum yet. This
-costs disk space, but never rebuilds a live index or exposes a dropped definition.
+snapshots. Recreating the name allocates a new physical generation. Dropped and rolled-back
+generations retire through durable signed-root receipts: positive roots attach trees, negative
+roots never attach. A receipt with a recovered live definition is damage (CD06105). The read-only
+format/liveness gate checks before any write and attachment rechecks after logical scrub.
+Each generation owns its own pages, disjoint from owners 0 and 1. Root-owner disagreement refuses.
+
+After retained definitions and owner ids pass the safe prune horizon, maintenance commits a
+negative receipt, checks at most 64 queued candidates and frees at most 64 owner pages per pass,
+then deletes the receipt only after data
+durability and directory emptiness. Checkpoints/admission yield further brackets. Open discovers
+unregistered owners through bounded Storage.GetIndexOwners batches and records receipts after
+validation. Builds use 64-posting durable chunks, one final publication and the statement memory
+grant (256 MiB for a standalone raw catalog); see
+[build validation and examples](../../../../database/document/language/statements/create-index.md#build-memory-and-validation).
 
 Recovery order is physical storage redo, coordinator `AnalyzeAndScrub` over stamped records, catalog
 open (including physical registrations), `RecoverIndexesAsync` using the same abandoned writer set,
