@@ -46,7 +46,7 @@ without normalization. See the language page for depth, Unicode and SQL/JSON pat
 | CS01067 | Invalid JSON extraction or IS JSON signature | 42883 |
 | CS02078 | Malformed access/assignment input, invalid Unicode/UTF-8 or depth over 128 | 22032 |
 | CS02079 | Wrong JSON kind for a numeric or Boolean scalar cast | 22023 |
-| CS02080 | Incompatible declared CASE/COALESCE alternatives in a JSON operand/selector | 42804 |
+| CS02080 | Incompatible declared CASE/COALESCE alternatives or unresolved polymorphic/unsupported parameter alternatives | 42804/42846 |
 
 ## Directed index keys
 
@@ -1486,11 +1486,11 @@ storage latches. Every inline and deferred apply uses this same joint boundary.
 
 | Code | Meaning and trigger | SQLSTATE |
 | --- | --- | --- |
-| CS06041 | Storage/index operation failure at an engine boundary; original cause retained | 58030 for I/O |
+| CS06041 | Storage/index failure at an engine boundary, including refusal of earlier SQL formats before writes (current 39); original cause retained | 58030 for I/O |
 | CS05043 | Cooperative statement execution deadline expired; statement rolled back | 57014 |
 | CS04044 | Individual contended lock wait expired | 55P03 |
 | CS05045 | Uncoded result encoding/preparation failure or encoded header/row above 16 MiB | 54000 for size refusals |
-| CS03105 | Typed migration policy/planning refusal before steps or intent save, including unproven conversions and default changes without destructive opt-in | — |
+| CS03105 | Compiled-schema policy refusal, including unsafe explicit rollback regardless of opt-in, never-seen destructive declarations without opt-in and non-literal DefaultSql on apply/Build/script generation | — |
 | CS03402 | Joint preparation, reservation or space admission failed; old schema retained unless an independent storage latch fires | — |
 | CS03403 | Joint publication commit unconfirmed; recovery determines old/new schema | — |
 | CS03404 | Session relation creation or table rename claims a name reserved by a pending joint migration | — |
@@ -1526,7 +1526,7 @@ storage latches. Every inline and deferred apply uses this same joint boundary.
 | `CS05074` | GROUPING outside grouped output or in grouping/aggregate inputs | 42803 |
 | `CS05075` | More than 4096 expanded sets before DISTINCT | 54001 |
 | `CS05036` | Repeated ON CONFLICT/MERGE target modification, including MERGE rechecks | 21000 |
-| `CS05067` | Statement memory grant exhausted by retained SELECT buffers/results, joined-DML state, CTAS buffers or grouping/mask state | 53200 |
+| `CS05067` | Statement memory grant exhausted by retained state, new index-build workspace charges, ineligible/oversized hash spills or eight-level group repartition exhaustion | 53200 |
 | `CS01053` | merge_action() outside MERGE RETURNING | — |
 | `CS05071` | MERGE WHEN follows an unconditional clause of the same match kind | — |
 | `CS03068` | CTAS output names are missing, blank, duplicate or have the wrong width | 42601 (`syntax_error`) |

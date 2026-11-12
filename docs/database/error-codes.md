@@ -3,16 +3,17 @@
 A runtime diagnostic identity has two uppercase letters and five decimal digits. Branch on the
 complete code, such as `CS05067`, rather than a prefix, numeric suffix, message or SQLSTATE.
 Identities are append-only; retired identities remain reserved and `00000` is unassigned.
+Batch 5 adds CS03405, CD05022 and CD01039–CD01045; it retires no diagnostic identities.
 
 | Prefix | Owner | Authoritative per-model registry |
 | --- | --- | --- |
-| CK | Shared kernel and infrastructure | [Kernel](https://github.com/assimalign/cohesion/blob/51f90e28b/resources/Database/Assimalign.Cohesion.Database/docs/ERROR-CODES.md#kernel-migration) |
-| CS | SQL | [SQL](https://github.com/assimalign/cohesion/blob/51f90e28b/resources/Database/Assimalign.Cohesion.Database/docs/ERROR-CODES.md#sql-migration) |
-| CD | Documents | [Documents](https://github.com/assimalign/cohesion/blob/51f90e28b/resources/Database/Assimalign.Cohesion.Database/docs/ERROR-CODES.md#documents-migration) |
-| CB | Blob | [Blob](https://github.com/assimalign/cohesion/blob/51f90e28b/resources/Database/Assimalign.Cohesion.Database/docs/ERROR-CODES.md#blob-migration) |
-| CG | Graph | [Graph](https://github.com/assimalign/cohesion/blob/51f90e28b/resources/Database/Assimalign.Cohesion.Database/docs/ERROR-CODES.md#graph-migration) |
-| CV | KeyValuePair | [KeyValuePair](https://github.com/assimalign/cohesion/blob/51f90e28b/resources/Database/Assimalign.Cohesion.Database/docs/ERROR-CODES.md#keyvaluepair-migration) |
-| CC | Cache (reserved) | [Registry](https://github.com/assimalign/cohesion/blob/51f90e28b/resources/Database/Assimalign.Cohesion.Database/docs/ERROR-CODES.md) |
+| CK | Shared kernel and infrastructure | [Kernel](https://github.com/assimalign/cohesion/blob/2dd935103/resources/Database/Assimalign.Cohesion.Database/docs/ERROR-CODES.md#kernel-migration) |
+| CS | SQL | [SQL](https://github.com/assimalign/cohesion/blob/2dd935103/resources/Database/Assimalign.Cohesion.Database/docs/ERROR-CODES.md#sql-migration) |
+| CD | Documents | [Documents](https://github.com/assimalign/cohesion/blob/2dd935103/resources/Database/Assimalign.Cohesion.Database/docs/ERROR-CODES.md#documents-migration) |
+| CB | Blob | [Blob](https://github.com/assimalign/cohesion/blob/2dd935103/resources/Database/Assimalign.Cohesion.Database/docs/ERROR-CODES.md#blob-migration) |
+| CG | Graph | [Graph](https://github.com/assimalign/cohesion/blob/2dd935103/resources/Database/Assimalign.Cohesion.Database/docs/ERROR-CODES.md#graph-migration) |
+| CV | KeyValuePair | [KeyValuePair](https://github.com/assimalign/cohesion/blob/2dd935103/resources/Database/Assimalign.Cohesion.Database/docs/ERROR-CODES.md#keyvaluepair-migration) |
+| CC | Cache (reserved) | [Registry](https://github.com/assimalign/cohesion/blob/2dd935103/resources/Database/Assimalign.Cohesion.Database/docs/ERROR-CODES.md) |
 
 The suffix allocates two category digits and three condition digits within these ranges.
 Categories help organize the registry; callers still match the complete identity.
@@ -46,7 +47,7 @@ are independent analyzer identities and remain unchanged.
 Use the model references for current conditions: [SQL](sql/language/diagnostics.md),
 [Documents](document/language/diagnostics.md), [Graph](graph/language/diagnostics.md),
 [Key-Value Pair](key-value-pair/diagnostics.md), [Blob](blob/operations.md) and [Cache](cache/index.md).
-The source registry also lists [newly coded conditions](https://github.com/assimalign/cohesion/blob/51f90e28b/resources/Database/Assimalign.Cohesion.Database/docs/ERROR-CODES.md#rules-audit-condition-additions).
+The source registry also lists [newly coded conditions](https://github.com/assimalign/cohesion/blob/2dd935103/resources/Database/Assimalign.Cohesion.Database/docs/ERROR-CODES.md#rules-audit-condition-additions).
 
 The omitted SQL semicolon is informational `CS00009`; it does not refuse parsing or execution.
 `CS00100` is retired and remains reserved. Recognized unsupported clauses use `CK00001`.
@@ -57,14 +58,15 @@ SQLSTATE mappings are documented code mappings, not separate wire fields.
 
 StorageTempException exposes Code separately from its unprefixed message. These conditions
 refuse disposable work without taking durable databases offline; they have no assigned SQLSTATE.
-Eligible root SQL ORDER BY and ordered DISTINCT use this substrate, including CTAS source roots.
+Eligible root SQL sorts, hash aggregation/DISTINCT and hash joins use this substrate, including
+eligible CTAS source roots.
 
 | Code | Meaning and trigger |
 | --- | --- |
 | CK05001 | Engine physical temporary-byte quota exceeded |
 | CK05002 | Statement physical temporary-byte quota exceeded |
 | CK05003 | New temporary page would cross the engine free-space floor |
-| CK05004 | Temporary page/record integrity failure or retry of a previously failed reader |
+| CK05004 | Temporary page/record integrity failure, including the join directory hash check, or retry of a previously failed reader |
 | CK05005 | Temporary space unavailable: probe, lease, sweep, create, read, write or close I/O failure |
 | CK05006 | Encoded sort record exceeds its declared maximum |
 
@@ -76,7 +78,8 @@ and [SQL configuration](../dotnet-apis/resources/database/assimalign-cohesion-da
 
 CS05067 (53200) covers every retained plain SELECT buffer and materialized result, including
 joins, sorts, grouping, set operations and caches. The default StatementMemoryBudget is 64 MiB;
-eligible root ORDER BY and ordered DISTINCT, including CTAS source roots, spill where their
+eligible root ORDER BY and ordered DISTINCT, including CTAS source roots, plus eligible plain
+hash aggregation/DISTINCT and root hash joins spill where their
 reservation would refuse. Other retained results and excluded operators still need sufficient
 memory. See [spill exclusions and lifetime](sql/performance.md#root-sort-spilling).
 When plain bytes fill the grant first, window/JSON memory refusals also use CS05067. With no
@@ -84,6 +87,14 @@ plain bytes live, their grants retain CS05079 and CS05094. A declared-script CTA
 online, publishes no table and resumes at that statement on a later Build with a larger budget.
 INSERT SELECT and DML subquery sources keep their existing policy. See
 [statement memory](sql/performance.md#statement-memory).
+
+| Code | Additional batch 5 refusal conditions | SQLSTATE |
+| --- | --- | --- |
+| CS05067 | New index-build workspace charging; ineligible hash states/codecs, an over-budget single group, eight-level repartition exhaustion, computed join keys, oversized build/cache records, insufficient minimum working sets or reservations optional arenas cannot satisfy | 53200 |
+
+CREATE [UNIQUE] INDEX and UNIQUE/PRIMARY KEY constraints report CS05067 directly; schema-apply
+migration/rollback rebuilds report CS03402 with CS05067 as cause. These are new build refusals;
+increase the statement budget. See [witnesses](sql/language/statements/create-index.md#building-over-existing-data).
 
 ## SQL COPY TO STDOUT
 
@@ -158,7 +169,7 @@ recoverable incomplete undo retains CK04009.
 | CS01067 | Invalid JSON extraction or IS JSON signature | 42883 |
 | CS02078 | Malformed access/assignment input, invalid Unicode/UTF-8 or depth over 128 | 22032 |
 | CS02079 | Wrong JSON kind for a Boolean or numeric scalar cast | 22023 |
-| CS02080 | Incompatible declared CASE/COALESCE alternatives in a JSON operand/selector | 42804 |
+| CS02080 | Incompatible declared CASE/COALESCE alternatives in any scalar position, or unresolved polymorphic/unsupported parameter alternatives at planning | 42804/42846 |
 
 See [JSON access](sql/language/expressions/json-access.md). Malformed text under IS JSON returns
 FALSE; WITH/WITHOUT UNIQUE KEYS remains CK00001.
@@ -256,7 +267,7 @@ clean and abruptly stopped images receive one stable refusal per model on repeat
 
 | Model | First refusal | Gate order |
 | --- | --- | --- |
-| SQL | CS06041 | Catalog/data-storage marker, then B-tree roots |
+| SQL | CS06041 | Current format 39 refuses earlier catalog/data-storage markers, including 37/38, before any write; then B-tree roots |
 | KeyValuePair | CV06107 | Entry-space marker, then B-tree roots |
 | Documents | CD06105 | Catalog kind/version headers, then B-tree roots |
 | Graph | CK06101, in its existing message-only carrier | Entity/registration and B-tree roots, then catalog v4 |
@@ -265,11 +276,17 @@ Every file, journal, backup and sidecar remains unchanged through refusal and di
 uses no B-tree. Recreate using exported data from the engine that wrote the old image; there
 is no upgrade reader. See [B-tree format](../dotnet-apis/resources/database/assimalign-cohesion-database-indexing/design.md#page-format-3).
 
+Current SQL format 39 retains applied-schema history and per-index owners. Formats 37/38 and
+all earlier markers refuse CS06041 before any file write. Documents index format 4 refuses
+version 3 with CD06105; KeyValuePair entry format 3 refuses version 2 with CV06107. All these
+refusals apply to clean and abruptly stopped files. Every batch 4 SQL, Documents and
+KeyValuePair database must be recreated; Graph formats are unchanged.
+
 ## Journal admission
 
 | Code | Meaning and trigger | SQLSTATE |
 | --- | --- | --- |
-| CK04014 | Statement deadline during checkpoint admission, or immediate refusal while retaining metadata/gates | 57014 |
+| CK04014 | Statement deadline during checkpoint admission, immediate catalog-mutation refusal, or SQL index-owner reservation LockTimeout expiry | 57014 |
 | CK06006 | Journal admission paused for a pending checkpoint; Degraded health while online | — |
 
 At appended bytes `ceil(J/2)` for J above zero, new write brackets pause even with the size trigger
@@ -281,16 +298,17 @@ default deadline. See [admission policy](../dotnet-apis/resources/database/assim
 
 | Code | Meaning and trigger | SQLSTATE |
 | --- | --- | --- |
-| CS03105 | Typed migration policy/metadata planning refused before steps or intent save, including conversions not proven lossless without destructive opt-in, namespace/dependency refusals and default changes without destructive opt-in | — |
+| CS03105 | Compiled-schema policy refusal, including unsafe explicit rollback regardless of destructive opt-in, never-seen destructive declarations without opt-in, namespace/dependency/default policy and non-literal DefaultSql on apply/Build/script generation (Build phase 3 leads its message with CS03101) | — |
 | CS03402 | Joint preparation, reservation or space admission failed, or an unpublished target/route was discarded; old schema retained online unless an independent storage latch fires; space refusals report needed/available bytes | — |
 | CS03403 | Joint publication commit unconfirmed; recovery decides whether the old or new schema is current | — |
 | CS03404 | Session relation creation or table rename names a relation reserved by a pending joint plan | — |
+| CS03405 | Warning: Build holds an earlier first-applied declaration with non-Safe reversal, dropped-object re-creation or existing-data validation; stored schema remains online, Degraded, with hashes and refused steps | — |
 
 See [typed migration diagnostics](sql/language/diagnostics.md#typed-schema-migrations),
 [conversion safety](sql/language/statements/alter-table.md#conversion-safety-and-application-rollback)
 and [health/recovery](sql/index.md#typed-migration-health-and-recovery). Failed joint preparation
 does not retry automatically. Every deferred and inline schema apply uses joint publication.
-Formats 36 and 35 are refused with CS06041
+Formats 37/38 and all earlier formats are refused with CS06041
 before writes; SQL record-space format 39 is current.
 
 ## SQL MERGE
@@ -327,7 +345,7 @@ The typed [array-key API](../dotnet-apis/resources/database/assimalign-cohesion-
 adds CD03025 for multiple array keys, UNIQUE array indexes or IncludeMissing with a leading array
 key, and CD03026 for an encoded index definition above 8,092 bytes (before posting extraction or
 tree creation). Neither has an assigned SQLSTATE. Unsupported typed WHEN constants/tree sizes
-retain ArgumentException. Index v3 is required; v1/v2 open refusals retain CD06105 (no SQLSTATE).
+retain ArgumentException. Index v4 is required; v1/v2/v3 open refusals retain CD06105 (no SQLSTATE).
 
 OQL array DDL adds located CD01028 (projection/WHEN path outside its variable), CD02027
 (unsupported WHEN scalar constant), CD03027 (excluded source/projection/WHEN expression, including an element path starting with a
@@ -349,7 +367,7 @@ quantifier or quantified star in a directly constructed call AST. Neither has an
 Final statistic overflow retains CD02007 (22003). Retained SELECT sources, group staging, native
 accumulators, DISTINCT sets, ARRAY_AGG inputs/results, projection/order storage and RETURNING
 share StatementMemoryBudget with ordered candidate buckets/keys/identities, GROUP AS wrappers/arrays
-and DML pending buffers. CD05018 refuses
+and DML pending buffers, window partitions/keys/navigation/results and index-build workspace. CD05018 refuses
 exhaustion before result publication; pending-buffer exhaustion precedes any write (no SQLSTATE).
 
 OQL [GROUP AS and group aliases](document/language/clauses/group-by.md) add CD00012 for GROUP AS
@@ -535,7 +553,7 @@ and CD05015 projection-depth guard. Correlation and DML subqueries execute.
 
 | Code | Meaning and trigger | SQLSTATE |
 | --- | --- | --- |
-| CD05020 | Shared reached-expression work budget exhausted across subqueries and expression sources, including cache hits | — |
+| CD05020 | Shared expression/lookup/set-operation/window work budget exhausted across subqueries, expression sources, key joins and compounds, including cache hits and window sort comparisons | — |
 
 ## Correlated GQL EXISTS
 
@@ -713,6 +731,27 @@ CD05021 means planning, EXPLAIN or evaluation exhausted the executing thread's a
 the statement fails and the session stays open, including over TCP. It has no assigned SQLSTATE.
 See [set operations](document/language/statements/select.md#set-operations).
 
+## OQL MERGE and windows
+
+[MERGE](document/language/statements/index.md#merge-planning) parses, renders, binds, plans and
+explains, but execution remains unavailable. [Windows](document/language/statements/select.md#windows)
+execute eight ranking/navigation functions. None of these diagnostics has an assigned SQLSTATE.
+
+| Code | Meaning and trigger |
+| --- | --- |
+| CD01039 | Direct MERGE AST has an invalid source, form or action shape |
+| CD01040 | MERGE references the unavailable ON KEY target, an unnamed AST root or invalid metadata receiver |
+| CD01041 | Empty or duplicate WINDOW name |
+| CD01042 | Unknown, self or forward window reference |
+| CD01043 | Copied window supplies PARTITION BY/replaces ORDER BY, or direct OVER has neither/both name and specification |
+| CD01044 | Window in an invalid position or window-only function without OVER |
+| CD01045 | Window nested in another window's argument or key |
+| CD05022 | MERGE execution unavailable until OQ-M2; EXPLAIN MERGE remains available |
+
+CD05018 also covers charged index builds and window retained state; CD05020 covers window work.
+Function registration now refuses all twelve window names with ArgumentException before build.
+Existing CK00001 retains conservative MERGE shapes and deferred frames/aggregate/value windows.
+
 ## GQL inline CALL
 
 CG01024 rejects a returned CALL name that shadows an outer binding, including imports and
@@ -722,6 +761,7 @@ CALL IN TRANSACTIONS retain CK00001. See [CALL scope and diagnostics](graph/lang
 
 ## Sources
 
+- **Batch 5** — `cohesion/resources/Database/Assimalign.Cohesion.Database/docs/ERROR-CODES.md`, code/tests and `cohesion/docs/EVENT_SOURCES.md` at `2dd935103`.
 - **Batch 19, SQ-A3** — `cohesion/resources/Database/Assimalign.Cohesion.Database/docs/ERROR-CODES.md` and `Assimalign.Cohesion.Database.Sql/src/Internal/Provisioning/SqlProvisioningCodes.cs` at `0b00f181e`, checked against code and tests.
 - **Savepoint fix pass** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/tests/SavepointFixTests.cs`, `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql.Client/tests/SavepointFailureWireTests.cs` and `cohesion/resources/Database/Assimalign.Cohesion.Database/tests/SavepointSeamTests.cs` at `ff5112515`.
 - **Batch 14** — `cohesion/resources/Database/Assimalign.Cohesion.Database/docs/ERROR-CODES.md` at `c3dc498bf`, checked against the batch-14 code and tests.

@@ -136,7 +136,7 @@ the structured diagnostic carries Code, Message, Severity and location fields.
 | `CS03033` | View declaration/replacement failure, changed bound column identity, invalid dependency/cycle, oversized record, wrong DROP VIEW target or recoverable uncoded body bind failure | — |
 | `CS05032` | DISTINCT/ALL/ORDER BY on a non-aggregate function, or DISTINCT input ordering key not structurally present in the argument list | — |
 | `CS02034` | LIKE/ILIKE ESCAPE has more than one Unicode scalar or the pattern ends in its escape; fixed/parameter patterns validate eagerly, dynamic patterns at evaluation | 22025 |
-| `CS06041` | Storage/index operation failed at an engine boundary, including wrapped/aggregate causes; original cause retained | 58030 for I/O |
+| `CS06041` | Storage/index failure, including wrapped/aggregate causes or refusal of SQL format 38 and earlier before writes (current 39); original cause retained | 58030 for I/O |
 | `CS05043` | Server-side statement execution deadline expired; failed statement effects are rolled back | 57014 (`query_canceled`) |
 | `CS04044` | Individual contended lock wait expired, including unique-index key waits and RewriteTableAsync's pre-queue exclusive table lock | 55P03 (`lock_not_available`) |
 | `CS05045` | Uncoded result encoding/preparation failure, or an encoded header/row above the wire frame limit; see [result delivery](#result-encoding-and-delivery) | 54000 for size refusals; otherwise — |
@@ -537,8 +537,13 @@ The shared StatementFailed event takes its payload code from non-null Diagnostic
 ## Hash-build refusal
 
 CS05067 (53200) reports exhausted retained SELECT, hash-build, joined-DML or CTAS source/copy
-memory. Eligible root ORDER BY and ordered DISTINCT sorts, including CTAS source roots, now
-spill at this boundary. Excluded shapes still refuse; an unordered CTAS refuses at its budget
+memory. Eligible root ORDER BY/ordered DISTINCT, plain hash aggregation/DISTINCT and plain-column
+hash joins spill at this boundary. Computed join keys, ineligible states/codecs, oversized
+records/minimum working sets and eight-level group repartition exhaustion retain CS05067.
+Index builds add new workspace refusals: direct CREATE INDEX/UNIQUE/PRIMARY KEY reports CS05067;
+schema-apply/rollback rebuilds report CS03402 with that cause. Increase StatementMemoryBudget.
+See [hash limits](../performance.md#hash-aggregation-and-distinct-spilling).
+Excluded shapes still refuse; an unordered CTAS without another eligible spill refuses at its budget
 while the same statement with an eligible ORDER BY spills. CS05067 also refuses a ninth live
 spilled result, an unsupported spill cell/key, or a reader exceeding the result grant.
 

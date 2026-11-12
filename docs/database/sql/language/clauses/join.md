@@ -200,7 +200,7 @@ CS01015 and asks for an alias. Provenance follows derived/CTE, compound and view
 both star forms, including FROM-less correlated inputs. An authored alias or column-alias list
 clears it. A stored table column literally named column1 is valid.
 
-Format 37 cannot distinguish an older frozen star's same-name AS alias from an authored
+Current format 39 cannot distinguish an older frozen star's same-name AS alias from an authored
 re-alias. That stored shape conservatively requires a fresh alias; even an authored same-name
 output in a mixed view can retain this ambiguity. An older explicit view list matching a
 generated name is also ambiguous: `CREATE VIEW legacy(column1) AS SELECT CAST(1 AS BIGINT)`
