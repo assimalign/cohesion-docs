@@ -65,9 +65,8 @@ uses the engine's [joint migration executor](../assimalign-cohesion-database-sql
 Every apply uses that executor, including non-TYPE, inline and empty-table plans. Preparation
 failure leaves the old schema online with CS03402; unconfirmed publication reports CS03403.
 The engine classifies each table: metadata-only changes keep its heap without rewriting rows;
-new indexes build only their trees. A heap-owned DROP INDEX without a same-name replacement keeps
-the heap and leaves its pages allocated until heap retirement. A same-name heap-owned replacement
-requires a rewrite; separately owned trees can be replaced while keeping the heap.
+new indexes build only their trees. Every index has its own owner, so drops and same-name
+replacements keep the heap when its layout permits and reclaim only the old tree.
 
 Every table still publishes in one commit. See [kept-table preparation](../assimalign-cohesion-database-sql/design.md#joint-tables-that-keep-storage).
 
@@ -79,10 +78,20 @@ existing destructive policy. See the [complete conversion table](../../../../dat
 
 Every other conversion, including every domain conversion, requires `AllowDestructiveChanges()`.
 Even a schema-declared domain can use application casts the planner cannot inspect. The engine
-reports a planner refusal as `CS03105` before any step runs. A successful migration followed by
-an older application declaration is an ordinary reverse migration with the same gate; INT to
-BIGINT does not authorize a later BIGINT to INT. This changes no serialized shape: compiled
-schema v12 remains current.
+reports policy refusals as `CS03105`. Applied history orders declarations by FirstAppliedGeneration:
+earlier declarations are rollbacks, later ones roll forward under the new-schema opt-in rules.
+A rollback applies only Safe steps that re-create no dropped object and validate no existing
+data. Build holds the entire unsafe rollback with CS03405 at the online stored schema; explicit
+apply refuses CS03105 regardless of the old opt-in. A never-seen destructive declaration without
+opt-in holds Build with CS03105. A dropped non-unique, non-partial index can be rebuilt only when
+every encoded key is provably at most 1,024 B; the budgeted build can still fail CS03402.
+See [the complete runtime classification](../assimalign-cohesion-database-sql/design.md#applied-schema-history-and-rollback).
+This changes no serialized shape: compiled schema v12 remains current.
+
+Compiled DefaultSql remains literal-only. A non-literal such as COALESCE(NULL::INT,1.5) carries
+CS03105 on imperative apply, Build and script generation. Build phase 3 leads its message with
+CS03101 but its structured diagnostic is CS03105. SQL-authored expression defaults retain their
+separate executable contract.
 
 ## Constraints and provisioning
 

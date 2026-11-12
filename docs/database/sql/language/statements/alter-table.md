@@ -161,8 +161,9 @@ unchanged default and nullability metadata, its lossless whitelist is:
 
 Every other conversion needs `schema.AllowDestructiveChanges()`, including narrowing, rounding
 and every domain conversion. Application-defined casts are outside the planner's proof, even
-for schema-declared domains. Without opt-in, Build/apply refuses with `CS03105` before anything
-runs. Opt-in permits an attempt; assignment conversion and constraints must still succeed.
+for schema-declared domains. Without opt-in, a never-seen destructive declaration holds Build
+at the stored schema with `CS03105`; explicit apply refuses before anything runs. A forward
+opt-in permits an attempt; assignment conversion and constraints must still succeed.
 Metadata-only changes retain their existing destructive-change policy.
 
 For example, changing an existing `Code` column from VARCHAR(8) to VARCHAR(4) requires opt-in:
@@ -186,9 +187,12 @@ schema can Build normally; a later Build declaring the new target can try again.
 only a Build declaring the same pending target resumes it. Plain open or an old/different/no-target
 Build discards that pending attempt and opens the old schema.
 
-After a **successful** publication, rolling the application back plans a reverse migration.
-For example, INT to BIGINT is lossless, but returning to INT requires destructive opt-in even
-when current values fit. Data lost by an opted-in conversion is not restored by a later rollback.
+After a **successful** publication, applied history identifies an older first-applied declaration
+as a rollback. It may apply only Safe steps that re-create no dropped object and validate no
+existing data. Returning from BIGINT to INT holds Build with CS03405 even with the old opt-in;
+explicit apply refuses CS03105. No Safe prefix runs. The stored schema stays online, Degraded.
+Data lost by an opted-in forward conversion is not restored by rollback. See
+[applied history](../../index.md#applied-history-and-application-rollback).
 An unconfirmed publication (`CS03403`) has an unknown old/new outcome; reopen/recovery decides
 the schema. See [migration health and recovery](../../index.md#typed-migration-health-and-recovery)
 and [migration diagnostics](../diagnostics.md#typed-schema-migrations).

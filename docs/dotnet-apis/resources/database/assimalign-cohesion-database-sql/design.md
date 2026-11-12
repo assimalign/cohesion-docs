@@ -367,8 +367,8 @@ or already-applied skip clears an earlier observation.
 
 An unconfirmed publication reports `CS03403` in both Provisioning and the thrown diagnostic. Its
 old/new outcome is unknown: new trees and directory records stay in place for recovery to decide.
-Late cancellation cannot undo confirmed publication. After successful publication an older
-declaration plans a reverse migration, with the same [lossless whitelist and destructive opt-in](../../../../database/sql/language/statements/alter-table.md#conversion-safety-and-application-rollback).
+Late cancellation cannot undo confirmed publication. After successful publication applied history
+classifies earlier declarations under the [rollback rule](#applied-schema-history-and-rollback).
 See [space admission and offline exceptions](storage-design.md#joint-migration-space-admission).
 
 ### Joint tables that keep storage
@@ -393,11 +393,9 @@ column refuses CS03105 before intent save, with CS03056 identifying the blocking
 publication index names refuse CS05060 before the catalog transaction. Retained index registration
 order survives publication/reopen; newly added indexes follow plan order.
 
-Dropping a heap-owned index without a same-name replacement keeps the heap, including a DROP
-COLUMN with its declared index. No rows are rewritten. Its unregistered pages remain allocated
-until the table's heap retires. A same-name heap-owned index replacement requires a full physical
-replacement. A separately owned tree can be dropped or replaced while keeping the heap; its old
-owner is reclaimed.
+Every index has a separate physical owner in format 39. Drops and same-name replacements keep
+the heap when the remaining layout permits, including a DROP COLUMN with its declared index.
+No rows are rewritten for an index-only change; only the retired tree's pages are reclaimed.
 
 Index comparison includes every effective key order: a direction-only or NULL-placement-only
 change replaces the independently owned tree while retaining its heap. Joint rewrites
@@ -2080,6 +2078,54 @@ Normal peer-close linger expiry and a server hard abort do not emit this event. 
 have no session and do not increment this session counter. This warning adds no diagnostic code
 or SQLSTATE.
 
+## Applied-schema history and rollback
+
+Catalog kind 20 stores never-evicted hash-only history, atomically with every kind-6 publication
+or joint replacement publication. It keeps ContentHash, FirstAppliedGeneration and
+LastAppliedGeneration in chunks of at most 32 entries. Pending intents do not enter history.
+With SHA-256 identities, 1,000 entries use 86,320 encoded bytes across 32 chunks. Reapplying a
+hash preserves its first generation and updates its last. Malformed/duplicate history refuses
+CS06059; exhaustion refuses publication rather than forgetting entries.
+
+An earlier FirstAppliedGeneration than the stored declaration means rollback. A later one means
+roll-forward under ordinary new-schema policy, including destructive opt-in. LastAppliedGeneration
+does not decide direction. Equal applied hashes skip; never-applied ancestors count as new.
+
+| Rollback step | Policy |
+| --- | --- |
+| AddTable, AddColumn | Held: dropped values cannot be recovered by re-creating an empty object |
+| DropTable, DropColumn, AlterTable | Held: destructive or removes newer values |
+| AlterColumn | Applied only when Safe and no existing-data validation is required; CHAR width changes and rewrites with retained CHECK/FK validation hold |
+| AddConstraint or unique AddIndex | Held: validates existing rows |
+| Non-unique AddIndex | Applied only without a predicate and with a proof that every complete encoded key fits 1,024 B |
+| DropIndex, DropConstraint | Applied: removes an access path or validation without deleting rows |
+| AddDomain, DropDomain | Applied: these planner steps change no catalog or rows; a transition into a domain uses AlterColumn |
+
+The index proof runs over declarations and catalog metadata before preparation, without scanning
+rows. It includes every key component, NULL marker, collation expansion, escape and terminator
+under stored and target types. Key order does not change length and no row-id suffix is added.
+Fixed-width scalars and fitting VARCHAR(n)/CHAR(n) qualify; TEXT, unbounded VARCHAR, binary, JSON,
+unknown codecs, oversized composites and predicates hold. The executable examples restore INT,
+VARCHAR(255) and CHAR(255) under the default collation, but hold VARCHAR(256) and two VARCHAR(128)
+keys; collation id 3 restores VARCHAR(85) and holds VARCHAR(86). A single unproved index holds
+the whole plan. An admitted rebuild still charges workspace and can report CS03402 caused by CS05067.
+
+Build holds an unsafe rollback with CS03405, succeeds without any step or declared script, and
+keeps the stored schema online, Degraded. A never-seen destructive declaration without opt-in
+holds with CS03105. Explicit ApplySchemaAsync refuses CS03105 for held rollback steps even with
+destructive opt-in. To accept loss, ship a new declaration with its own opt-in. Verify uses CS03103.
+
+Provisioning reports SchemaHeld, the schema name, position 1, the complete plan's step count,
+IsRunning=false, the hold code and full Detail containing both hashes and all refused steps.
+The engine-lifetime declaration retains that report across reopen, rewrite and explicit refusal
+while the stored hash is unchanged. Redeploying the stored or successfully applied newer declaration
+clears it. Reads remain available; writes enforce stored defaults/constraints and may fail if a
+required application function/domain is unavailable. Held Build suspends the removed-registration
+validation, but script checksum validation still precedes planning.
+
+Compiled DefaultSql remains literal-only: non-literal defaults carry CS03105 on imperative apply,
+Build and script generation. Build phase 3's message starts CS03101 while Diagnostics carries CS03105.
+
 ## Provisioning and deferred job events
 
 Provider `Assimalign.Cohesion.Database.Sql` uses no keyword for these events. Schema, table and
@@ -2096,6 +2142,7 @@ type, without SQL, values or exception text.
 | 20 | DeferredStepCompleted | Informational | Same fields as 18, outcome (Applied, Error, Unconfirmed), durationMilliseconds |
 | 21 | DeferredStepFailed | Error | Same fields as 18, code (CS03402 before publication or CS03403 for an unconfirmed commit), exceptionType |
 
+A held declaration ends event 14 with outcome Held, without a failure event or deferred job.
 Each admitted Apply/Verify emits its Start/Stop pair, including an already-applied Skipped result.
 A handoff stops Deferred before worker scheduling. A different-target Build discards an interrupted
 intent at open: Start Resume, failure CS03402, Stop Restarted, Start Replan, Stop Discarded, then

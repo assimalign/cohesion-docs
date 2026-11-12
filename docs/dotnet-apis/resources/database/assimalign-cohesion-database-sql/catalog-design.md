@@ -411,6 +411,16 @@ Snapshots capture immutable view definitions alongside the rest of the catalog.
 Allocator exhaustion uses CS02002 (22003); disappearing identity or unplanned live referential
 default sequence grants use CS04067 (40001). Retry replans before defaults or row mutation.
 
+## Applied-schema history
+
+Kind 20 stores hash-only applied history in chunks of at most 32 entries, with first and last
+applied generations. It is never evicted and publishes atomically with kind 6, including joint
+replacement and script bookkeeping. Pending kind 9 never enters history. Reapplying an identity
+updates only its last generation. Malformed or duplicate entries refuse CS06059. Format 38
+introduced history but never shipped alone; current format 39 retains it with per-index owners.
+Runtime rollback uses FirstAppliedGeneration, as described in
+[the policy](design.md#applied-schema-history-and-rollback).
+
 ## Sources
 
 - **Sequence definitions, namespace and validation** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/src/Catalog/SqlCatalog.Sequences.cs`, `src/Internal/Catalog/SqlSequenceOptions.cs` and `tests/Catalog/SqlCatalogTests.Sequences.cs`.

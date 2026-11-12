@@ -160,10 +160,9 @@ Every schema apply, including deferred work, `RunMigrationsInline`, empty-table 
 `ApplySchemaAsync`, prepares the whole target unpublished and publishes it in one catalog commit.
 Classification is per table. Nullable append, DROP COLUMN, compatible facet changes, SET/DROP
 DEFAULT and supported constraint/index changes keep the heap without rewriting rows; validation
-or new tree builds still run when required. A heap-owned DROP INDEX without a same-name
-replacement keeps the heap and leaves its pages allocated until heap retirement. A same-name
-heap-owned replacement requires a full rewrite; separately owned trees can be replaced while
-keeping the heap. Primary-key changes and required TYPE replacements rewrite. Script-declared
+or new tree builds still run when required. Every index has its own physical owner: drops and
+same-name replacements keep the heap when its layout permits, and retire only the old tree.
+Primary-key changes and required TYPE replacements rewrite. Script-declared
 indexes survive unless explicitly dropped or replaced by a same-name schema declaration. See
 [kept-table preparation](../../dotnet-apis/resources/database/assimalign-cohesion-database-sql/design.md#joint-tables-that-keep-storage).
 Hosting health is
@@ -184,8 +183,9 @@ migration by replanning preparation. A different-target Build discards with `CS0
 from the stored schema. An in-process reopen discards even a matching intent with `CS03402`;
 a no-target open discards without a provisioning observation or trace. Successful Verify clears
 a prior observation. Abandoned owners are reclaimed. After publication, reopen sees
-the new schema. Rolling an application back then plans a reverse migration, whose potentially
-lossy conversions require destructive opt-in (`CS03105` before steps otherwise).
+the new schema. Returning to an earlier applied declaration follows the
+[history-based rollback policy](#applied-history-and-application-rollback): an unsafe reversal
+holds Build online with CS03405 and refuses explicit apply with CS03105, regardless of old opt-in.
 
 `CS03403` means publication is **unconfirmed**, with an unknown old/new outcome. It reports through
 Provisioning and the thrown diagnostic, keeps the new trees and directory records for recovery,
@@ -249,6 +249,31 @@ adds a physical owner for every index. Formats 37, 38 and all earlier formats re
 before any write, on clean opens and after an abrupt stop.
 Explicit earlier format markers and unmarked user catalogs are refused at open; there is no
 upgrade path. Proven interrupted creation follows the completion rules above. Compiled schema format remains version 12.
+
+## Applied history and application rollback
+
+Every applied compiled schema records its hash, FirstAppliedGeneration and LastAppliedGeneration
+atomically with the current schema marker. History is never evicted; pending work is not applied
+history. Reapplying a hash updates its last generation while preserving its first.
+
+An application's declaration is a rollback only when its first-applied generation precedes the
+stored schema's first-applied generation. A later one is a roll-forward under ordinary forward
+policy, including its own destructive opt-in. An ancestor never applied here counts as new.
+
+A rollback applies only Safe steps that neither re-create dropped tables/columns nor validate
+existing data. One refused step holds the entire plan before any step or declared script runs.
+Build succeeds, keeping the old application online at the stored schema with Degraded health,
+CS03405, both hashes and every refused step in Provisioning.Detail. A never-seen destructive
+declaration without opt-in holds with CS03105. Verify remains strict (CS03103).
+Explicit ApplySchemaAsync follows the same rollback policy and throws CS03105 even when the
+earlier declaration opted into destructive changes. Accepting loss requires a new declaration
+with its own opt-in. See the [step rules and index proof](../../dotnet-apis/resources/database/assimalign-cohesion-database-sql/design.md#applied-schema-history-and-rollback).
+
+A hold survives offline/reopen, rewrite and refused explicit apply while the stored hash stays
+unchanged. Redeploying the stored or a successfully applied newer declaration clears it. Reads
+remain available; stored constraints and defaults govern writes. Held Build skips removed
+application-function/domain validation, so a write needing an unavailable registration can
+still fail with its existing code. Script checksum validation still precedes planning.
 
 ## Table maintenance
 

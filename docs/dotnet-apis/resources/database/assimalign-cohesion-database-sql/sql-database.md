@@ -123,6 +123,15 @@ uses `CS03403` and recovery decides the schema. See [joint migration behavior](d
 [conversion safety](../../../../database/sql/language/statements/alter-table.md#conversion-safety-and-application-rollback)
 and [space/cleanup admission](storage-design.md#joint-migration-space-admission).
 
+## ApplySchemaAsync and earlier declarations
+
+Imperative schema apply consults the applied history. An earlier FirstAppliedGeneration follows
+the rollback rule: only Safe steps that re-create no dropped object and validate no existing
+data can run. One refused step throws CS03105 with every refused step, even with destructive
+opt-in, before any change. An explicit refusal preserves a prior held declaration's progress.
+A later first-applied declaration rolls forward under its own opt-in rules. See
+[history and held Build](design.md#applied-schema-history-and-rollback).
+
 ## Related reference
 
 [Assembly](index.md) · [SqlObjectName](sql-object-name.md) · [SqlDatabaseSession](sql-database-session.md) · [Engine options](sql-database-engine-options.md) · [Design](design.md#table-rewrite)

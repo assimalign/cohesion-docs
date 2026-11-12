@@ -338,17 +338,21 @@ columns use CS03025. Stable/Volatile defaults execute per assignment; subqueries
 
 | Code | Meaning and trigger | SQLSTATE |
 | --- | --- | --- |
-| `CS03105` | Permanent policy/metadata planning refusal before steps or intent save: includes conversions outside the lossless whitelist without destructive opt-in, namespace/dependency refusals and default changes without destructive opt-in | — |
+| `CS03105` | Compiled-schema policy refusal, including non-literal DefaultSql, never-seen destructive declarations without opt-in, and explicit unsafe rollback regardless of opt-in | — |
 | `CS03402` | Joint migration preparation, reservation or space admission failed, or an unpublished target/route was discarded; old schema stays online unless an independent storage latch fires; space refusals include needed/available bytes | — |
 | `CS03403` | Joint catalog publication commit is unconfirmed; old/new outcome is unknown and reopen/recovery decides the schema | — |
 | `CS03404` | CREATE TABLE, CTAS, CREATE VIEW, CREATE SEQUENCE or table rename targets a name reserved by a queued/running joint plan | — |
+| `CS03405` | Build holds an earlier first-applied declaration whose reversal is non-Safe, re-creates dropped objects or validates existing rows; stored schema stays online, Degraded | — |
 
 Joint preparation has no automatic retry. A later explicit apply or Build declaring the target
 can retry; a Build declaring the old schema opens normally. After successful publication, returning
-to an earlier declaration is a reverse migration with the same destructive-change gate.
+to an earlier first-applied declaration follows the rollback rule even with destructive opt-in.
+One held step holds the complete plan before execution, with both hashes and refused steps in
+Provisioning.Detail. Build succeeds; Verify remains strict (CS03103). Explicit apply refuses CS03105.
 Provisioning health retains the failure code until a successful apply/Build, including an
 already-applied skip or successful Verify. Every deferred and inline migration uses joint
-publication and `CS03402` before publication. Imperative cancellation/timeout clears Provisioning.
+publication and `CS03402` before publication. Imperative cancellation/timeout clears ordinary
+Provisioning failures; an existing held declaration remains reported while its stored hash is unchanged.
 See [code-first type changes](statements/alter-table.md#code-first-type-changes) and
 [health and recovery](../index.md#typed-migration-health-and-recovery).
 
