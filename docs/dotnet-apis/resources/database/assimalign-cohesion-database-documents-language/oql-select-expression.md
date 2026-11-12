@@ -16,7 +16,8 @@ public sealed class OqlSelectExpression : OqlQueryExpression
         OqlExpression? limit = null, OqlExpression? offset = null, Location? location = null,
         IReadOnlyList<OqlUnnestExpression>? unnest = null,
         IReadOnlyList<string?>? groupAliases = null, string? groupAs = null, OqlExpression? source = null,
-        IReadOnlyList<OqlSourceBindingExpression>? bindings = null, bool isAliasImplicit = false);
+        IReadOnlyList<OqlSourceBindingExpression>? bindings = null, bool isAliasImplicit = false,
+        IReadOnlyList<OqlWindowDefinition>? windows = null);
     public string Collection { get; }
     public OqlExpression? Source { get; }
     public string? Alias { get; }
@@ -29,6 +30,7 @@ public sealed class OqlSelectExpression : OqlQueryExpression
     public IReadOnlyList<string?> GroupAliases { get; }
     public string? GroupAs { get; }
     public OqlExpression? Having { get; }
+    public IReadOnlyList<OqlWindowDefinition> Windows { get; }
     public IReadOnlyList<OqlOrdering> OrderBy { get; }
     public bool IsDistinct { get; }
     public bool IsValue { get; }
@@ -95,6 +97,13 @@ IsAliasImplicit true. The constructor sets IsAliasImplicit when alias is null or
 is true. A stored collection uses its whole name; a system source uses its last segment as written.
 Only explicit aliases allow an inner bare FROM name to correlate. Inferred names still work in
 qualified paths, grouping, ordering, index analysis and EXPLAIN.
+
+Windows retains query-local named [OqlWindowDefinition](oql-window-definition.md) declarations,
+or an empty list. The optional windows argument follows isAliasImplicit; a null member throws
+ArgumentNullException. Named definitions precede final ordering and paging. Empty/duplicate names
+use CD01041; unknown/self/forward references CD01042; invalid copies/OVER shapes CD01043.
+Windows execute after HAVING and before projection/DISTINCT/final ordering. See
+[window defaults and placement](../../../../database/document/language/statements/select.md#windows).
 
 ## Example
 

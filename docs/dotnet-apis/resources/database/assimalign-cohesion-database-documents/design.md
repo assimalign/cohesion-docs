@@ -904,6 +904,24 @@ preflight before recovery or any other write. Clean and crashed file sets remain
 When both model metadata and B-tree stamps are old, catalog kind/version headers precede B-tree roots, so the
 single refusal is CD06105. See [combined refusal order](../../../../database/error-codes.md#combined-format-refusals).
 
+## MERGE planning and ranking windows
+
+OQ-M1 binds lookup and key-equality ANSI MERGE against snapshot-visible catalog metadata.
+EXPLAIN describes source, KeyLookup/KeyJoin, ordered actions/filters and RETURNING without
+callbacks, probes or document reads. Execution refuses one located CD05022 before creating
+its nested context; OQ-M2 owns writes, counts, duplicate-write rules and RETURNING images.
+Supports("MERGE") remains false. CD01039/CD01040 cover invalid direct shapes and binding scope.
+See [conservative grammar/scopes](../../../../database/document/language/statements/index.md#merge-planning).
+
+OQ-W1 executes eight ranking/navigation windows over complete partitions after grouping/HAVING,
+before projection, DISTINCT, final ordering and paging. Equal specifications share sort/key work.
+Window rows, bindings, sort indexes, payloads, navigation and output charge StatementMemoryBudget
+(CD05018, no spill); expression/partition/peer/sort work shares StatementWorkBudget (CD05020).
+Adding OVER selects nested execution for the whole statement, including scan/projection work.
+Reservations release on success/error/cancellation. EXPLAIN adds WindowAggregate with keys and
+sort-sharing groups. Frames, aggregate OVER and value functions are deferred. See
+[window defaults, scope and reserved names](../../../../database/document/language/statements/select.md#windows).
+
 ## Index builds and reclamation
 
 Index format 4 gives every physical generation a separate page owner and signed-root retirement

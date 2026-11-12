@@ -11,6 +11,7 @@ OQL SELECT clauses bind sources, filter documents, form groups, and order the re
 - **Document filter** — [WHERE](where.md) retains documents whose predicate is true.
 - **Grouping** — [GROUP BY and GROUP AS](group-by.md) form groups, name keys and retain input binding wrappers.
 - **Group filter** — [HAVING](having.md) filters grouped results.
+- **Windows** — [OVER and WINDOW](../statements/select.md#windows) compute eight ranking/navigation functions.
 - **Ordering** — [ORDER BY](order-by.md) sorts by expressions or explicit output aliases.
 
 - **Paging** — [LIMIT and OFFSET](limit-offset.md) slice the ordered result; either may come first.

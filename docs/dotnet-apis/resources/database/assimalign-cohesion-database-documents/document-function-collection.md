@@ -27,6 +27,12 @@ Native, grammar, keyword and reserved nonexecuting call names are reserved. Appl
 overloads require disjoint arity ranges and one scalar/aggregate kind. The collection is not
 thread-safe; one registered function instance must be stateless or thread-safe.
 
+Add now also refuses twelve window names that the base accepted: ROW_NUMBER, RANK, DENSE_RANK,
+PERCENT_RANK, CUME_DIST, NTILE, LAG, LEAD, FIRST_VALUE, LAST_VALUE, NTH_VALUE and RATIO_TO_REPORT.
+Scalar and aggregate registrations throw ArgumentException for function before engine build.
+The first eight execute with OVER; the last four remain deferred. See
+[window behavior](../../../../database/document/language/statements/select.md#windows).
+
 ## Example
 
 ```csharp

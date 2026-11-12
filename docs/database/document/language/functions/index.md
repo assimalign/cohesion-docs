@@ -1,11 +1,13 @@
 # Functions
 
-OQL implements 34 SQL++ scalar functions, eleven native aggregate names and META over document expressions.
+OQL implements 34 SQL++ scalar functions, eleven native aggregate names, eight ranking/navigation
+windows and META over document expressions.
 
 ## Function reference
 
 - **Aggregates** — [COUNT, SUM, AVG, MIN, MAX, ARRAY_AGG, Boolean and sample statistics functions](aggregate-functions.md), with ALL/DISTINCT.
 - **Scalars** — [String, numeric, date, type, array and conditional functions](scalar-functions.md).
+- **Windows** — [Eight ranking/navigation functions](../statements/select.md#windows) require OVER.
 
 Each native aggregate takes one argument, and only native `COUNT` accepts `*`. Function names are
 case-insensitive. The Documents planner and executor validate placement, grouping, and values.
@@ -35,6 +37,10 @@ SELECT slug(name) AS name FROM items WHERE amount = 2;
 External callback/result/accumulator failures use CD05017 (no SQLSTATE); CD02008 covers fractional integer conversion; CD02007 (22003) covers integer range overflow.
 Statement failures abort an explicit transaction; roll back before continuing. Callbacks are
 trusted code and must not reenter the engine.
+
+Registration now reserves ROW_NUMBER, RANK, DENSE_RANK, PERCENT_RANK, CUME_DIST, NTILE, LAG,
+LEAD, FIRST_VALUE, LAST_VALUE, NTH_VALUE and RATIO_TO_REPORT. DocumentFunctionCollection.Add
+throws ArgumentException for those twelve names before build, including the four deferred names.
 
 ## See also
 

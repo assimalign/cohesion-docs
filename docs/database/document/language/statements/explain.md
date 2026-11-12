@@ -1,11 +1,11 @@
 # EXPLAIN
 
-Returns the chosen OQL plan without executing its SELECT, INSERT, UPSERT, UPDATE or DELETE.
+Returns the chosen OQL plan without executing SELECT, INSERT, UPSERT, UPDATE, DELETE or MERGE.
 
 ## Syntax
 
 ```syntaxsql
-EXPLAIN { select_statement | insert_statement | upsert_statement | update_statement | delete_statement } [ ; ]
+EXPLAIN { select_statement | insert_statement | upsert_statement | update_statement | delete_statement | merge_statement } [ ; ]
 ```
 
 ## Remarks
@@ -112,6 +112,17 @@ With `CREATE INDEX ix ON items (v INCLUDE MISSING)`, scalar/nullish-only items a
 `order_eligible=True; order_reason=eligible; order_direction=reverse; ...; consumed=True; sort=elided`.
 Changing to ASC NULLS LAST without a predicate excluding unknowns reports null_placement_mismatch.
 These reasons are plan details, not diagnostic codes.
+
+### MERGE and windows
+
+[MERGE](index.md#merge-planning) explains as Merge, source operators, KeyLookup/KeyJoin,
+MergeUpdate/MergeDelete/MergeInsert in order, filters and RETURNING. It evaluates no source,
+key or action expression, performs no target probe and reads/writes no documents. Execution
+without EXPLAIN refuses CD05022 until OQ-M2. MERGE action filters remain residuals after matching.
+
+[Windows](select.md#windows) add WindowAggregate after grouping/HAVING, before projection,
+DISTINCT and final paging. Detail names partition/order keys and groups that share a sort.
+EXPLAIN validates window names, placement, literal counts/offsets and budgets without reading values.
 
 ## Examples
 

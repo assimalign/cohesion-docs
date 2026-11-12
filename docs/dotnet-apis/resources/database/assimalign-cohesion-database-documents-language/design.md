@@ -24,15 +24,38 @@ result shapes, equality and CD01037/CD01038 ordering boundary.
 
 The shared lexer/parser infrastructure owns tokenization, diagnostics and source locations. OQL
 partial parsers own dispatch, SELECT, DDL, DML and expressions. OqlQueryStatement wraps one SELECT,
-INSERT, UPSERT, UPDATE, DELETE, EXPLAIN, collection DDL or index DDL root. Parser-produced lists are read-only snapshots;
+INSERT, UPSERT, UPDATE, DELETE, MERGE, EXPLAIN, collection DDL or index DDL root. Parser-produced lists are read-only snapshots;
 public constructors retain child references and semantic validation belongs to the engine.
 
 Offsets use zero-based UTF-16 with exclusive ends and one-based lines. Parsing returns diagnostics;
 DocumentQueryRequest and session execution reject all parser errors before planning. Expressions
 have a 128-level recursive parse bound. [OqlFunctions](oql-functions.md) is the immutable table of
-META, eleven native aggregate names and 34 scalars, shared by parser, profile and engine. [OqlFunction](oql-function.md)
+META, eleven native aggregate names, eight ranking/navigation windows and 34 scalars, shared by parser, profile and engine. [OqlFunction](oql-function.md)
 records arity, JSON kinds and result type; [OqlCallExpression](oql-call-expression.md) retains calls.
 Unknown calls report CD00008, invalid arity/star CD00006 and deferred calls CK00001.
+
+## MERGE and window AST
+
+[OqlMergeExpression](oql-merge-expression.md) retains the target, collection/query/expression
+source, lookup/ANSI key, UPDATE/DELETE/INSERT actions and RETURNING. Action WHERE filters share
+the optional Predicate shape, including OqlMergeDeleteAction(OqlExpression? predicate = null).
+Mutation lists are read-only snapshots. Canonical ToString preserves tree shape within a
+128-level complete-tree/canonical parse bound. Both forms bind and EXPLAIN without reads,
+callbacks or probes; execution refuses CD05022 until OQ-M2. The Merge clause constant exists,
+but OqlLanguageProfile.Instance.Supports("MERGE") remains false. See
+[scope and CK00001 boundaries](../../../../database/document/language/statements/index.md#merge-planning).
+
+[OqlWindowExpression](oql-window-expression.md) retains Call and exactly one of Name or
+Specification; [OqlWindowDefinition](oql-window-definition.md) and
+[OqlWindowSpecification](oql-window-specification.md) represent named/copy/inline windows.
+OqlSelectExpression.Windows uses the optional windows constructor argument. OqlFunction.WindowKind
+identifies the eight executable functions. OqlFunctions.All and the profile Instance gain their
+entries without signature changes, and Over/Window clause constants advertise support.
+Names stay ordinal/case-sensitive, copies see earlier definitions and placement is SELECT
+projection/final ORDER BY only. CD01041–CD01045 identify naming, reference, shape, placement and
+nesting failures. Frames/aggregate OVER/value windows remain CK00001. Registration reserves all
+twelve window names, including the four deferred ones. See
+[defaults and quoting](../../../../database/document/language/statements/select.md#windows).
 
 ## SQL++ values
 

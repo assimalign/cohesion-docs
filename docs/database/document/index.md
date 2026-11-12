@@ -32,6 +32,11 @@ statement's snapshot and work/memory budgets, including correlated and DML forms
 The [operator precedence](language/expressions/operators.md#precedence) now places IS above
 comparisons and EXISTS between them; this changes unparenthesized mixed predicates.
 
+[OVER and named WINDOW](language/statements/select.md#windows) execute eight ranking/navigation
+functions after grouping/HAVING. Frames, aggregate OVER and value windows remain deferred.
+[MERGE](language/statements/index.md#merge-planning) parses, renders, binds, plans and explains;
+execution refuses CD05022 until OQ-M2 and Supports("MERGE") remains false.
+
 ## Reading and writing
 
 [34 SQL++ scalar functions](language/functions/scalar-functions.md) provide string, exact numeric,
