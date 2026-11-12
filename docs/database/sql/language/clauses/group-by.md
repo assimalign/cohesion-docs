@@ -44,6 +44,14 @@ Eligible aggregation streams input and charges retained keys and state to the st
 Projection aliases are outside grouping's alias-binding scope. Standalone numeric keys
 (`GROUP BY 1`) report `CK00001`; `GROUP BY 1 + 1` is an ordinary constant expression.
 
+### Plain hash grouping
+
+Eligible root plain GROUP BY spills fixed-size native states at the existing statement grant
+boundary, using eight partitions per level and at most eight levels. A single group's state
+must fit. Text/binary MIN/MAX, STRING_AGG, ARRAY_AGG, DISTINCT/ordered aggregates and the other
+[excluded states](../../performance.md#hash-aggregation-and-distinct-spilling) retain CS05067.
+Fitting charges, first-seen results, calls, counters and first errors are unchanged.
+
 ### Grouping sets, ROLLUP and CUBE
 
 GROUPING SETS concatenates its children's sets. ROLLUP includes every prefix and the empty

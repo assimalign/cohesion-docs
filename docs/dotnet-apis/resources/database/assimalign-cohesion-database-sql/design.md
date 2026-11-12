@@ -2246,12 +2246,21 @@ Cells of at least 256 bytes pay payload once per buffer owner by reference ident
 per distinct cell; further references pay slots. Smaller cells and hash-build references still
 pay per reference. Separate equal objects each pay. Outputs and keys share a collector map;
 two live buffers each pay for a shared value. Eligible root ORDER BY and ordered DISTINCT spill
-where their reservation would refuse CS05067; other retained buffers keep their existing policy. Plain bytes that fill the grant first also
+where their reservation would refuse CS05067. Eligible root hash joins, normalized join buffers
+and plain hash aggregation/DISTINCT also spill; other retained buffers keep their existing policy. Plain bytes that fill the grant first also
 cause window/JSON memory refusals to use CS05067. Without plain bytes live, those retain CS05079
 and CS05094. INSERT SELECT and DML subquery sources keep their existing policy.
 See [statement memory](../../../../database/sql/performance.md#statement-memory).
 
-Binding proves eligible paths and preserves complete residuals. Statement-local bounded B-tree probes rank access costs without persisted statistics or ANALYZE maintenance. Eligible equijoins compare hash-build/probe work with nested loops; safe smaller first INNER inputs can become the driver, while LEFT preserves its written outer side. Hash memory is reserved against StatementMemoryBudget before retained allocation and released on every exit. CS05067 / 53200 refuses exhausted builds; no spill exists.
+Binding proves eligible paths and preserves complete residuals. Statement-local bounded B-tree
+probes rank access costs without persisted statistics or ANALYZE maintenance. Eligible equijoins
+compare hash work with nested loops; safe smaller first INNER inputs can become the driver,
+while LEFT preserves its written outer side. Memory reserves before retention and releases on
+every exit. Eligible root INNER/LEFT/RIGHT/FULL hash joins spill to indexed temporary builds;
+computed keys still refuse CS05067. Plain root aggregation/DISTINCT spills fixed states into
+eight partitions at up to eight levels. Fitting statements retain their charges and semantics.
+See [hash spill policy and measurements](../../../../database/sql/performance.md#hash-aggregation-and-distinct-spilling)
+and [indexed join limits](../../../../database/sql/performance.md#hash-join-spilling).
 
 Probes use tree read latches with table/index identity validation and no transaction object locks.
 Costing is lazy: the primary-key/base-table total is probed only when the selected seek estimate

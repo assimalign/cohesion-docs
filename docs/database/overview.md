@@ -563,6 +563,15 @@ A sole mutable page handle carries read permission across serialized thread hand
 nested writers for that page on another thread are refused before exposing mutable bytes. See
 [confirmed reads and reuse](../dotnet-apis/resources/database/assimalign-cohesion-database-storage/design.md#confirmed-reads-and-record-space-reuse).
 
+## Hash spill boundaries
+
+SQL root plain hash aggregation/DISTINCT spills fixed states into eight partitions at up to
+eight levels. Eligible root hash joins spill plain column keys to an indexed temporary build,
+including mixed numeric keys and skew. Computed join keys still refuse CS05067. Fitting
+statements keep their original charges, results, calls and first errors. See
+[aggregation exclusions](sql/performance.md#hash-aggregation-and-distinct-spilling) and
+[join temporary-space limits](sql/performance.md#hash-join-spilling).
+
 ## Batch 5 format compatibility
 
 The current model formats are SQL **39**, Documents index **4** and KeyValuePair entry **3**.

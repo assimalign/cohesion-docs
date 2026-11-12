@@ -52,8 +52,8 @@ await using var engine = SqlDatabaseEngine.Create("orders", options);
 ```
 
 The positive byte budget defaults to 64 MiB and covers retained SELECT buffers. Eligible root
-ORDER BY and ordered DISTINCT spill when they would otherwise refuse CS05067 (53200). Other
-retained results/operators still need a sufficient grant. File engines use configured temporary
+ORDER BY, ordered DISTINCT, eligible hash joins and plain hash aggregation/DISTINCT spill where
+they would otherwise refuse CS05067 (53200). Other retained results/operators need a sufficient grant. File engines use configured temporary
 space; in-memory engines need an explicit TempDirectory. Fitting sorts retain their existing path.
 
 ## Statement memory
@@ -87,7 +87,8 @@ outside it. INSERT SELECT and DML subquery sources keep their existing policy.
 sorting, grouping and caches, then charges kept output and copy buffers. Pagination does not
 reserve collection capacity. [Joined mutations](#joined-mutations) and recursive query state
 retain their existing accounting. Refusal stops input immediately, even before a later input error,
-unless an eligible root sort hands retained rows to temporary storage.
+unless an eligible root sort, hash join, normalized join buffer or plain hash aggregation/DISTINCT
+hands retained state to temporary storage.
 
 [SQL/JSON paths](language/functions/json-path.md#limits) charge transient DOM, result references
 and selected-result serialization to the same statement memory grant (CS05094 / 54000).
@@ -160,6 +161,80 @@ StatementMemoryBudget. About 840 bytes per two-column row limits a default 64 Mi
 about 79,900 rows, less when other statement work is retained. There is no cascade depth limit.
 CS05067 (53200) refuses exhaustion before writes; cleanup releases abandoned attempts.
 
+## Hash aggregation and DISTINCT spilling
+
+Eligible root plain GROUP BY and streamed scan/system-view unordered SELECT DISTINCT spill at
+their existing reservation boundary. Hash aggregation uses fixed-size states, eight partitions
+per level and at most eight levels; exhausting that bound retains CS05067. Existing groups keep
+accumulating while new-group inputs partition. A single skewed group's state must still fit.
+
+| State or shape | Spill policy |
+| --- | --- |
+| Native COUNT; SUM/AVG with a proved numeric bound; fixed-width numeric, temporal, Boolean or UUID MIN/MAX; BOOL_AND/BOOL_OR/EVERY | Eligible; fixed state remains charged |
+| Text/CHAR and binary MIN/MAX | CS05067 |
+| SUM/AVG over stored integer columns, declared integer calls, sequences, bounded stored NUMERIC columns/casts or numeric constants | Can prove magnitude × physical statement temp quota fits Decimal |
+| SUM/AVG over pseudo-type calls, derived/Null-typed columns, unbounded NUMERIC, floating sums or unproved compound inputs | CS05067 |
+| STRING_AGG/ARRAY_AGG, aggregate DISTINCT/ORDER BY, statistical/application accumulators, grouping sets, direct window-over-group owners, nested relation bodies | Existing refusal/ownership; no hash spill permission |
+| Deferred collation, second key family, unsupported cells or application-binary cells | CS05067 |
+| Join-output hash DISTINCT | Existing memory refusal |
+| Subquery-bearing group inputs/expressions or unproved MIN/MAX argument families | Existing refusal |
+
+COUNT(x) partitions nullness only. The SUM/AVG proof prevents an overflow error from moving
+later during replay. Keys, FILTER and accepted arguments evaluate once before evaluated values
+are written. Results retain first-seen group order, the first complete DISTINCT representative,
+collated spelling, calls, sequence state, counters and first expression errors. Statements that
+fit keep their original charges. Completed groups pass through an ordinal sort before HAVING
+and projection; unordered LIMIT/OFFSET stops projection at the fitting boundary.
+
+For remaining grant G, a partition record including its 24 B allowance must fit
+`min(16384, (min(G, Int32.MaxValue) - 32768) / 16 - 8192)`. Each phase subtracts active reader
+buffers and must admit the external sorter. An input-order output spool uses the remaining-grant
+bound without the 16,384 B partition cap. Scalar key plus COUNT(*) charges 352 B per live group;
+8,000 groups exceed ten 262,144 B grants and complete with default temp quotas. This is a
+measured example, not a row limit.
+
+All source, partition, ordinal and downstream sort files share the physical statement quota.
+Hash batches/passes vary with the process hash seed; a statement near the eight-level bound
+can succeed in one process and refuse CS05067 in another. Keys require equality families and
+the row codec, without requiring an index-backed collation.
+
+## Hash join spilling
+
+Eligible root INNER, LEFT, RIGHT and FULL hash joins spill to an indexed temporary build at
+the original CS05067 boundary, including when other operators hold part of the statement grant.
+Only plain column keys spill, including mixed numeric types: 1 matches 1.0. A computed key
+such as CASE, COALESCE or arithmetic still refuses CS05067 when its hash build exceeds memory.
+Correlated/lateral inputs, non-hash steps, deferred collations, SQL/JSON, application-binary
+build cells, joined DML and join-output DISTINCT also receive no join-spill permission.
+
+The build sorts once by composed hash and insertion ordinal. Probes read only matching hash
+chunks through a bounded cache and never write temp records. Equal-hash groups stream across
+chunks, so skewed keys complete without a repartitioning/depth limit. FULL tracks matched
+ordinals and restores unmatched build order, including NULL keys. Caller evaluation retains
+rows, order, NULL extensions, candidate/record counts, calls and the first error. Fitting joins
+retain their original representation, allocations and charges.
+
+Spilled joins require at least 262,144 B of statement memory. There is one shared statement-wide
+262,144 B allowance for bounded transient handoff/codec/file objects, shared with aggregation;
+it is not multiplied per operator. Persistent directories, bitmaps, caches, readers and writers
+are charged. Probe caches target one quarter of the grant, reduced by other reservations, and
+must admit one decoded chunk. Records or minimum working sets that cannot fit retain CS05067.
+Normalized join-tree left/intermediate buffers can stage under the exact sort row codec; an
+application-produced binary probe cell still refuses CS05067 if its input needs staging.
+
+At Seal, build runs and the indexed run coexist, requiring up to about twice the packed build
+size plus framing, directory metadata and any staged probe input. With the default four-grant
+temp quota, an incompressible build over about two grants refuses located CK05002. Consolidation
+when an arena yields can also hit that quota. Random probes can read much more than the build
+writes; physical snapshot/peak fields are not cumulative I/O measurements. No fixed ratio is
+promised. CK05004 also checks the temporary join directory hash before probing.
+
+File engines use their temporary space; in-memory engines require an explicit TempDirectory.
+Joins, aggregation, staged buffers and sorting share one temp statement and physical quota.
+Success, refusal, error, cancellation and result/session disposal release reservations/files;
+startup sweeping handles leftovers after abrupt stops. CK0500x remains located and keeps the
+durable database online. See [EXPLAIN hash fields](language/statements/explain.md#hash-spill-fields).
+
 ## Root sort spilling
 
 A root plain SELECT ORDER BY, its OFFSET + LIMIT heap, and ordered DISTINCT can spill under
@@ -223,6 +298,7 @@ ANALYZE reports frame_visits, transitions, inverse_transitions and boundary_visi
 
 ## Sources
 
+- **Hash spilling** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/docs/DESIGN.md`, `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql.Language/docs/DIALECT.md` and `SqlPlanExecutor.HashSpill.cs`, `SqlPlanExecutor.JoinSpill.cs`, `SqlHashJoinSpill.cs` under the SQL project's `src/Internal/Execution/` at `2dd935103`.
 - **Root sort/CTAS spilling** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql.Language/docs/DIALECT.md` and `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/tests/SqlSortSpillConformanceTests*.cs`.
 
 - **SELECT retention and memory** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/tests/SqlSelectRetentionTests.cs`, `SqlSelectMemoryTests.cs`, `SqlSelectWideMemoryTests.cs` and `SqlJointTypeMigrationTests.BatchIntegration.cs` in the same directory; implementation is `src/Internal/Execution/SqlPlanExecutor.Retention.cs` and `SqlSelectMemory.cs` in that project.

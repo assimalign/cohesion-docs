@@ -131,7 +131,10 @@ after limited projection stops. Eligible EXISTS/scalar bodies retain at most two
 without skipping ordinary projection work. Volatile evaluation and deferred collations can require staging.
 All retained SELECT buffers and results charge StatementMemoryBudget; CS05067 refuses exhaustion.
 Selected index order avoids sorting. Eligible root ORDER BY and ordered DISTINCT spill,
-including CTAS source roots. Evaluation completes first; spilled delivery is lazy. See
+including CTAS source roots. Plain hash aggregation/DISTINCT and root hash joins on plain
+column keys can also spill; computed join keys still refuse CS05067. See
+[hash exclusions](../performance.md#hash-aggregation-and-distinct-spilling).
+Evaluation completes first; spilled delivery is lazy. See
 [spill eligibility and result ownership](../performance.md#root-sort-spilling).
 
 ## See also
