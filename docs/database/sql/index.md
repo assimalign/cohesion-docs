@@ -69,7 +69,7 @@ share the same behavior in process and through the supported wire codecs.
 [ALTER TABLE](language/statements/alter-table.md) executes column TYPE with old-row USING,
 table/column renames and column SET/DROP DEFAULT and SET/DROP NOT NULL. [Scalar functions](language/functions/builtin-functions.md)
 execute 42 T1 names, including transaction-start clocks and day-time temporal operations.
-SQL storage format is 37; compiled schemas remain version 12.
+SQL storage format is 39; compiled schemas remain version 12.
 
 [OVER and WINDOW](language/clauses/window.md) provide ordered partitions, named inheritance,
 [ranking/distribution functions and LAG/LEAD](language/functions/window-functions.md). They run
@@ -203,7 +203,7 @@ Pre-header files with no conflicting persisted state require CreateDatabaseAsync
 plain open reports CS03401. Missing journals/backups and ambiguous lost catalogs are refused
 without writing or recreating files. Follow the coded refusal's remedy and preserve ambiguous data.
 Transient inspection failures are retryable after the condition is resolved, without restore advice.
-Drop removes sql.dat before the remaining file set. The current format is 37.
+Drop removes sql.dat before the remaining file set. The current format is 39.
 
 See [lifecycle APIs and examples](../../dotnet-apis/resources/database/assimalign-cohesion-database-sql/design.md#database-creation-open-and-drop)
 and [creation diagnostics](language/diagnostics.md#database-creation-and-open).
@@ -243,8 +243,10 @@ direction and NULL placement in mandatory index extension 3 and retained TYPE de
 Format 33 fenced SQL/JSON names and ordinary-call quoting. Format 34 introduced joint typed
 migration intent semantics. Format 35 introduced separate physical owners for kept-table index trees and durable per-table
 classification. Format 36 changed effective index orders and defaults to ASC NULLS FIRST,
-matching ORDER BY. Current format 37 requires joint publication for every deferred job and fences
-per-step intents; format 36 and earlier are refused before recovery writes.
+matching ORDER BY. Format 37 required joint publication for every deferred job and fenced
+per-step intents. Format 38 added applied-schema history and never shipped alone. Current format 39
+adds a physical owner for every index. Formats 37, 38 and all earlier formats refuse CS06041
+before any write, on clean opens and after an abrupt stop.
 Explicit earlier format markers and unmarked user catalogs are refused at open; there is no
 upgrade path. Proven interrupted creation follows the completion rules above. Compiled schema format remains version 12.
 
@@ -259,9 +261,9 @@ LockTimeout bounds the wait with CS04044 (55P03). This maintenance adds no SQL s
 [SQL/JSON path functions](language/functions/json-path.md) and [COPY TO STDOUT](language/statements/copy-to.md)
 execute with bounded path work and negotiated outbound streaming respectively.
 
-## SQL format 37 and schema v12
+## SQL format 39 and schema v12
 
-SQL opens only data/catalog format **37** and compiled documents in
+SQL opens only data/catalog format **39** and compiled documents in
 **cohesion/database-schema/v12**. Format 30 adds ON UPDATE action bytes in table extension 8.
 Format 31 added partial-index predicate text and dependencies in index extension 2.
 Format 32 added per-column direction and NULL placement in mandatory index extension 3.
@@ -272,14 +274,16 @@ per-table KeepOwner/RewriteOwner classifications. Format 36 changed effective in
 and defaults to ASC NULLS FIRST, matching ORDER BY. Compiled schema v12 makes the same change;
 omitted and zero-filled KeyOrders vectors are equivalent. Primary-key and UNIQUE indexes use
 that default too.
-Current format 37 requires joint publication for every deferred job and fences old per-step
-intents before any write. Formats 36 and 35 are both refused with CS06041, leaving every file
-unchanged, including crashed journals.
+Format 37 required joint publication for every deferred job and fenced old per-step intents.
+Format 38 added chunked, never-evicted applied-schema history (kind 20) and never shipped alone.
+Current format 39 adds per-index owners and registration kind 21. Formats 37 and 38, along with
+all earlier formats, refuse CS06041 before any write, leaving clean files and crashed journals
+unchanged. Every SQL database from batch 4 must be recreated.
 Format 29 extended kind-18 sequence definitions with owning
 table id, column name and identity ownership. Identity allocation uses kind-19 reservations;
 kind 16 is retired and never decoded. Format 30 retains the TYPE default-assignment flag introduced
 in format 27/table extension 7 and format 28's standalone-sequence records.
-Format 36 and every earlier database format are refused before data recovery;
+Format 38 and every earlier database format are refused before data recovery;
 there is no upgrade path or legacy reader. Clean and crashed format refusals preserve every file
 byte for byte; recovered read-only probes perform no lifecycle telemetry or recovery writes.
 Accepted databases retain normal recovery. Compiled schema v12 retains v11's effective KeyOrders,

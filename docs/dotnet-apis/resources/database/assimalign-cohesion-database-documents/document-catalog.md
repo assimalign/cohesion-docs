@@ -63,7 +63,7 @@ Multiple array keys, UNIQUE array indexes or IncludeMissing with a leading array
 DocumentCatalogException/CD03025. An encoded definition above 8,092 bytes uses CD03026 before
 posting extraction or physical tree creation. Neither has an assigned SQLSTATE. Unsupported
 typed WHEN constants and oversized predicate trees retain [ArgumentException](document-index-predicate.md).
-Index definition/registration v1/v2 are refused before recovery writes with CD06105; v3 is required.
+Index definition/registration v1/v2/v3 are refused before recovery writes with CD06105; v4 is required.
 
 ## Example
 

@@ -19,7 +19,7 @@ Diagnostics is non-null and read-only. Public message constructors leave it empt
 
 Typed index creation uses CD03025 for multiple array keys, UNIQUE array indexes or IncludeMissing
 with a leading array key, and CD03026 for a definition above 8,092 encoded bytes before posting
-extraction/tree creation. V1/v2 index records are refused before recovery writes with CD06105;
+extraction/tree creation. V1/v2/v3 index records are refused before recovery writes with CD06105;
 the supported version is 3. None has an assigned SQLSTATE. Typed WHEN argument guards retain
 ArgumentException; see [predicate contracts](document-index-predicate.md).
 

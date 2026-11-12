@@ -105,6 +105,18 @@ HasFailingWorker remains false for the observation. ForeignStorage refusals repo
 operational failures. See [purge behavior](../../dotnet-apis/resources/database/assimalign-cohesion-database-keyvaluepair/design.md#version-purge-refusals)
 and [shared engine health](../overview.md#engine-health-and-version-purge).
 
+## Entry format and primary owner
+
+Entry-space format **3** gives the primary index a physical owner distinct from logical
+key-space owner 1. Format 2 and earlier refuse CV06107 before any write, for clean opens and
+after an abrupt stop. Recreate every batch 4 database after exporting it with its original engine.
+There is no upgrade reader. Key-space introspection still reports logical id 1.
+
+Open validates the registered root and owner, then discovers unregistered index owners from
+Storage's recovered owner directory and frees them in durable batches of at most 64 pages,
+yielding to checkpoint admission. The registered primary tree is excluded. KeyValuePair only
+bootstraps an empty primary tree; it has no DROP INDEX or populated index backfill operation.
+
 ## Sources
 
 - **Engine** — `cohesion/resources/Database/Assimalign.Cohesion.Database.KeyValuePair/docs/OVERVIEW.md`.

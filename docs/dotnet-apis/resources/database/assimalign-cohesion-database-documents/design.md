@@ -298,7 +298,7 @@ values, reversed operands, and conjunctive bounds. Bounded snapshot-visible prob
 then a range on the next path, then UNIQUE, then ordinal index name. A non-leading-only bound scans. The executor reapplies the full predicate to candidates, preserving mixed-shape
 semantics. See the [catalog design](catalog-design.md) for
 composite key collation, NULL/MISSING rules, visibility filtering and restart recovery. Index
-records use v3; v1/v2 indexes are refused with CD06105 before recovery writes, with a recreate remedy and no upgrade.
+records use v4; v1/v2/v3 indexes are refused with CD06105 before recovery writes, with a recreate remedy and no upgrade.
 UNIQUE keys containing NULL/MISSING do not conflict. Duplicate valued scalar keys use
 DocumentConstraintViolationException/CD03020 (23505); array/object components use CD02021.
 Direct path counts outside 1..32 use CD03022. Constraints are immediate per row; failed explicit
@@ -309,7 +309,7 @@ still refuses DROP. See [CREATE INDEX](../../../../database/document/language/st
 ## Typed array index postings
 
 OQL now admits [INCLUDE MISSING](../../../../database/document/language/statements/create-index.md#include-missing)
-on the leading scalar key, using the existing v3 catalog flag. Catalog PATH/PATHS[0] render the
+on the leading scalar key, using the existing v4 catalog flag. Catalog PATH/PATHS[0] render the
 suffix, and INCLUDE_MISSING exposes its Boolean value. [EXPLAIN ordering eligibility](../../../../database/document/language/statements/explain.md#index-ordering-eligibility)
 reports conservative per-index proofs, direction and fallback reasons, including bounded complex-tag
 probes. Eligible scalar indexes now supply forward/reverse execution order and report

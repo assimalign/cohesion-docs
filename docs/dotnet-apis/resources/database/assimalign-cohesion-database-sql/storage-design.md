@@ -168,7 +168,7 @@ Other corruption/recovery fences keep their existing policies. See
 
 ## Identity and sequence reservations
 
-SQL format 37 persists standalone and identity-owned definitions as catalog kind 18 and
+SQL format 39 persists standalone and identity-owned definitions as catalog kind 18 and
 reservations as kind 19. Kind 18 includes owning table id, column name and identity ownership;
 kind 16 is retired and never decoded. Compiled schemas use v12. Format 36 and earlier SQL
 formats are refused with no upgrade reader. See [catalog sequence objects](catalog-design.md#standalone-sequences).

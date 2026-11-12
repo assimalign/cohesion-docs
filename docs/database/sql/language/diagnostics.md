@@ -384,7 +384,7 @@ CS03401 is an Error in DatabaseException.Diagnostics. A safely restartable pre-h
 DatabaseNotFoundException with that diagnostic preserved. Follow the message: ambiguous lost
 catalogs/missing sidecars require preservation and complete-backup recovery; short files beside
 other state cannot safely be restarted. No SQLSTATE is assigned. Transient inspection I/O asks for
-an OpenDatabaseAsync retry after resolution, without restore/drop advice. Current SQL format is 37;
+an OpenDatabaseAsync retry after resolution, without restore/drop advice. Current SQL format is 39;
 this completion path does not upgrade old databases. See
 [lifecycle APIs](../../../dotnet-apis/resources/database/assimalign-cohesion-database-sql/design.md#database-creation-open-and-drop).
 

@@ -10,7 +10,7 @@ Code-first table/constraint/index/domain provisioning remains pinned to dbo. The
 target-namespace setting. SQL database creation seeds dbo and DROP SCHEMA dbo is CS03031.
 [CREATE SCHEMA](../../../../database/sql/language/statements/create-schema.md) creates a SQL
 namespace independently of a compiled schema's ownership identity; it does not redirect provisioning.
-Storage format 37 retains namespaces as record kind 15, introduced in format 21; compiled schema artifacts remain version 12.
+Storage format 39 retains namespaces as record kind 15, introduced in format 21; compiled schema artifacts remain version 12.
 
 Declared scripts cannot DROP SCHEMA CASCADE over typed objects: admission reports CS03205
 (no assigned SQLSTATE) before opening/writing. Declare those changes in the typed schema.
@@ -141,7 +141,7 @@ defaults to NoAction and always serializes in v9. All five enum actions are vali
 CHECK requires NoAction. Invalid values fail validation as InvalidDocument at onUpdate. OnDelete
 keeps its Restrict/Cascade restriction. Changing OnUpdate changes identity and plans drop/add.
 The retained References builder supplies NoAction; runtime and SDK share v12 and refuse earlier
-artifacts, applied markers and pending targets before comparison. Catalog format 37 retains the
+artifacts, applied markers and pending targets before comparison. Catalog format 39 retains the
 action through provisioning, reconciliation and reopen. All five update actions execute.
 
 ## Directed index orders
@@ -182,7 +182,7 @@ render exact signed total seconds plus `seconds`, replacing CLR day-dot-clock te
 the canonical document and hash. The renderer preserves every tick, including TimeSpan.MinValue.
 Earlier artifacts, applied markers and pending targets fail with SqlSchemaValidationException,
 InvalidDocument at `schema.format`, before hash comparison. Rebuild them and follow the
-[catalog export/recreate procedure](../../../../database/sql/index.md#sql-format-37-and-schema-v12).
+[catalog export/recreate procedure](../../../../database/sql/index.md#sql-format-39-and-schema-v12).
 
 For example, the typed-default tests check `table.Default(row => row.Value, TimeSpan.FromTicks(1))`
 against `table.DefaultSql(row => row.Value, "'0.0000001 seconds'")`: their v12 documents and hashes
@@ -195,7 +195,7 @@ Compiled domain declarations named serial, bigserial or smallserial fail validat
 SqlSchemaValidationErrorCode.UnsupportedType and an IDENTITY suggestion. Native SqlType.CreateDomain
 throws ArgumentException; SQL CREATE DOMAIN reports CK00001, including quoted names.
 
-The integration branch uses SQL row-storage format 37 and compiled schema version 12.
+The integration branch uses SQL row-storage format 39 and compiled schema version 12.
 Format 17 introduced the insert-default/frozen-missing-value split (table extension 6); format 18
 separately changes quoting for newly executable function names in persisted canonical SQL.
 The formats preserve resolved shared type identity/modifiers across contextual multi-word and
@@ -214,8 +214,9 @@ direction and NULL placement in mandatory index extension 3 and retained TYPE de
 Format 33 fenced SQL/JSON names and ordinary-call quoting. Format 34 introduced joint typed
 migration intent semantics. Format 35 introduced separate physical owners for kept-table index trees and durable per-table
 classification. Format 36 changed effective index orders and defaults to ASC NULLS FIRST,
-matching ORDER BY. Current format 37 requires joint publication for every deferred job and fences
-per-step intents; format 36 and earlier are refused before recovery writes.
+matching ORDER BY. Format 37 required joint publication for every deferred job and fenced per-step intents.
+Format 38 introduced applied-schema history and never shipped alone. Current format 39 adds
+per-index owners; formats 37, 38 and all earlier formats refuse CS06041 before any write.
 Every earlier format is refused at open; there is no
 upgrade path. Compiled schema format remains version 12.
 

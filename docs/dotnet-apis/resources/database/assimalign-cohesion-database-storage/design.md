@@ -133,7 +133,7 @@ stamps. The disk layout and storage format remain unchanged.
 
 `StorageFileHeader.CurrentFormatVersion` is 4. Older and newer storage formats are refused with
 `StorageFormatException` / CK06001 before reading the journal; there is no upgrade or legacy
-reader. This kernel version is separate from SQL data/catalog format 37 and Graph record format 5.
+reader. This kernel version is separate from SQL data/catalog format 39 and Graph record format 5.
 
 The changed public members are:
 

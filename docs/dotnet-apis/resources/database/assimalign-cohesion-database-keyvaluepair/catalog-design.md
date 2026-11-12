@@ -85,6 +85,15 @@ write. Catalog failures are database failures to callers.
 Tuple-codec encode/decode only; no reflection, no serialization frameworks.
 
 
+## Primary-tree format and ownership
+
+Entry-space format 3 persists a distinct physical primary-tree owner; logical key-space id 1
+continues to own entries. Format 2 and earlier refuse CV06107 before recovery can write,
+including after an abrupt stop. Export with the original engine and recreate the database.
+Open validates the registration and root ownership even on a clean file, then uses bounded
+Storage.GetIndexOwners batches to reclaim only unregistered owners, at most 64 pages per bracket.
+Root, logical commit, format-marker and registration commits remain bootstrap boundaries.
+
 ## Sources
 
 - **Primary source** — `cohesion/resources/Database/Assimalign.Cohesion.Database.KeyValuePair/docs/DESIGN.md`.

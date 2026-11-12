@@ -68,8 +68,8 @@ canonicalize signed zeros together and place all NaNs below negative infinity; s
 values keep their IEEE representation. Floating seek eligibility remains conservative.
 
 [INDEXES metadata](../system-views/cohesion-schema.md) exposes nullable DIRECTION and
-NULL_PLACEMENT per key. Catalog format 37 and compiled schema v12 refuse earlier formats;
-follow the [export and rebuild procedure](../../index.md#sql-format-37-and-schema-v12).
+NULL_PLACEMENT per key. Catalog format 39 and compiled schema v12 refuse earlier formats;
+follow the [export and rebuild procedure](../../index.md#sql-format-39-and-schema-v12).
 Invalid key-order widths/values or directed primary-key metadata use `CS03085` (42P17).
 Malformed stored vectors use CS06059; unsupported extensions use CS06060; an older SQL
 record-space format uses CS06041.
@@ -107,7 +107,7 @@ and DROP INDEX work, but every write to that table fails with `CS01009` (42883),
 empty input. Restoring the required immutable definition or dropping the index restores writes.
 
 Catalog metadata and [INFORMATION_SCHEMA.INDEXES](../system-views/information-schema.md)
-expose canonical predicate text. SQL catalog format 37 and compiled schema v12 persist it and
+expose canonical predicate text. SQL catalog format 39 and compiled schema v12 persist it and
 refuse earlier formats. Invalid predicate/dependency metadata uses `CS03084` (42P17); a
 programmatically supplied primary-key predicate uses `CS03082` (42P16).
 

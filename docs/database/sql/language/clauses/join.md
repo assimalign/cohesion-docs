@@ -206,7 +206,7 @@ output in a mixed view can retain this ambiguity. An older explicit view list ma
 generated name is also ambiguous: `CREATE VIEW legacy(column1) AS SELECT CAST(1 AS BIGINT)`
 stored only the body and catalog name. NATURAL conservatively refuses it with CS01015. Wrap
 the view in a derived query with an explicit column list, or recreate it; new views preserve
-the list in the stored body. Wire-visible columnN names and SQL format 37 are unchanged.
+the list in the stored body. Wire-visible columnN names and SQL format 39 are unchanged.
 
 ## Qualified wildcards
 
