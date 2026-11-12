@@ -136,7 +136,7 @@ the structured diagnostic carries Code, Message, Severity and location fields.
 | `CS03033` | View declaration/replacement failure, changed bound column identity, invalid dependency/cycle, oversized record, wrong DROP VIEW target or recoverable uncoded body bind failure | — |
 | `CS05032` | DISTINCT/ALL/ORDER BY on a non-aggregate function, or DISTINCT input ordering key not structurally present in the argument list | — |
 | `CS02034` | LIKE/ILIKE ESCAPE has more than one Unicode scalar or the pattern ends in its escape; fixed/parameter patterns validate eagerly, dynamic patterns at evaluation | 22025 |
-| `CS06041` | Storage/index operation failed at an engine boundary, including wrapped/aggregate causes; original cause retained | 58030 for I/O |
+| `CS06041` | Storage/index failure, including wrapped/aggregate causes or refusal of SQL format 38 and earlier before writes (current 39); original cause retained | 58030 for I/O |
 | `CS05043` | Server-side statement execution deadline expired; failed statement effects are rolled back | 57014 (`query_canceled`) |
 | `CS04044` | Individual contended lock wait expired, including unique-index key waits and RewriteTableAsync's pre-queue exclusive table lock | 55P03 (`lock_not_available`) |
 | `CS05045` | Uncoded result encoding/preparation failure, or an encoded header/row above the wire frame limit; see [result delivery](#result-encoding-and-delivery) | 54000 for size refusals; otherwise — |
@@ -230,7 +230,9 @@ CS05040 refuses the match rather than estimating TRUE/FALSE; cancellation takes 
 
 Non-Boolean search conditions use CS02003 (42804) before reading even an empty input when
 the type is known, and during evaluation otherwise. CASE/COALESCE alternatives in Boolean
-positions all qualify or fail, including unreachable alternatives. Untyped NULL is UNKNOWN;
+positions resolve their common type first, including unreachable alternatives. An all-unknown
+string/NULL set is TEXT (CS02003 in a Boolean position); incompatible declared alternatives
+use CS02080 and invalid unknown input uses CS02022. Untyped NULL is UNKNOWN;
 valid Boolean input string literals coerce, while text columns/parameters keep their types.
 Stored SQL function bodies with legacy invalid Boolean operands or changed application return
 types allow the database to open and fail with CS02003 when invoked.
@@ -338,17 +340,21 @@ columns use CS03025. Stable/Volatile defaults execute per assignment; subqueries
 
 | Code | Meaning and trigger | SQLSTATE |
 | --- | --- | --- |
-| `CS03105` | Permanent policy/metadata planning refusal before steps or intent save: includes conversions outside the lossless whitelist without destructive opt-in, namespace/dependency refusals and default changes without destructive opt-in | — |
+| `CS03105` | Compiled-schema policy refusal, including non-literal DefaultSql, never-seen destructive declarations without opt-in, and explicit unsafe rollback regardless of opt-in | — |
 | `CS03402` | Joint migration preparation, reservation or space admission failed, or an unpublished target/route was discarded; old schema stays online unless an independent storage latch fires; space refusals include needed/available bytes | — |
 | `CS03403` | Joint catalog publication commit is unconfirmed; old/new outcome is unknown and reopen/recovery decides the schema | — |
 | `CS03404` | CREATE TABLE, CTAS, CREATE VIEW, CREATE SEQUENCE or table rename targets a name reserved by a queued/running joint plan | — |
+| `CS03405` | Build holds an earlier first-applied declaration whose reversal is non-Safe, re-creates dropped objects or validates existing rows; stored schema stays online, Degraded | — |
 
 Joint preparation has no automatic retry. A later explicit apply or Build declaring the target
 can retry; a Build declaring the old schema opens normally. After successful publication, returning
-to an earlier declaration is a reverse migration with the same destructive-change gate.
+to an earlier first-applied declaration follows the rollback rule even with destructive opt-in.
+One held step holds the complete plan before execution, with both hashes and refused steps in
+Provisioning.Detail. Build succeeds; Verify remains strict (CS03103). Explicit apply refuses CS03105.
 Provisioning health retains the failure code until a successful apply/Build, including an
 already-applied skip or successful Verify. Every deferred and inline migration uses joint
-publication and `CS03402` before publication. Imperative cancellation/timeout clears Provisioning.
+publication and `CS03402` before publication. Imperative cancellation/timeout clears ordinary
+Provisioning failures; an existing held declaration remains reported while its stored hash is unchanged.
 See [code-first type changes](statements/alter-table.md#code-first-type-changes) and
 [health and recovery](../index.md#typed-migration-health-and-recovery).
 
@@ -363,7 +369,10 @@ text and discards its partial tree. See [qualified wildcards](clauses/join.md#qu
 
 `CK04014` (57014) means a statement deadline expired waiting for a journal checkpoint, or
 admission refused immediately because the statement retained metadata/gates. Session DDL
-refuses immediately at paused admission. Failed-statement work and new grants release while
+catalog mutations refuse immediately at paused admission. Index-owner reservations release the
+catalog monitor and wait per refusal up to LockTimeout (0 unlimited), then use CK04014. An ordinary
+build's first data-allocation refusal remains immediate; later roots/chunks wait outside the
+apply gate under StatementTimeout/cancellation. Failed-statement work and new grants release while
 the SQL session and explicit transaction remain usable. Caller cancellation retains its meaning.
 Migrations wait outside physical/publication gates and resume prepared work. StatementTimeout
 is zero by default: a normal admission wait has no default deadline. Reads retain ordinary
@@ -384,7 +393,7 @@ CS03401 is an Error in DatabaseException.Diagnostics. A safely restartable pre-h
 DatabaseNotFoundException with that diagnostic preserved. Follow the message: ambiguous lost
 catalogs/missing sidecars require preservation and complete-backup recovery; short files beside
 other state cannot safely be restarted. No SQLSTATE is assigned. Transient inspection I/O asks for
-an OpenDatabaseAsync retry after resolution, without restore/drop advice. Current SQL format is 37;
+an OpenDatabaseAsync retry after resolution, without restore/drop advice. Current SQL format is 39;
 this completion path does not upgrade old databases. See
 [lifecycle APIs](../../../dotnet-apis/resources/database/assimalign-cohesion-database-sql/design.md#database-creation-open-and-drop).
 
@@ -528,8 +537,13 @@ The shared StatementFailed event takes its payload code from non-null Diagnostic
 ## Hash-build refusal
 
 CS05067 (53200) reports exhausted retained SELECT, hash-build, joined-DML or CTAS source/copy
-memory. Eligible root ORDER BY and ordered DISTINCT sorts, including CTAS source roots, now
-spill at this boundary. Excluded shapes still refuse; an unordered CTAS refuses at its budget
+memory. Eligible root ORDER BY/ordered DISTINCT, plain hash aggregation/DISTINCT and plain-column
+hash joins spill at this boundary. Computed join keys, ineligible states/codecs, oversized
+records/minimum working sets and eight-level group repartition exhaustion retain CS05067.
+Index builds add new workspace refusals: direct CREATE INDEX/UNIQUE/PRIMARY KEY reports CS05067;
+schema-apply/rollback rebuilds report CS03402 with that cause. Increase StatementMemoryBudget.
+See [hash limits](../performance.md#hash-aggregation-and-distinct-spilling).
+Excluded shapes still refuse; an unordered CTAS without another eligible spill refuses at its budget
 while the same statement with an eligible ORDER BY spills. CS05067 also refuses a ninth live
 spilled result, an unsupported spill cell/key, or a reader exceeding the result grant.
 
@@ -721,7 +735,7 @@ text under IS JSON returns FALSE, while access and assignment reject malformed d
 | CS01067 | Invalid JSON extraction or IS JSON signature, including a BIGINT selector | 42883 |
 | CS02078 | Malformed access/assignment input, invalid Unicode/UTF-8 or depth over 128 | 22032 |
 | CS02079 | Wrong JSON kind for a Boolean or numeric scalar cast | 22023 |
-| CS02080 | Incompatible declared CASE/COALESCE alternatives in a JSON operand/selector | 42804 |
+| CS02080 | Incompatible CASE/COALESCE alternatives in any scalar position, or unresolved polymorphic/unsupported parameter alternatives at planning | 42804/42846 |
 
 ## SQL transaction isolation
 

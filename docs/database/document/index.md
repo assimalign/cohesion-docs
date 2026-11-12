@@ -32,6 +32,11 @@ statement's snapshot and work/memory budgets, including correlated and DML forms
 The [operator precedence](language/expressions/operators.md#precedence) now places IS above
 comparisons and EXISTS between them; this changes unparenthesized mixed predicates.
 
+[OVER and named WINDOW](language/statements/select.md#windows) execute eight ranking/navigation
+functions after grouping/HAVING. Frames, aggregate OVER and value windows remain deferred.
+[MERGE](language/statements/index.md#merge-planning) parses, renders, binds, plans and explains;
+execution is not available yet: it refuses CD05022, and Supports("MERGE") reports false.
+
 ## Reading and writing
 
 [34 SQL++ scalar functions](language/functions/scalar-functions.md) provide string, exact numeric,
@@ -74,7 +79,7 @@ The storage package validates JSON and persists stamped chunk chains. The catalo
 versioned identities and [single/composite, optionally UNIQUE indexes](language/statements/create-index.md)
 in shared B+Trees. The typed catalog also supports [DISTINCT array-element postings](../../dotnet-apis/resources/database/assimalign-cohesion-database-documents/document-index-key.md);
 OQL [array DDL and access planning](language/statements/create-index.md#array-keys-and-when) execute. Index definition and registration records
-are v3; v1/v2 indexes are refused before recovery writes with CD06105 and require database
+are v4; v1/v2/v3 indexes are refused before recovery writes with CD06105 and require database
 recreation with this engine and have no upgrade path. Index creation populates
 existing documents immediately, while replacement and deletion maintain indexes in the same
 transaction as document content.

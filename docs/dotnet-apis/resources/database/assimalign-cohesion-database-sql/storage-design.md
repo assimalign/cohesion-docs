@@ -118,8 +118,8 @@ copying, and O is the larger retiring/prepared owner count.
 
 K is `BufferPoolCapacity + 1 MiB` when the job allocates pages and data-file growth can be
 sparse, otherwise zero. A zero-operation marker refresh, including an empty Build, needs only
-the declaration-derived metadata floor. Heap-owned dropped-index pages of a kept heap are not
-retirement pages and do not enter the reclamation estimate. Unix file
+the declaration-derived metadata floor. Every index now has a separate owner; dropped-tree
+pages enter that owner's retirement estimate even when its heap is kept. Unix file
 growth is conservatively sparse. Windows checks the actual file and containing directory:
 compressed, sparse or integrity-stream attributes, UNC/network paths, and unknown/inaccessible
 allocation modes count as sparse. Ordinary local Windows files use eager allocation. Memory
@@ -168,7 +168,7 @@ Other corruption/recovery fences keep their existing policies. See
 
 ## Identity and sequence reservations
 
-SQL format 37 persists standalone and identity-owned definitions as catalog kind 18 and
+SQL format 39 persists standalone and identity-owned definitions as catalog kind 18 and
 reservations as kind 19. Kind 18 includes owning table id, column name and identity ownership;
 kind 16 is retired and never decoded. Compiled schemas use v12. Format 36 and earlier SQL
 formats are refused with no upgrade reader. See [catalog sequence objects](catalog-design.md#standalone-sequences).

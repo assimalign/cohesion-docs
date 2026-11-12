@@ -269,13 +269,13 @@ primary data file before sidecars. Preserve ambiguous file sets and follow the c
 
 These codes have no assigned SQLSTATE. Recovery tolerates uncommitted torn tails; that does not
 permit replacing missing journals. Transient open/inspection I/O failures can be retried after
-resolution and do not advise restore or drop. SQL remains at format 37.
+resolution and do not advise restore or drop. SQL remains at format 39.
 
 Key-Value Pair refuses an entirely missing catalog before opening either storage. File-backed
 data of at most one page also receives CV06106 and a drop/recreate remedy; longer data with no
 catalog requires restoring the complete backup. These refusals leave all surviving files unchanged.
 
-The shared storage format is **4**, independent of SQL's data/catalog format 37 and Graph's record
+The shared storage format is **4**, independent of SQL's data/catalog format 39 and Graph's record
 format 5. Storage formats 3 and older have no upgrade reader. A Free page must be entirely zero;
 reclaimed pages have a separate type and checksum. Every nonzero pooled page requires checksum
 verification, with a raw CRC of zero escaped as `0xFFFFFFFF`. Page 0 has its own identity and
@@ -506,7 +506,7 @@ describes warning counters, final cleanup joining and the remaining TLS delivery
 
 ## MVP boundaries
 
-SQL [schema DDL](sql/language/statements/create-schema.md) persists namespaces in current storage format 37;
+SQL [schema DDL](sql/language/statements/create-schema.md) persists namespaces in current storage format 39;
 dbo remains protected and code-first provisioning stays there. [Set operations](sql/language/clauses/set-operations.md)
 execute in every query position. Document adds [34 SQL++ scalars](document/language/functions/scalar-functions.md),
 and Graph supports [streaming stage composition](graph/language/clauses/next.md), including Cypher WITH/UNWIND.
@@ -562,6 +562,26 @@ geometry is measured under a read pin before write touch, avoiding pre-images fo
 A sole mutable page handle carries read permission across serialized thread handoffs and awaits;
 nested writers for that page on another thread are refused before exposing mutable bytes. See
 [confirmed reads and reuse](../dotnet-apis/resources/database/assimalign-cohesion-database-storage/design.md#confirmed-reads-and-record-space-reuse).
+
+## Hash spill boundaries
+
+SQL root plain hash aggregation/DISTINCT spills fixed states into eight partitions at up to
+eight levels. Eligible root hash joins spill plain column keys to an indexed temporary build,
+including mixed numeric keys and skew. Computed join keys still refuse CS05067. Fitting
+statements keep their original charges, results, calls and first errors. See
+[aggregation exclusions](sql/performance.md#hash-aggregation-and-distinct-spilling) and
+[join temporary-space limits](sql/performance.md#hash-join-spilling).
+
+## Format compatibility
+
+The current model formats are SQL **39**, Documents index **4** and KeyValuePair entry **3**.
+Graph remains catalog **4**, record **5** and B-tree **3**. SQL 38 introduced applied-schema
+history and never shipped alone; SQL 39 also gives every index its own physical page owner.
+SQL 37/38 refuse CS06041, Documents index 3 refuses CD06105, and KeyValuePair entry 2 refuses
+CV06107. These gates run before any write, both for clean files and after an abrupt stop.
+Every SQL, Documents and KeyValuePair database in an earlier format must be recreated; there is no
+upgrade reader. Export with the engine that wrote the files, recreate with the current engine,
+and reload. Shared physical storage remains format 4 and B-tree pages remain format 3.
 
 ## Sources
 

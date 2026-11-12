@@ -26,6 +26,8 @@ share SQL and GQL's case-sensitive bare-name contract.
 | SELECT/FROM/WHERE | Supported | One collection, derived SELECT or expression, ordered key/UNNEST bindings and SQL++ truth conversion |
 | [SELECT ALL/DISTINCT, VALUE/RAW](statements/select.md) | Supported | Duplicate removal and one bare JSON value per row; top-level MISSING becomes NULL |
 | GROUP BY/HAVING/ORDER BY | Supported | Separate NULL/MISSING groups and ordering |
+| [OVER and WINDOW](statements/select.md#windows) | Supported subset | Eight ranking/navigation functions; frames, aggregate OVER and value windows remain deferred |
+| [MERGE](statements/index.md#merge-planning) | Planning only | Parse/render/bind/plan/EXPLAIN; execution CD05022, Supports("MERGE") false |
 | [LIMIT/OFFSET](clauses/limit-offset.md) | Supported | Final paging by literal or parameter count; NULL is invalid |
 | MISSING and presence tests | Supported | Absent values distinct from explicit NULL |
 | IN/BETWEEN/LIKE ESCAPE/CASE | Supported | SQL++ unknown rules and structural equality |
@@ -37,7 +39,7 @@ share SQL and GQL's case-sensitive bare-name contract.
 | [UPDATE SET/UNSET](statements/update.md) | Supported | Snapshot values, nested objects and existing array positions; matched count |
 | [UPSERT VALUES/SELECT](statements/upsert.md) | Supported | Whole-document replacement by explicit key; atomic index maintenance |
 | [BEGIN/START, COMMIT, ROLLBACK](statements/transactions.md) | Supported | In process and over the wire; Snapshot by default, explicit READ COMMITTED; CD07002 only without negotiated status |
-| EXPLAIN | Supported | SELECT/INSERT/UPSERT/UPDATE/DELETE plan rows without execution |
+| EXPLAIN | Supported | SELECT/INSERT/UPSERT/UPDATE/DELETE/MERGE plan rows without execution |
 | CREATE/DROP INDEX | Supported | One to 32 ordered scalar/array keys, scalar-only UNIQUE and conditional DDL |
 | [Eleven native aggregate names](functions/aggregate-functions.md) | Supported | ALL/DISTINCT; ARRAY_AGG retains NULL; Boolean/statistics aggregates skip wrong kinds; COUNT(*) counts input rows |
 | [34 scalar functions](functions/scalar-functions.md) | Supported | Strings, exact numerics, transaction-start UTC dates, types, arrays and lazy conditionals |

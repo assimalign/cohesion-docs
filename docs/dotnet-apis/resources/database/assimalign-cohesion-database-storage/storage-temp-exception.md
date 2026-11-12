@@ -28,14 +28,14 @@ Code is the stable identity, separate from the unprefixed message. There is no p
 | CK05001 | Engine physical-byte quota exceeded |
 | CK05002 | Statement physical-byte quota exceeded |
 | CK05003 | Next page crosses the free-space floor |
-| CK05004 | Page/record validation failed, or the reader previously failed |
+| CK05004 | Page/record validation or join directory hash check failed, or the reader previously failed |
 | CK05005 | Temporary storage unavailable, including lease, volume and file I/O failures |
 | CK05006 | Encoded sort record exceeds its declared maximum |
 
 Unavailable I/O retains its cause as InnerException. Failed-reader retries perform no I/O and
 emit no further damage event/counter. These temporary failures do not fence durable storage
-offline. Eligible SQL root sorts now surface these codes as located statement/delivery errors,
-including CTAS source sorts; an explicit transaction remains active.
+offline. Eligible SQL root sorts, hash aggregation/DISTINCT and hash joins surface these codes
+as located statement/delivery errors, including permitted CTAS source roots; an explicit transaction remains active.
 
 ## Related reference
 

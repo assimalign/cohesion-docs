@@ -253,7 +253,46 @@ Unique inserts take their key lock and tree write latch, prune eligible entries 
 
 The #1393 decision records the existing physical index-page rollback as status quo. It adds no statement stamps, index format change or new visibility model. BTreePruneTests, BTreeUniqueDescentTests and DatabaseIndexPruneTests cover horizon equality, held snapshots, continuation, cancellation and unique-descent work.
 
+## Physical owners, bounded builds and retirement
+
+Every SQL, Documents, Graph and KeyValuePair index has its own physical page owner. Models
+map it to logical tables/collections/key spaces and own durable publication and reader horizons.
+DROP unpublishes a definition before retiring its tree; old snapshots and detached readers keep
+it alive. SQL uses kind-14 intents; Documents and Graph use signed-root retirement receipts.
+Only owner-directory emptiness after data durability permits deleting an intent/receipt.
+SQL frees at most 32 pages per pass; Documents and Graph at most 64. KeyValuePair reclaims
+unregistered primary-tree owners at open in 64-page batches and has no DROP INDEX surface.
+Maintenance yields to checkpoints, pending model signals and admission pauses.
+
+SQL, Documents and Graph share a 64-entry durable build loop, retaining the writer reservation
+and logical creator through one final publication. Workspace charges the model's memory grant;
+SQL and Documents therefore add new build-budget refusals. Graph sessions retain their existing
+preflight work/memory grants; direct GraphStore builds retain caller accounting without a fixed
+cap. KeyValuePair only bootstraps an empty tree. Model open uses bounded Storage.GetIndexOwners
+snapshots from the recovered directory instead of a second page scan. This adds no public
+structure adapter or B-tree format; physical B-tree pages remain version 3.
+
+### Build and reclamation events
+
+All listed events are Informational. IndexBuildBegan/IndexBuildEnded use Info opcode rather than
+Start/Stop activity semantics. Each begun build has one end: true after publication, false for
+failure, cancellation or abandonment (SQL also uses false for unconfirmed publication).
+Indexing's IndexCreated/IndexDropped objectId now identifies the physical index owner.
+
+| Model EventSource suffix | Began / Ended / PagesReclaimed ids | Identity payload | Reclaimed batch |
+| --- | --- | --- | --- |
+| Sql | 28 / 29 / 30 | engineName, database, objectId | At most 32 pages |
+| Documents | 15 / 16 / 17 | database, objectId | At most 64 pages |
+| Graph | 16 / 17 / 18 | database, objectId | At most 64 pages |
+| KeyValuePair | 13 / 14 / 15 | database, objectId | At most 64 pages |
+
+End adds succeeded; PagesReclaimed adds pages and emits only for a nonempty committed batch.
+No indexed values are emitted. SQL's TableReclamationStarted/Completed/Yielded also cover index
+owners (23/24/27). Sources are named `Assimalign.Cohesion.Database.<suffix>` using the table above.
+
 ## Sources
+
+- **Index lifecycle** — `cohesion/docs/EVENT_SOURCES.md` and the four model `docs/DESIGN.md` files at `2dd935103`.
 
 - **Leaf payloads and format 3** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Indexing/docs/DESIGN.md`, `tests/BTreePayloadCrashTests.cs` and each model's `tests/FormatOrderIntegrationTests.cs`.
 

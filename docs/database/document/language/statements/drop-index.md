@@ -31,6 +31,11 @@ stop selecting it; older snapshots retain their defined visibility. The engine e
 ownership under the database writer lock. Schema-owned collections reject the operation, and
 reserved system collections are read-only.
 
+After the last snapshot that could read it releases its pin, maintenance commits a retirement
+receipt and frees exactly the index's physical owner in batches of at most 64 pages. The heap
+and other indexes remain allocated. Receipt removal waits for owner-directory emptiness and
+data durability; checkpoints/admission can yield a pass, and reopen resumes unfinished work.
+
 The statement runs in an automatic statement transaction. Successful execution returns a command
 `DatabaseResult` with `Success` and an affected count of zero; explicit transactions refuse DDL.
 

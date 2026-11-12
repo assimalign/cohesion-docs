@@ -103,10 +103,10 @@ The fields below appear consecutively beginning at offset 18. No trailing fields
 | --- | --- | --- |
 | 1 collection | 0 | GUID collection identity; string name; byte owner; nullable string owning schema |
 | 2 document | 0 | GUID collection identity; string document identity; UInt64 version; UInt64 head; Int64 byte length; UInt32 IEEE CRC-32 |
-| 4 index definition (v3) | 0 | GUID collection identity; string index name; Int32 key count (1..32); ordered key descriptors; byte flags (bit 0 UNIQUE, bit 1 INCLUDE MISSING); UInt64 physical generation identity |
-| 5 physical registration (v3) | 1 | UInt64 physical generation identity; Int64 root page; string index name; byte unique flag (0 or 1) |
+| 4 index definition (v4) | 0 | GUID collection identity; string index name; Int32 key count (1..32); ordered key descriptors; byte flags (bit 0 UNIQUE, bit 1 INCLUDE MISSING); UInt64 physical generation identity |
+| 5 physical registration (v4) | 1 | UInt64 physical generation identity; Int64 root page; string index name; byte unique flag (0 or 1) |
 
-Kinds 1 and 2 remain v1. All indexes, including single-path nonunique ones, use v3. V1/v2 index
+Kinds 1 and 2 remain v1. All indexes, including single-path nonunique ones, use v4. V1/v2/v3 index
 records are refused with CD06105 before recovery writes, reporting found/supported versions and requiring
 database recreation with this engine. There is no upgrade path or legacy reader.
 
@@ -141,7 +141,7 @@ Each index has 1..32 ordered keys and immutable UNIQUE/IncludeMissing flags. Sca
 dotted and bracket-string syntax, including `items[0].price` and `['root.name']`. Wildcards,
 arbitrary expression keys and sort directions are excluded. The typed API additionally admits
 one [DISTINCT array projection](document-index-key.md) at any key position. The single-path
-overload writes v3.
+overload writes v4.
 
 For scalar-only indexes, leading MISSING omits an entry unless IncludeMissing is true. Trailing
 MISSING and explicit NULL have distinct tags. Components
@@ -197,9 +197,20 @@ tree instead of holding a stale manager object. Current B+Tree erase/purge remov
 without merging nodes or collapsing roots, so undo does not change the persisted root.
 
 Dropping an index tombstones its definition and keeps the physical tree for readers with older
-snapshots. Recreating the name allocates a new physical generation. Tree reclamation for dropped or
-rolled-back definitions is deferred; the shared index manager has no tree-page vacuum yet. This
-costs disk space, but never rebuilds a live index or exposes a dropped definition.
+snapshots. Recreating the name allocates a new physical generation. Dropped and rolled-back
+generations retire through durable signed-root receipts: positive roots attach trees, negative
+roots never attach. A receipt with a recovered live definition is damage (CD06105). The read-only
+format/liveness gate checks before any write and attachment rechecks after logical scrub.
+Each generation owns its own pages, disjoint from owners 0 and 1. Root-owner disagreement refuses.
+
+After retained definitions and owner ids pass the safe prune horizon, maintenance commits a
+negative receipt, checks at most 64 queued candidates and frees at most 64 owner pages per pass,
+then deletes the receipt only after data
+durability and directory emptiness. Checkpoints/admission yield further brackets. Open discovers
+unregistered owners through bounded Storage.GetIndexOwners batches and records receipts after
+validation. Builds use 64-posting durable chunks, one final publication and the statement memory
+grant (256 MiB for a standalone raw catalog); see
+[build validation and examples](../../../../database/document/language/statements/create-index.md#build-memory-and-validation).
 
 Recovery order is physical storage redo, coordinator `AnalyzeAndScrub` over stamped records, catalog
 open (including physical registrations), `RecoverIndexesAsync` using the same abandoned writer set,
