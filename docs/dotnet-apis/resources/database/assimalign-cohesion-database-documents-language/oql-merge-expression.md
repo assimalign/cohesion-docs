@@ -40,7 +40,7 @@ rendering complexity or execution-stack exhaustion throws InvalidOperationExcept
 trees and canonical parse cost are bounded to 128 levels; text overflow uses CD00005.
 
 MERGE parses, renders, binds, plans and explains. Execution refuses one located CD05022 before
-source reads or writes until OQ-M2; OqlLanguageProfile.Instance.Supports("MERGE") remains false.
+source reads or writes while MERGE execution is unavailable; OqlLanguageProfile.Instance.Supports("MERGE") reports false.
 See [forms, scopes and conservative refusals](../../../../database/document/language/statements/index.md#merge-planning).
 
 ## Example

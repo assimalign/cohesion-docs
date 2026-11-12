@@ -2093,8 +2093,8 @@ then removes intent after data durability and directory emptiness. It yields to 
 checkpoints and admission pauses. Small physical managers share the global 64-leaf prune grant.
 
 The shared build loop commits at most 64 source rows per bracket and publishes once. Table X,
-creator and reader pins span all chunks. It charges 6,544 B per chunk plus retained rows;
-these are new build-budget refusals relative to batch 4. Direct CREATE INDEX and UNIQUE/PRIMARY
+creator and reader pins span all chunks. It charges 6,544 B per chunk plus retained rows,
+so a build whose chunk does not fit the grant refuses. Direct CREATE INDEX and UNIQUE/PRIMARY
 KEY builds refuse CS05067; schema-apply/rollback rebuilds report CS03402 with that cause.
 See [witnesses and the larger-budget workaround](../../../../database/sql/language/statements/create-index.md#building-over-existing-data).
 Ordinary builds decode once; only a progress consumer requests a preliminary counting pass.

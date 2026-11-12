@@ -67,7 +67,7 @@ rather than being rounded by the parser.
 | `CD05018` | Retained SELECT/group/window keys/navigation/results, ordered candidates, wrappers, aggregates, projection/order/compound state, DML pending buffers, RETURNING or index-build workspace exceeds StatementMemoryBudget; pending-buffer exhaustion precedes writes | — |
 | `CD05019` | Serialized RETURNING value exceeds 256 levels, including a named wrapper; inside the transaction | — |
 | `CD05021` | Planning, EXPLAIN or evaluation needs more execution stack than the thread has left; statement fails and the session stays open, including over TCP | — |
-| `CD05022` | MERGE execution unavailable until OQ-M2; EXPLAIN remains available | — |
+| `CD05022` | MERGE execution is not available yet; EXPLAIN remains available | — |
 | `CD02016` | Invalid UPDATE target, root replacement, UNSET ending in an index, incompatible traversal, missing array or out-of-range index | — |
 | `CD01017` | Duplicate or prefix-overlapping UPDATE targets after alias normalization, including SET/UNSET overlap | — |
 | `CD02018` | Patched UPDATE JSON is invalid or exceeds storage depth 128 | — |

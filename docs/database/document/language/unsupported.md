@@ -8,7 +8,7 @@ OQL rejects recognized forms beyond its executable SQL++ subset with coded diagn
 | --- | --- | --- |
 | General/comma joins, reversed equality, ON KEYS, derived/expression right-hand sources | CK00001 | [Key JOIN and NEST](clauses/join.md) execute with META(b).id = key; top-level qualified stars execute in ungrouped joined SELECTs |
 | WITH; explicit set-operator DISTINCT | CK00001 | [UNION, INTERSECT and EXCEPT](statements/select.md#set-operations), including ALL, execute in every query position |
-| MERGE execution | CD05022 | [MERGE](statements/index.md#merge-planning) parses, renders, binds, plans and explains; executable profile support is false until OQ-M2 |
+| MERGE execution | CD05022 | [MERGE](statements/index.md#merge-planning) parses, renders, binds, plans and explains; executable profile support reports false until MERGE execution is available |
 | Frames, aggregate OVER, FIRST_VALUE/LAST_VALUE/NTH_VALUE, RATIO_TO_REPORT, RESPECT/IGNORE NULLS | CK00001 | [Eight ranking/navigation windows](statements/select.md#windows) execute with OVER/named WINDOW |
 | Nonliteral NTILE counts or LAG/LEAD offsets; scalar function OVER | CK00001 | Positive literal buckets, nonnegative literal offsets; LOWER(x) OVER () is excluded |
 | Subqueries in compound ORDER BY; extra outer tail on an already-tailed lone parenthesized query | CK00001 | Compounds execute in expression subqueries, derived FROM and INSERT/UPSERT sources |

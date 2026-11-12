@@ -19,7 +19,7 @@ public sealed record OqlMergeDeleteAction
 Construction stores the optional predicate without executing or validating it. Predicate=null
 means no action filter. A supplied filter sees both matched target and source; EXPLAIN retains
 it as a residual after key matching. This has the same Predicate shape as UPDATE and INSERT
-actions. MERGE execution refuses CD05022 until OQ-M2. See
+actions. MERGE execution is not available yet and refuses CD05022. See
 [MERGE planning](../../../../database/document/language/statements/index.md#merge-planning).
 
 ## Example

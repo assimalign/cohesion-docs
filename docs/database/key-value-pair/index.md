@@ -109,7 +109,7 @@ and [shared engine health](../overview.md#engine-health-and-version-purge).
 
 Entry-space format **3** gives the primary index a physical owner distinct from logical
 key-space owner 1. Format 2 and earlier refuse CV06107 before any write, for clean opens and
-after an abrupt stop. Recreate every batch 4 database after exporting it with its original engine.
+after an abrupt stop. Recreate every database in format 2 or earlier after exporting it with the engine that wrote it.
 There is no upgrade reader. Key-space introspection still reports logical id 1.
 
 Open validates the registered root and owner, then discovers unregistered index owners from

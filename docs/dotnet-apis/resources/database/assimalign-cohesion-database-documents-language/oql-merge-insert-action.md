@@ -22,7 +22,7 @@ public sealed record OqlMergeInsertAction
 Null value throws ArgumentNullException. Lookup INSERT uses the ON KEY key and a null Key;
 ANSI INSERT requires explicit KEY and VALUE. Value, Key and Predicate see the source and a
 MISSING target, including target metadata. Omitted ANSI key/value semantics remain CK00001.
-Construction only retains children; MERGE execution is CD05022 until OQ-M2. See
+Construction only retains children; MERGE execution is not available yet and refuses CD05022. See
 [MERGE planning](../../../../database/document/language/statements/index.md#merge-planning).
 
 ## Example

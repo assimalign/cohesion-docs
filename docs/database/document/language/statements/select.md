@@ -111,7 +111,7 @@ MISSING values, NEST arrays, paging and the bounded lookup cache.
 
 ## Windows
 
-OQ-W1's first run implements ROW_NUMBER, RANK, DENSE_RANK, PERCENT_RANK, CUME_DIST, NTILE, LAG
+OQL implements ROW_NUMBER, RANK, DENSE_RANK, PERCENT_RANK, CUME_DIST, NTILE, LAG
 and LEAD with OVER. Use OVER (PARTITION BY ... ORDER BY ...), OVER name or a parenthesized
 copy OVER (name ...). WINDOW declarations follow GROUP BY/GROUP AS/HAVING and precede final
 ORDER BY/LIMIT/OFFSET. LETTING remains CK00001.
@@ -172,10 +172,10 @@ remain usable as fields/collections/aliases in window-free statements.
 
 DocumentFunctionCollection.Add now refuses all twelve names with ArgumentException for function,
 before engine build: ROW_NUMBER, RANK, DENSE_RANK, PERCENT_RANK, CUME_DIST, NTILE, LAG, LEAD,
-FIRST_VALUE, LAST_VALUE, NTH_VALUE and RATIO_TO_REPORT. These registrations were accepted in the base.
+FIRST_VALUE, LAST_VALUE, NTH_VALUE and RATIO_TO_REPORT. Earlier releases accepted these registrations.
 
 Frames (ROWS/RANGE/GROUPS/EXCLUDE), aggregate OVER, FIRST_VALUE/LAST_VALUE/NTH_VALUE,
-RATIO_TO_REPORT and RESPECT/IGNORE NULLS are not implemented and retain CK00001 for OQ-W2/OQ-W3.
+RATIO_TO_REPORT and RESPECT/IGNORE NULLS are not implemented yet and refuse CK00001.
 No implicit frame is evaluated. A scalar such as LOWER(x) OVER () also retains CK00001.
 
 ```sql

@@ -41,7 +41,7 @@ source, lookup/ANSI key, UPDATE/DELETE/INSERT actions and RETURNING. Action WHER
 the optional Predicate shape, including OqlMergeDeleteAction(OqlExpression? predicate = null).
 Mutation lists are read-only snapshots. Canonical ToString preserves tree shape within a
 128-level complete-tree/canonical parse bound. Both forms bind and EXPLAIN without reads,
-callbacks or probes; execution refuses CD05022 until OQ-M2. The Merge clause constant exists,
+callbacks or probes; execution refuses CD05022 until MERGE execution is available. The Merge clause constant exists,
 but OqlLanguageProfile.Instance.Supports("MERGE") remains false. See
 [scope and CK00001 boundaries](../../../../database/document/language/statements/index.md#merge-planning).
 

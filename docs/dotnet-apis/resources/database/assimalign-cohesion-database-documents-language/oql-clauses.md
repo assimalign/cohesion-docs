@@ -57,7 +57,7 @@ and produce [OqlSetOperationExpression](oql-set-operation-expression.md).
 
 Over and Window are supported for the eight ranking/navigation functions. Merge is a stable
 name but Supports(OqlClauses.Merge) is false: its AST parses, binds and explains, while execution
-refuses CD05022 until OQ-M2. See [MERGE](oql-merge-expression.md) and [windows](oql-window-expression.md).
+refuses CD05022 until MERGE execution is available. See [MERGE](oql-merge-expression.md) and [windows](oql-window-expression.md).
 
 ## Example
 

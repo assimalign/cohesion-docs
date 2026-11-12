@@ -3,7 +3,6 @@
 A runtime diagnostic identity has two uppercase letters and five decimal digits. Branch on the
 complete code, such as `CS05067`, rather than a prefix, numeric suffix, message or SQLSTATE.
 Identities are append-only; retired identities remain reserved and `00000` is unassigned.
-Batch 5 adds CS03405, CD05022 and CD01039–CD01045; it retires no diagnostic identities.
 
 | Prefix | Owner | Authoritative per-model registry |
 | --- | --- | --- |
@@ -88,7 +87,7 @@ online, publishes no table and resumes at that statement on a later Build with a
 INSERT SELECT and DML subquery sources keep their existing policy. See
 [statement memory](sql/performance.md#statement-memory).
 
-| Code | Additional batch 5 refusal conditions | SQLSTATE |
+| Code | Additional refusal conditions | SQLSTATE |
 | --- | --- | --- |
 | CS05067 | New index-build workspace charging; ineligible hash states/codecs, an over-budget single group, eight-level repartition exhaustion, computed join keys, oversized build/cache records, insufficient minimum working sets or reservations optional arenas cannot satisfy | 53200 |
 
@@ -279,8 +278,8 @@ is no upgrade reader. See [B-tree format](../dotnet-apis/resources/database/assi
 Current SQL format 39 retains applied-schema history and per-index owners. Formats 37/38 and
 all earlier markers refuse CS06041 before any file write. Documents index format 4 refuses
 version 3 with CD06105; KeyValuePair entry format 3 refuses version 2 with CV06107. All these
-refusals apply to clean and abruptly stopped files. Every batch 4 SQL, Documents and
-KeyValuePair database must be recreated; Graph formats are unchanged.
+refusals apply to clean and abruptly stopped files. Every SQL, Documents and
+KeyValuePair database in an earlier format must be recreated; Graph formats are unchanged.
 
 ## Journal admission
 
@@ -746,7 +745,7 @@ execute eight ranking/navigation functions. None of these diagnostics has an ass
 | CD01043 | Copied window supplies PARTITION BY/replaces ORDER BY, or direct OVER has neither/both name and specification |
 | CD01044 | Window in an invalid position or window-only function without OVER |
 | CD01045 | Window nested in another window's argument or key |
-| CD05022 | MERGE execution unavailable until OQ-M2; EXPLAIN MERGE remains available |
+| CD05022 | MERGE execution is not available yet; EXPLAIN MERGE remains available |
 
 CD05018 also covers charged index builds and window retained state; CD05020 covers window work.
 Function registration now refuses all twelve window names with ArgumentException before build.
@@ -761,7 +760,7 @@ CALL IN TRANSACTIONS retain CK00001. See [CALL scope and diagnostics](graph/lang
 
 ## Sources
 
-- **Batch 5** — `cohesion/resources/Database/Assimalign.Cohesion.Database/docs/ERROR-CODES.md`, code/tests and `cohesion/docs/EVENT_SOURCES.md` at `2dd935103`.
+- **T3 batch 5** — `cohesion/resources/Database/Assimalign.Cohesion.Database/docs/ERROR-CODES.md`, code/tests and `cohesion/docs/EVENT_SOURCES.md` at `2dd935103`.
 - **Batch 19, SQ-A3** — `cohesion/resources/Database/Assimalign.Cohesion.Database/docs/ERROR-CODES.md` and `Assimalign.Cohesion.Database.Sql/src/Internal/Provisioning/SqlProvisioningCodes.cs` at `0b00f181e`, checked against code and tests.
 - **Savepoint fix pass** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/tests/SavepointFixTests.cs`, `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql.Client/tests/SavepointFailureWireTests.cs` and `cohesion/resources/Database/Assimalign.Cohesion.Database/tests/SavepointSeamTests.cs` at `ff5112515`.
 - **Batch 14** — `cohesion/resources/Database/Assimalign.Cohesion.Database/docs/ERROR-CODES.md` at `c3dc498bf`, checked against the batch-14 code and tests.

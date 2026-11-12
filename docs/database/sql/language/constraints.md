@@ -364,8 +364,8 @@ UPDATE reports CS03039 (23503) because final key 1 is absent. SELECT still retur
 
 Cascade preparation can back off when a required lock is refused: it releases new grants to the retry mark, waits and rebuilds the statement's referential preparation. Earlier transaction grants remain protected. This is an internal retry; a hard-deadlock victim still rolls back and retries the transaction. Soft queue-order cycles can be repaired before selecting a victim. See [locking behavior](../../../dotnet-apis/resources/database/assimalign-cohesion-database-transactions/design.md#cascade-backoff-and-queue-repair).
 
-Index-backed UNIQUE/PRIMARY KEY builds now charge their workspace and can directly refuse
-CS05067 even where batch 4 completed. Schema-apply rebuilds wrap that cause in CS03402.
+Index-backed UNIQUE/PRIMARY KEY builds charge their workspace and refuse CS05067 when a chunk
+does not fit the statement memory budget. Schema-apply rebuilds report CS03402 with that cause.
 Use a larger StatementMemoryBudget; see [build charges and examples](statements/create-index.md#building-over-existing-data).
 
 ## Sources

@@ -303,7 +303,7 @@ Format 37 required joint publication for every deferred job and fenced old per-s
 Format 38 added chunked, never-evicted applied-schema history (kind 20) and never shipped alone.
 Current format 39 adds per-index owners and registration kind 21. Formats 37 and 38, along with
 all earlier formats, refuse CS06041 before any write, leaving clean files and crashed journals
-unchanged. Every SQL database from batch 4 must be recreated.
+unchanged. Every SQL database in an earlier format must be recreated.
 Format 29 extended kind-18 sequence definitions with owning
 table id, column name and identity ownership. Identity allocation uses kind-19 reservations;
 kind 16 is retired and never decoded. Format 30 retains the TYPE default-assignment flag introduced

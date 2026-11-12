@@ -572,14 +572,14 @@ statements keep their original charges, results, calls and first errors. See
 [aggregation exclusions](sql/performance.md#hash-aggregation-and-distinct-spilling) and
 [join temporary-space limits](sql/performance.md#hash-join-spilling).
 
-## Batch 5 format compatibility
+## Format compatibility
 
 The current model formats are SQL **39**, Documents index **4** and KeyValuePair entry **3**.
 Graph remains catalog **4**, record **5** and B-tree **3**. SQL 38 introduced applied-schema
 history and never shipped alone; SQL 39 also gives every index its own physical page owner.
 SQL 37/38 refuse CS06041, Documents index 3 refuses CD06105, and KeyValuePair entry 2 refuses
 CV06107. These gates run before any write, both for clean files and after an abrupt stop.
-Every SQL, Documents and KeyValuePair database from batch 4 must be recreated; there is no
+Every SQL, Documents and KeyValuePair database in an earlier format must be recreated; there is no
 upgrade reader. Export with the engine that wrote the files, recreate with the current engine,
 and reload. Shared physical storage remains format 4 and B-tree pages remain format 3.
 

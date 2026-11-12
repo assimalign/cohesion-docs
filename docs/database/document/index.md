@@ -35,7 +35,7 @@ comparisons and EXISTS between them; this changes unparenthesized mixed predicat
 [OVER and named WINDOW](language/statements/select.md#windows) execute eight ranking/navigation
 functions after grouping/HAVING. Frames, aggregate OVER and value windows remain deferred.
 [MERGE](language/statements/index.md#merge-planning) parses, renders, binds, plans and explains;
-execution refuses CD05022 until OQ-M2 and Supports("MERGE") remains false.
+execution is not available yet: it refuses CD05022, and Supports("MERGE") reports false.
 
 ## Reading and writing
 

@@ -118,7 +118,7 @@ These reasons are plan details, not diagnostic codes.
 [MERGE](index.md#merge-planning) explains as Merge, source operators, KeyLookup/KeyJoin,
 MergeUpdate/MergeDelete/MergeInsert in order, filters and RETURNING. It evaluates no source,
 key or action expression, performs no target probe and reads/writes no documents. Execution
-without EXPLAIN refuses CD05022 until OQ-M2. MERGE action filters remain residuals after matching.
+without EXPLAIN refuses CD05022, because MERGE execution is not available yet. MERGE action filters remain residuals after matching.
 
 [Windows](select.md#windows) add WindowAggregate after grouping/HAVING, before projection,
 DISTINCT and final paging. Detail names partition/order keys and groups that share a sort.

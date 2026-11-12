@@ -22,8 +22,8 @@ transaction or an automatic statement transaction. A trailing semicolon is optio
 
 ## MERGE planning
 
-MERGE parses, renders, binds, plans and explains in OQ-M1 (run 1 of 2). Execution is unavailable
-until OQ-M2: a valid executed statement refuses one located CD05022 before source reads or writes.
+MERGE parses, renders, binds, plans and explains. Execution is not available yet: a valid executed
+statement refuses one located CD05022 before any source read or write.
 It follows ordinary statement failure/explicit-transaction abort rules. Supports("MERGE") on
 OqlLanguageProfile.Instance remains false; the profile advertises executable capability.
 
@@ -69,7 +69,7 @@ Canonical OqlMergeExpression.ToString text reparses with the same tree shape. Co
 canonical parse costs stop at 128 levels (CD00005). EXPLAIN emits Merge, its source plan,
 KeyLookup/KeyJoin, ordered MergeUpdate/MergeDelete/MergeInsert and RETURNING, with action filters
 after matching. It evaluates no source/action callbacks, probes no target and reads/writes no
-documents. Counts, duplicate-write rules and RETURNING image/snapshot execution await OQ-M2.
+documents. Counts, duplicate-write rules and RETURNING image/snapshot execution arrive with MERGE execution.
 
 ```sql
 EXPLAIN MERGE INTO targets t USING sources s ON KEY s.key
