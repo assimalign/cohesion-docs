@@ -34,8 +34,12 @@ kind, including VALUE. These forms add no named clause. WITH/WITHOUT UNIQUE KEYS
 
 The engine uses CS01067 (42883) for invalid JSON signatures, CS02078 (22032) for malformed
 access/assignment input, invalid Unicode/UTF-8 or depth over 128, CS02079 (22023) for the wrong
-JSON kind in a scalar cast, and CS02080 (42804) for incompatible declared CASE/COALESCE
-alternatives in JSON positions. See [language behavior and examples](../../../../database/sql/language/expressions/json-access.md).
+JSON kind in a scalar cast, and CS02080 (42804/42846) for incompatible declared CASE/COALESCE
+alternatives in any scalar position. Unknown literals adopt declared types, all-NULL resolves
+to TEXT, and REAL/DOUBLE beat NUMERIC. Grouping keys share the rule; grouped output retains
+its separate normalization. Unresolved application values can refuse at planning or row-time
+across boundaries. See [the complete common-type contract](../../../../database/sql/language/expressions/case.md#common-types)
+and [JSON behavior](../../../../database/sql/language/expressions/json-access.md).
 
 ## Partial-index predicates
 

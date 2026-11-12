@@ -37,9 +37,11 @@ CS01006 (42883), including empty inputs. Messages list accepted signatures. No-o
 ambiguous-overload diagnostics remain distinct (CS01006 and CS01008).
 
 COALESCE evaluates alternatives only until the first non-NULL and returns NULL if none exists.
-In a [Boolean position](../clauses/where.md#boolean-search-conditions), every alternative must
-qualify, including unreachable ones; mixed Boolean/non-Boolean alternatives fail CS02003 (42804).
-Compatible alternatives receive a common result type, including numeric and calendar promotion.
+All alternatives resolve one common type before Boolean admission, including skipped ones.
+Unknown literals adopt declared types; all-NULL alternatives resolve to TEXT. REAL/DOUBLE
+beat NUMERIC. Incompatible declared alternatives refuse CS02080 (42804/42846), and invalid
+unknown input uses CS02022. See [CASE and COALESCE common types](../expressions/case.md#common-types)
+for scalar, grouped-output, unresolved application-value and persisted-expression rules.
 NULLIF evaluates its operands, returns NULL when equal, otherwise preserves the first value and
 its type; a NULL first operand stays NULL, and a NULL second operand leaves the first unchanged.
 It follows ordinary comparison/collation rules, including CHAR trailing-space normalization.

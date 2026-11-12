@@ -44,6 +44,11 @@ Eligible aggregation streams input and charges retained keys and state to the st
 Projection aliases are outside grouping's alias-binding scope. Standalone numeric keys
 (`GROUP BY 1`) report `CK00001`; `GROUP BY 1 + 1` is an ordinary constant expression.
 
+CASE/COALESCE grouping keys and aggregate inputs resolve their common type before grouping,
+using REAL/DOUBLE above NUMERIC. Nearby numeric keys can merge under REAL. Repeated keys in
+SELECT/HAVING/ORDER BY read that slot's resolved type. Grouped output expressions retain their
+separate normalization; see [common types](../expressions/case.md#common-types).
+
 ### Plain hash grouping
 
 Eligible root plain GROUP BY spills fixed-size native states at the existing statement grant

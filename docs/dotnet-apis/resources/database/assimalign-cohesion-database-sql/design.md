@@ -2078,6 +2078,17 @@ Normal peer-close linger expiry and a server hard abort do not emit this event. 
 have no session and do not increment this session counter. This warning adds no diagnostic code
 or SQLSTATE.
 
+## CASE and COALESCE common types
+
+Scalar alternatives resolve a common built-in implicit type, including in persisted DEFAULT,
+CHECK, view, SQL-function and partial-index definitions. REAL/DOUBLE beat NUMERIC, unknown
+literals adopt declared types and all-NULL is TEXT. Group keys use that type before hashing,
+so nearby numeric keys can merge under REAL. Grouped output keeps its existing Decimal-first
+normalization and CHAR/TEXT padding removal; scalar CHAR alternatives retain padding.
+Transparent wrappers preserve planning-time CS02080 for unresolved polymorphic application
+values. Query boundaries and computed numeric nodes can instead plan and fail at a row with
+CS02011. See [wrappers, boundaries, metadata and examples](../../../../database/sql/language/expressions/case.md#common-types).
+
 ## Applied-schema history and rollback
 
 Catalog kind 20 stores never-evicted hash-only history, atomically with every kind-6 publication

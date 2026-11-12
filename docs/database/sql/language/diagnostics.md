@@ -230,7 +230,9 @@ CS05040 refuses the match rather than estimating TRUE/FALSE; cancellation takes 
 
 Non-Boolean search conditions use CS02003 (42804) before reading even an empty input when
 the type is known, and during evaluation otherwise. CASE/COALESCE alternatives in Boolean
-positions all qualify or fail, including unreachable alternatives. Untyped NULL is UNKNOWN;
+positions resolve their common type first, including unreachable alternatives. An all-unknown
+string/NULL set is TEXT (CS02003 in a Boolean position); incompatible declared alternatives
+use CS02080 and invalid unknown input uses CS02022. Untyped NULL is UNKNOWN;
 valid Boolean input string literals coerce, while text columns/parameters keep their types.
 Stored SQL function bodies with legacy invalid Boolean operands or changed application return
 types allow the database to open and fail with CS02003 when invoked.
@@ -725,7 +727,7 @@ text under IS JSON returns FALSE, while access and assignment reject malformed d
 | CS01067 | Invalid JSON extraction or IS JSON signature, including a BIGINT selector | 42883 |
 | CS02078 | Malformed access/assignment input, invalid Unicode/UTF-8 or depth over 128 | 22032 |
 | CS02079 | Wrong JSON kind for a Boolean or numeric scalar cast | 22023 |
-| CS02080 | Incompatible declared CASE/COALESCE alternatives in a JSON operand/selector | 42804 |
+| CS02080 | Incompatible CASE/COALESCE alternatives in any scalar position, or unresolved polymorphic/unsupported parameter alternatives at planning | 42804/42846 |
 
 ## SQL transaction isolation
 
