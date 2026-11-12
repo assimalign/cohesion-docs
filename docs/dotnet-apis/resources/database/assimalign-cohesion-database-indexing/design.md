@@ -288,7 +288,7 @@ Indexing's IndexCreated/IndexDropped objectId now identifies the physical index 
 
 End adds succeeded; PagesReclaimed adds pages and emits only for a nonempty committed batch.
 No indexed values are emitted. SQL's TableReclamationStarted/Completed/Yielded also cover index
-owners (23/24/27). Sources are named Assimalign.Cohesion.Database plus the suffix above.
+owners (23/24/27). Sources are named `Assimalign.Cohesion.Database.<suffix>` using the table above.
 
 ## Sources
 

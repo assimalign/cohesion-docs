@@ -184,7 +184,9 @@ consumers existed.
 Boolean positions use the existing AST. The engine requires Boolean search conditions in WHERE,
 HAVING, JOIN ON, CHECK/domain CHECK, searched CASE WHEN and ON CONFLICT WHERE, with CS02003
 (42804) for non-Boolean types. Valid Boolean string literals coerce only in Boolean positions;
-every CASE/COALESCE alternative there must qualify. See [search conditions](../../../../database/sql/language/clauses/where.md#boolean-search-conditions).
+CASE/COALESCE first resolves a common type across every alternative. Incompatible declared
+alternatives use CS02080, invalid unknown input CS02022, and an all-unknown TEXT result fails
+Boolean admission with CS02003. See [search conditions](../../../../database/sql/language/clauses/where.md#boolean-search-conditions).
 
 Every SELECT may omit FROM and operate on one implicit row, including top-level and nested
 queries, views, derived tables and set operands. A wildcard still needs a relation (CS05013).

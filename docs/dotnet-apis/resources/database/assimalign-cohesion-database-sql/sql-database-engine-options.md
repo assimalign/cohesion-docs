@@ -133,8 +133,11 @@ shared with window-frame recomputation and is independent of the configured byte
 
 These three options configure the disposable-storage substrate. They exist only on the SQL
 engine options on this branch. Eligible root ORDER BY and ordered DISTINCT, including CTAS
-source roots, use it when their memory reservation would refuse. Excluded shapes retain
-memory refusals; see [eligibility and capacity](../../../../database/sql/performance.md#root-sort-spilling).
+source roots, use it when their memory reservation would refuse. Eligible plain hash
+aggregation/DISTINCT, hash joins and normalized join buffers share that temporary statement
+quota. Excluded shapes retain memory refusals; see
+[sort eligibility](../../../../database/sql/performance.md#root-sort-spilling) and
+[hash join capacity](../../../../database/sql/performance.md#hash-join-spilling).
 
 | Member | Default and validation |
 | --- | --- |
