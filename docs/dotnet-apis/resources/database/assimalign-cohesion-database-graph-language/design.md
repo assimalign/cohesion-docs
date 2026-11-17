@@ -504,6 +504,10 @@ and frames use CG05032; ordinary operand/output/forwarding frames use CG05020. N
 | CG05031 | Internal statement lookup unexpectedly lacks its key; original KeyNotFoundException is retained | — |
 | CG05032 | EXCEPT/INTERSECT retained frames, rows or hash state exceed the shared memory grant | — |
 
+Open [current graph-type DDL](../../../../database/graph/language/statements/index.md#current-graph-type)
+parses through GqlSchemaCommand.GraphType; SHOW CURRENT GRAPH TYPE is read-only catalog metadata.
+CLOSED/OPEN mode clauses remain CK00001.
+
 ## Sources
 
 - **Schema DDL** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Graph.Language/src/GqlQueryParser.Schema.cs` and `tests/GqlSchemaDdlParserTests.cs` in the same project.

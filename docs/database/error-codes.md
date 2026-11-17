@@ -196,11 +196,12 @@ Unresolved predicate registrations use existing CS01009 (42883) for table writes
 | CG01023 | Warning: read-only statement names an entity property unknown throughout its visible catalog; once per ordinal name | — |
 | CG03008 | Database-wide ordinal, case-sensitive index/constraint name is already used | — |
 | CG03009 | Duplicate constraint kind or incompatible property type rule | — |
-| CG03010 | Existing data violates a newly created named constraint or proposed graph type | — |
-| CG03011 | Invalid graph-type mutation name/reference or identifying/implied label overlap | — |
+| CG03010 | Existing data violates a newly created named constraint or proposed graph type, including edge endpoints and properties | — |
+| CG03011 | Invalid graph-type declaration/mutation name, endpoint reference or identifying/implied label overlap | — |
 | CG03012 | Node write omits an implied label required by its node type | — |
+| CG03013 | Relationship or endpoint-label write violates declared source/target node-type membership | — |
 | CG04025 | Schema write inside an explicit transaction, including typed writes and conditional no-ops; aborts the transaction | — |
-| CG06019 | Catalog record version differs from v4; recreate the database, no legacy reader | — |
+| CG06019 | Catalog record version differs from v5; recreate the database, no legacy reader | — |
 
 See [GraphSchema](../dotnet-apis/resources/database/assimalign-cohesion-database-graph/graph-schema.md)
 for the typed surface and [schema DDL](graph/language/statements/create-index.md) for text commands.
@@ -269,7 +270,7 @@ clean and abruptly stopped images receive one stable refusal per model on repeat
 | SQL | CS06041 | Current format 39 refuses earlier catalog/data-storage markers, including 37/38, before any write; then B-tree roots |
 | KeyValuePair | CV06107 | Entry-space marker, then B-tree roots |
 | Documents | CD06105 | Catalog kind/version headers, then B-tree roots |
-| Graph | CK06101, in its existing message-only carrier | Entity/registration and B-tree roots, then catalog v4 |
+| Graph | CK06101, in its existing message-only carrier | Entity/registration and B-tree roots, then catalog v5 |
 
 Every file, journal, backup and sidecar remains unchanged through refusal and disposal. Blob
 uses no B-tree. Recreate using exported data from the engine that wrote the old image; there
@@ -279,7 +280,8 @@ Current SQL format 39 retains applied-schema history and per-index owners. Forma
 all earlier markers refuse CS06041 before any file write. Documents index format 4 refuses
 version 3 with CD06105; KeyValuePair entry format 3 refuses version 2 with CV06107. All these
 refusals apply to clean and abruptly stopped files. Every SQL, Documents and
-KeyValuePair database in an earlier format must be recreated; Graph formats are unchanged.
+KeyValuePair database in an earlier format must be recreated. Graph catalog is now v5;
+entity/registration format 5 is unchanged.
 
 ## Journal admission
 
@@ -408,6 +410,12 @@ lifecycle refusal. See [Graph diagnostics](graph/language/diagnostics.md#typed-s
 branches. Snapshot reports CG04024; ReadCommitted re-matches. Bare list/map equalities retain
 parser CK00001; other proven/evaluated invalid equalities use CG03004. None of these conditions has
 an assigned SQLSTATE. See [Graph diagnostics](graph/language/diagnostics.md#planning-and-execution-diagnostics).
+
+## Graph catalog requirement
+
+Catalog v5 makes kind-8 edge declarations enforced endpoint/property invariants. V4 refuses
+CG06019 before any write, clean or after an abrupt stop. Recreate every old Graph database;
+there is no legacy reader. SQL, Documents, KeyValuePair and B-tree formats are unchanged.
 
 ## Graph format requirement
 

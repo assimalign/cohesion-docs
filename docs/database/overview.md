@@ -575,7 +575,10 @@ statements keep their original charges, results, calls and first errors. See
 ## Format compatibility
 
 The current model formats are SQL **39**, Documents index **4** and KeyValuePair entry **3**.
-Graph remains catalog **4**, record **5** and B-tree **3**. SQL 38 introduced applied-schema
+Graph requires catalog **5**: kind-8 edge records now represent enforced invariants. V4 refuses
+CG06019 before any write, clean or after an abrupt stop, so every v4 Graph database must be
+recreated. Graph record **5** and B-tree **3**, SQL **39**, Documents index **4** and
+KeyValuePair entry **3** formats are unchanged. SQL 38 introduced applied-schema
 history and never shipped alone; SQL 39 also gives every index its own physical page owner.
 SQL 37/38 refuse CS06041, Documents index 3 refuses CD06105, and KeyValuePair entry 2 refuses
 CV06107. These gates run before any write, both for clean files and after an abrupt stop.

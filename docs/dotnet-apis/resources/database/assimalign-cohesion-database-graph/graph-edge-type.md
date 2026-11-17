@@ -27,8 +27,10 @@ edges together with their node types.
 
 Create copies properties into read-only ordinal order; null means none. Blank names or null/repeated
 properties throw ArgumentException. Names compare ordinally and case-sensitively. Edge declarations
-are stored and survive reopen, but edge property types, NOT NULL and endpoint membership are not
-yet enforced.
+survive reopen and enforce property types, NOT NULL and source/target identifying-label
+membership. Endpoint violations use CG03013; property violations use CG03003. Relationship
+property writes validate properties without rereading endpoints. Matching MERGE rows validate
+only their writes; label removal checks affected incident edges, while label addition does no edge work.
 
 ## Example
 

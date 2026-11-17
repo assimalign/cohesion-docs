@@ -26,7 +26,9 @@ compare ordinally and case-sensitively. Construction does not publish a type or 
 [GraphSchema](graph-schema.md#graph-type-operations) resolves edge references against the complete
 resulting type, allowing ADD/ALTER fragments. An implied label cannot identify any node type
 (CG03011). Membership derives from identifying labels; additional labels, relationship types
-and properties remain writable. Node rules execute; edge property/endpoint enforcement is deferred.
+and properties remain writable. Node and edge rules execute; endpoint membership uses identifying labels (CG03013).
+Property violations use CG03003. Label additions do no edge work; label removals check affected
+incident declared edges. Without a current graph type, writes add no edge-validation work.
 
 ## Example
 

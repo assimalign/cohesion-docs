@@ -7,14 +7,14 @@ SHOW returns typed catalog metadata from the session database snapshot.
 ## Syntax
 
 ```syntaxsql
-SHOW { LABELS | RELATIONSHIP TYPES | PROPERTY KEYS | INDEXES | CONSTRAINTS | OBJECT OWNERSHIP }
+SHOW { LABELS | RELATIONSHIP TYPES | PROPERTY KEYS | INDEXES | CONSTRAINTS | OBJECT OWNERSHIP | CURRENT GRAPH TYPE }
 ```
 
 ## Supported clauses
 
 | Construct | Support |
 |---|---|
-| The six catalog subjects in the diagram | Supported |
+| The seven catalog subjects in the diagram | Supported |
 | `SHOW DATABASES` | Recognized, not supported (`CK00001`) |
 | Database qualification, filtering, projection | Not in the language |
 | Mutation composed with `SHOW` | Not in the language; produces `CG00007` |
@@ -74,6 +74,14 @@ rules produce separate rows even when they apply to the same property.
 `GraphDatabaseServer` accepts these catalog statements alongside its scalar queries, mutations
 and path requests. Mutation composition with SHOW is rejected before writer locks or data mutation, with
 `CG00007`; direct abstract syntax tree requests receive the same protection.
+
+## Current graph type
+
+`SHOW CURRENT GRAPH TYPE` returns three non-nullable STRING columns: DATABASE_NAME, MODE
+(`OPEN`) and DEFINITION (canonical complete `ALTER CURRENT GRAPH TYPE SET` DDL). An absent
+type returns no rows; SET {} returns one row for an empty type. The definition reparses to the
+same element type, using ordinary row framing in process and over TCP. Independent constraints
+are omitted. See [type syntax and refusals](index.md#current-graph-type).
 
 ## Examples
 

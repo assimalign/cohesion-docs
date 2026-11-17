@@ -10,23 +10,27 @@ This page describes the boundaries and implementation shape of `Assimalign.Cohes
 and [GraphPropertyType](graph-property-type.md) are sealed immutable API declarations with copied,
 ordinally ordered collections. Internal catalog declarations own persistence and enforcement.
 [GraphSchema](graph-schema.md#graph-type-operations) publishes complete or fragment changes under
-autocommit, validates new/tightened node members through label postings and preserves the prior
+autocommit, validates new/tightened node and edge members through owner postings and preserves the prior
 type on failure. Only affected rules check schema ownership and compatibility; independent agreeing
 rules remain valid. Identifying/implied label overlap and dangling edge references use CG03011.
 
 Node membership derives from identifying labels. Writes enforce implied labels and scalar
 types/NOT NULL, including MERGE final state; extra labels and properties remain writable. Edge
-declarations are persisted without property/endpoint enforcement. Graph-type text ALTER/SHOW and
-closed semantics are deferred. CG03010 rejects invalid existing members, CG03012 missing implied
+declarations enforce property rules and source/target identifying-label membership (CG03013).
+Relationship property writes check properties; matching MERGE validates only its writes. Label
+additions do no edge work. Removals select incident edges by removed identifying label and
+direction, with final endpoint checks per stage. Without a current type there is no map, edge
+decode or extra write work. Text ALTER/SHOW execute; CLOSED/OPEN mode clauses remain CK00001.
+CG03010 rejects invalid existing members, CG03012 missing implied
 labels and CG03003 property violations or declared-token drops. CG03009 refuses conflicting
 independent property types in either publication order. All schema mutations refuse explicit
 transactions with CG04025, including no-ops.
 
 Catalog v3 introduced kinds 6/7/8 for the current-type marker, node and edge declarations;
-current v4 retains them. A set empty
+current v5 makes kind-8 edge declarations enforced invariants without changing their fields. A set empty
 type differs from absence. Publication writes only changed records in one logical transaction,
 discovering tokens atomically; drop retains tokens and independent constraints. Recovery preserves
-the complete committed type or prior state. V3, including journal-only images, refuses with CG06019
+the complete committed type or prior state. V4 and earlier, including journal-only images, refuse with CG06019
 before writes, preserving every file. Entity/registration format remains 5. See [catalog format](catalog-design.md#on-disk-format).
 
 ## Text indexes
@@ -46,7 +50,7 @@ Exact and text definitions coexist once per pair and kind. SHOW INDEXES keeps it
 Dropped trees retire after snapshot pins release; maintenance persists a receipt and frees
 at most 64 owner pages per pass. Snapshot writers maintain dropped exact trees they still see.
 
-Catalog v4 stores the text-kind discriminator and refuses v3 with CG06019 before writes,
+Catalog v4 introduced the text-kind discriminator. Current v5 refuses v4 and earlier with CG06019 before writes,
 preserving all files. Graph entity/registration format remains 5; B-tree page format is 3.
 If both catalog and B-tree stamps are old, CK06101 occurs first in its existing message-only
 carrier. See [combined refusal order](../../../../database/error-codes.md#combined-format-refusals).
@@ -442,10 +446,10 @@ and abort it, even for conditional no-ops. Argument checks precede admission. In
 discovers missing label/property tokens; text constraints also discover missing owner tokens.
 Failure rolls discovery back with publication. Owner-posting validation and index backfill
 charge statement work/memory (CG05004/CG05020); invalid limits retain CG08021. Typed writes
-use engine ceilings; text requests may lower limits. Catalog is v4; entity/registration format
+use engine ceilings; text requests may lower limits. Catalog is v5; entity/registration format
 remains 5 and B-tree pages use format 3.
 
-Catalog v2 introduced kind-5 constraints and v3 introduced graph types. Current v4 also stores
+Catalog v2 introduced kind-5 constraints and v3 introduced graph types. Current v5 also stores
 text-index kinds and refuses other versions with
 CG06019 before recovery writes. Clean and crashed refusals preserve every file byte for byte. Recreate
 affected databases; there is no upgrade reader. Entity/registration format remains 5.
@@ -458,7 +462,7 @@ affected databases; there is no upgrade reader. Entity/registration format remai
 | CG03009 | Duplicate constraint kind or incompatible property type rule |
 | CG03010 | Existing data violates a new constraint |
 | CG04025 | Typed/text schema write inside an explicit transaction; aborts it |
-| CG06019 | Catalog record version differs from v4 |
+| CG06019 | Catalog record version differs from v5 |
 
 Labels, relationship types and discovered property keys persist even when the last data object is
 deleted. Discovery sees the session snapshot. `New` data introduces ad-hoc definitions. A supplied

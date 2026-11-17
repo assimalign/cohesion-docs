@@ -43,11 +43,12 @@ These conditions have no assigned SQLSTATE:
 | CG01022 | Schema property references a variable other than the FOR declaration |
 | CG03008 | Database-wide index/constraint name is already occupied; names are ordinal and case-sensitive |
 | CG03009 | Duplicate constraint kind or incompatible property type rules |
-| CG03010 | Existing data violates a newly created named constraint or proposed graph type; publication rolls back |
-| CG03011 | Invalid graph-type mutation name/reference or identifying/implied label overlap |
+| CG03010 | Existing data violates a newly created named constraint or proposed graph type, including edge endpoints and properties; publication rolls back |
+| CG03011 | Invalid graph-type declaration/mutation name, endpoint reference or identifying/implied label overlap |
 | CG03012 | Node write omits an implied label required by its node type |
+| CG03013 | Relationship or endpoint-label write violates declared source/target node-type membership |
 | CG04025 | Schema write inside an explicit transaction, including typed writes and conditional no-ops; aborts the transaction |
-| CG06019 | Catalog record version is not v4; recreate the database, with no legacy reader |
+| CG06019 | Catalog record version is not v5; recreate the database, with no legacy reader |
 
 CG06019 refuses before any write, including for v3 journal-only images. Recovered read-only
 preflight preserves every file byte for byte. If B-tree pages are also old, CK06101 occurs
