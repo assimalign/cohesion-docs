@@ -61,7 +61,7 @@ projects are retired. Public component namespaces remain unchanged. The five Pro
 | [`Assimalign.Cohesion.Database.Testing`](assimalign-cohesion-database-testing/index.md) | Testing | Not listed in this framework |
 | [`Assimalign.Cohesion.Database.Transactions`](assimalign-cohesion-database-transactions/index.md) | Feature library | Public reference and runtime |
 | [`Assimalign.Cohesion.Database.Types`](assimalign-cohesion-database-types/index.md) | Feature library | Public reference and runtime |
-| [`Assimalign.Cohesion.Database.Types.Text`](assimalign-cohesion-database-types-text/index.md) | Child root | Public reference and runtime |
+| [`Assimalign.Cohesion.Database.Types.Text`](assimalign-cohesion-database-types-text/index.md) | Feature library | Public reference and runtime |
 
 [Database.Types.Text](assimalign-cohesion-database-types-text/index.md) provides versioned simple/English
 analysis and immutable tsvector values. No index or query uses this new child root yet.

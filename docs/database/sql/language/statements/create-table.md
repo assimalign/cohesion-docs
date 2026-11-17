@@ -127,7 +127,7 @@ sees the new table empty; a snapshot taken after that commit sees every row. No 
 partial build. Source reads use one statement snapshot.
 
 Every eligible CTAS source output can spill at its previous admission boundary, including
-unordered sources, primary-key scans, nested SELECTs, hash-aggregation output, partitioned
+unordered sources, ordered index scans (primary or secondary), nested SELECTs, hash-aggregation output, partitioned
 windows and set operations. A spilled source streams into existing 64-row copy brackets and
 is disposed before commit/publication. It is internal and consumes no client-result slot.
 WITH NO DATA executes no sort and creates no temp files. See [spill rules and limits](../../performance.md#root-sort-spilling).

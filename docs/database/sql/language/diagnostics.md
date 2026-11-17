@@ -544,7 +544,7 @@ Index builds add new workspace refusals: direct CREATE INDEX/UNIQUE/PRIMARY KEY 
 schema-apply/rollback rebuilds report CS03402 with that cause. Increase StatementMemoryBudget.
 See [hash limits](../performance.md#hash-aggregation-and-distinct-spilling).
 Every eligible retained SELECT output now has a spill owner, including unordered CTAS,
-primary-key scans, nested SELECTs, hash-aggregation output, partitioned windows, set operations
+ordered index scans (primary or secondary), nested SELECTs, hash-aggregation output, partitioned windows, set operations
 and nested-loop inners. CS05067 still refuses an unsupported spill cell/key, an encoded row
 above the temp record limit at every quota, or a reader exceeding the result grant. Only returned
 spilled client results take one of eight session slots; a ninth refuses CS05067. Internal caches,

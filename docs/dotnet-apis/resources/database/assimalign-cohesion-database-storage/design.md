@@ -25,8 +25,10 @@ accounting. [StorageTempStatement](storage-temp-statement.md) owns each statemen
 [Runs](storage-temp-run.md) hold opaque records in checked 8 KiB pages; the
 [sorter](storage-temp-sorter.md) provides stable external sorting and a streaming final merge,
 and [partitions](storage-temp-partitions.md) route records by caller-supplied hashes.
-SQL owns its space internally and uses it for eligible root ORDER BY and ordered DISTINCT,
-including CTAS source sorts. Other query shapes retain their existing memory policy. See [SQL options](../assimalign-cohesion-database-sql/sql-database-engine-options.md#temporary-space).
+SQL owns its space internally. Eligible SQL sorts, hash aggregation and DISTINCT, hash joins,
+retained SELECT outputs (including nested SELECTs and unordered CTAS sources), partitioned window
+stages, set operations and nested-loop inners use it where they would otherwise refuse; excluded
+shapes keep their memory refusals. See [SQL options](../assimalign-cohesion-database-sql/sql-database-engine-options.md#temporary-space).
 
 Every new physical page checks the statement quota, engine quota and model-supplied free-space
 floor. The engine quota is explicit or min(10 GiB, floor(available bytes / 4)), fixed after

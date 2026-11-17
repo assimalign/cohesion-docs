@@ -36,6 +36,7 @@ an incoming clause, with optional RETURN. They are not standalone leading statem
 - **[CREATE CONSTRAINT](create-constraint.md)** and **[DROP CONSTRAINT](drop-constraint.md)** — type/existence rules for node and relationship properties.
 - **[CREATE LABEL](create-label.md)** and **[DROP LABEL](drop-label.md)** — Cohesion label definitions.
 - **[CREATE RELATIONSHIP TYPE](create-relationship-type.md)** and **[DROP RELATIONSHIP TYPE](drop-relationship-type.md)** — Cohesion relationship-type definitions.
+- **[ALTER CURRENT GRAPH TYPE](#current-graph-type)** — set, add, alter or drop open node and edge declarations.
 
 All schema writes require autocommit. An admitted write inside an explicit transaction,
 including a conditional no-op, reports CG04025 and aborts it. SHOW remains read-only.
@@ -45,6 +46,8 @@ including a conditional no-op, reports CG04025 and aborts it. SHOW remains read-
 ```syntaxsql
 ALTER CURRENT GRAPH TYPE { SET | ADD | ALTER | DROP } { declarations }
 ```
+
+The braces are literal syntax.
 
 Node declarations use `(:Label => :Implied & Other {p :: STRING NOT NULL})`; implied labels
 and properties may be empty. Edges use `(:Source)-[:TYPE => {p :: INT64}]->(:Target)`.

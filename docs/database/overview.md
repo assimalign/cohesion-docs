@@ -58,9 +58,10 @@ The former replication and governance placeholder projects and contracts are abs
 features have no current runtime API.
 
 The [temporary-space substrate](../dotnet-apis/resources/database/assimalign-cohesion-database-storage/design.md#disposable-query-storage)
-provides quotas, checked runs, sorting and hash partitions. SQL root ORDER BY and ordered DISTINCT
-use it, including CTAS source roots in sessions and scripts. Other shapes retain memory
-refusals; see [spill eligibility and lazy result lifetime](sql/performance.md#root-sort-spilling).
+provides quotas, checked runs, sorting and hash partitions. Eligible SQL sorts, hash aggregation and DISTINCT,
+hash joins, retained SELECT outputs (including nested SELECTs and unordered CTAS sources), partitioned
+window stages, set operations and nested-loop inners use it where they would otherwise refuse; excluded
+shapes keep their memory refusals. See [spill eligibility and lazy result lifetime](sql/performance.md#root-sort-spilling).
 
 ## Host composition
 
@@ -588,7 +589,7 @@ statements keep their original charges, results, calls and first errors. See
 [join temporary-space limits](sql/performance.md#hash-join-spilling).
 
 Every eligible retained SQL SELECT output has a spill owner: final results, unordered CTAS,
-primary-key scans, nested SELECTs and hash-aggregation output. Partitioned windows spill one
+ordered index scans (primary or secondary), nested SELECTs and hash-aggregation output. Partitioned windows spill one
 partition at a time; set operations and nested-loop inners use input-order stages. Internal
 runs take no client-result slot. INSERT SELECT does not spill and its source stays uncharged
 (#1828). A statement completing at the previous grant/quota keeps rows/order, calls, sequences,

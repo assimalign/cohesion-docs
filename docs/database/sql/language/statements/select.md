@@ -255,7 +255,7 @@ states. Root INNER/LEFT/RIGHT/FULL hash joins spill only plain column keys; a co
 [hash aggregation](../../performance.md#hash-aggregation-and-distinct-spilling) and
 [join eligibility](../../performance.md#hash-join-spilling).
 
-Eligible final outputs, unordered CTAS sources, primary-key scans, nested SELECTs and
+Eligible final outputs, unordered CTAS sources, ordered index scans (primary or secondary), nested SELECTs and
 hash-aggregation output spool at their previous refusal boundary. Partitioned windows, set
 operations and nested-loop inners also spill. Fitting statements at the same grant/quota retain
 rows/order, volatile calls, sequence values, first error and RecordsExamined. Internal runs take

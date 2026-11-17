@@ -15,7 +15,7 @@ public sealed record GqlGraphNodeType(string Label,
 
 Label is the identifying label. ImpliedLabels and Properties describe its requirements.
 This AST record carries the supplied lists; it is not the copied immutable GraphNodeType API.
-Schema execution validates identifying/implied overlap and references (CG03011).
+The parser and schema execution both report CG03011 for identifying/implied overlap and invalid references.
 
 See [current graph-type syntax](../../../../database/graph/language/statements/index.md#current-graph-type)
 for command semantics, aliases, supported scalar types and refusals.

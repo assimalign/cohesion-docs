@@ -31,6 +31,11 @@ Every shipped engine implements GetOpenDatabasesCore(). **A custom engine derivi
 DatabaseEngine must now implement it.** Return the current published snapshot without locks,
 I/O or lifecycle work; the base filters and copies it.
 
+The synchronous part of every create, open and drop core runs under one engine-wide reentrant
+completion lock; lifecycle cores run one at a time per engine. A core must not block on another
+thread that calls back into the engine's lifecycle methods. Deferred completion continuations
+yield before taking the lock, so none runs inline under a custom engine's lock.
+
 ## FailedOpens
 
 Lock-free, non-virtual read of an immutable [DatabaseOpenFailure](database-open-failure.md)
@@ -39,8 +44,9 @@ with automatic reopen disabled. Successful open/create/drop or DatabaseNotFoundE
 the name; disposal clears all records. A stored database never attempted by this process is absent.
 The reopen service does not retry these records.
 
-Name-validation ArgumentException with ParamName "name" (except ArgumentOutOfRangeException),
-engine disposal and failures while the caller's token is cancelled leave existing records unchanged.
+Name-validation ArgumentException with ParamName "name" (except ArgumentOutOfRangeException)
+leaves existing records unchanged. An open that fails because the engine is disposed, or while
+the caller's token is cancelled, records nothing; disposal itself clears every record.
 Internal argument failures and another object's ObjectDisposedException are recorded. Structured
 carriers/coded causes supply the code; CK06003 has precedence over additional model diagnostics.
 Lifecycle completion ordering prevents an older deferred failure from replacing a later success.

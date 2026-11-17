@@ -103,8 +103,8 @@ Eligible root ORDER BY and ordered DISTINCT, including CTAS source roots, and el
 hash aggregation/DISTINCT and INNER/LEFT/RIGHT/FULL hash joins spill at CS05067. Hash joins
 require plain column keys and at least 256 KiB; computed keys still refuse CS05067. All share
 one statement temp quota and grant. See [hash limits](../../../../database/sql/performance.md#hash-join-spilling).
-Every eligible retained SELECT output has a spill owner: final/unordered CTAS output, primary-key
-scans, nested SELECTs, hash output, partitioned windows, set operations and nested-loop inners.
+Every eligible retained SELECT output has a spill owner: final/unordered CTAS output, ordered index
+scans (primary or secondary), nested SELECTs, hash output, partitioned windows, set operations and nested-loop inners.
 Only returned spilled client results take one of eight slots; internal caches, scalar/EXISTS
 bodies, CTAS sources and stage runs take none. A ninth client spool refuses CS05067. Dispose
 client results after enumeration or cancellation. INSERT SELECT does not spill; its source stays uncharged (#1828).
@@ -135,10 +135,11 @@ shared with window-frame recomputation and is independent of the configured byte
 ## Temporary space
 
 These three options configure the disposable-storage substrate. They exist only on the SQL
-engine options on this branch. Eligible root ORDER BY and ordered DISTINCT, including CTAS
-source roots, use it when their memory reservation would refuse. Eligible plain hash
+engine options. Eligible sorts, including independent nested SELECT and CTAS source sorts,
+use it when their memory reservation would refuse. Eligible plain hash
 aggregation/DISTINCT, hash joins and normalized join buffers share that temporary statement
-quota. Excluded shapes retain memory refusals; see
+quota with retained SELECT outputs (including nested SELECTs and unordered CTAS sources),
+partitioned window stages, set operations and nested-loop inners. Excluded shapes retain memory refusals; see
 [sort eligibility](../../../../database/sql/performance.md#root-sort-spilling) and
 [hash join capacity](../../../../database/sql/performance.md#hash-join-spilling).
 

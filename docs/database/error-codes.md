@@ -57,8 +57,9 @@ SQLSTATE mappings are documented code mappings, not separate wire fields.
 
 StorageTempException exposes Code separately from its unprefixed message. These conditions
 refuse disposable work without taking durable databases offline; they have no assigned SQLSTATE.
-Eligible root SQL sorts, hash aggregation/DISTINCT and hash joins use this substrate, including
-eligible CTAS source roots.
+Eligible SQL sorts, hash aggregation/DISTINCT, hash joins, retained SELECT outputs (including
+nested SELECTs and unordered CTAS sources), partitioned window stages, set operations and
+nested-loop inners use this substrate.
 
 | Code | Meaning and trigger |
 | --- | --- |
@@ -80,7 +81,7 @@ joins, sorts, grouping, set operations and caches. The default StatementMemoryBu
 eligible root ORDER BY and ordered DISTINCT, including CTAS source roots, plus eligible plain
 hash aggregation/DISTINCT and root hash joins spill where their
 reservation would refuse. Every eligible retained SELECT output now has a spill owner, including
-final/unordered CTAS output, primary-key scans, nested SELECTs, hash output, partitioned windows,
+final/unordered CTAS output, ordered index scans (primary or secondary), nested SELECTs, hash output, partitioned windows,
 set operations and loop inners. Excluded owners still need sufficient memory. See [spill exclusions and lifetime](sql/performance.md#root-sort-spilling).
 When plain bytes fill the grant first, window/JSON memory refusals also use CS05067. With no
 plain bytes live, their grants retain CS05079 and CS05094. A declared-script CTAS refusal stays

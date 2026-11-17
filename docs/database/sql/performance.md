@@ -206,8 +206,9 @@ Eligible root INNER, LEFT, RIGHT and FULL hash joins spill to an indexed tempora
 the original CS05067 boundary, including when other operators hold part of the statement grant.
 Only plain column keys spill, including mixed numeric types: 1 matches 1.0. A computed key
 such as CASE, COALESCE or arithmetic still refuses CS05067 when its hash build exceeds memory.
-Correlated/lateral inputs, non-hash steps, deferred collations, SQL/JSON, application-binary
-build cells, joined DML and join-output DISTINCT also receive no join-spill permission.
+Correlated/lateral inputs, deferred collations, SQL/JSON, application-binary
+build cells and joined DML retain their existing join-spill exclusions.
+Join-output DISTINCT excludes hash-build spill; eligible nested-loop buffers can still spool.
 
 The build sorts once by composed hash and insertion ordinal. Probes read only matching hash
 chunks through a bounded cache and never write temp records. Equal-hash groups stream across

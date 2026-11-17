@@ -4,7 +4,9 @@ Concrete host context with transport-neutral health observations.
 
 Namespace: `Assimalign.Cohesion.Database.Hosting`.
 
-## Selected members
+## Signature
+
+Selected health observation members:
 
 ```csharp
 public sealed class DatabaseApplicationContext : HostContext, IDatabaseApplicationContext

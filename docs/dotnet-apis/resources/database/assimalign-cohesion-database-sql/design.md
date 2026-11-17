@@ -1654,7 +1654,7 @@ is TRUE. Unmatched rows from both sides are NULL-extended, with WHERE applied af
 merges common-typed inputs with COALESCE; both qualified sides become nullable and a merged key
 is nonnullable only when both original inputs were nonnullable. Nested/grouped joins retain these
 computed keys. A safe mandatory hash equality and proven non-throwing ON are required (CS05070).
-There is no FULL loop fallback or spill. Tracking flags, retained rows and overlapping array growth
+There is no FULL loop fallback; eligible FULL hash builds spill, and FULL's nested-loop subtrees can spool. Tracking flags, retained rows and overlapping array growth
 share StatementMemoryBudget; every exit releases reservations. EXPLAIN describes FullHashJoin with
 unmatched=both; ANALYZE counts candidate pairs, excluding unmatched-row emission. See
 [FULL semantics and examples](../../../../database/sql/language/clauses/join.md#full-using-and-groups).
@@ -1704,7 +1704,7 @@ visibility. It retains format 39 and uses CS04003 inside explicit transactions.
 
 ## Non-goals (current cut)
 
-LATERAL joins, `Serializable` isolation (rejected at begin), persisted statistics and hash spill, and
+LATERAL joins, `Serializable` isolation (rejected at begin), persisted statistics, and
 index-only result production (a seek always fetches the row). (Row-level MVCC visibility and
 secondary indexes — DDL, write-path maintenance, and planner seek adoption — were non-goals of
 earlier cuts and are now delivered; see "The MVCC integration", "Secondary indexes", and the
