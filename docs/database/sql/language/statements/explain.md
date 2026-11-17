@@ -330,9 +330,11 @@ UPDATE/DELETE WHERE conditions retain bound source order.
 See [performance](../../performance.md#joined-mutations).
 EXPLAIN ANALYZE remains SELECT-only.
 
-An actual root sort spill adds `spilled_bytes`, `spill_peak_bytes`, `spill_runs` and
-`spill_merge_passes` to EXPLAIN ANALYZE sorting detail, beneath With/Subqueries wrappers.
-EXPLAIN fields remain unchanged. See [root sort spilling](../../performance.md#root-sort-spilling).
+Actual output, window, set, join or sort spills add `spilled_bytes`, `spill_peak_bytes`,
+`spill_runs` and `spill_merge_passes` to EXPLAIN ANALYZE on the operator that spilled, including
+beneath sequence scopes and With/Subqueries wrappers. Fields appear only when that operator
+spilled; a staged join source reports its spill even when projection fits or LIMIT 0 returns no
+rows. Plain EXPLAIN of a fitting statement is unchanged. See [root sort spilling](../../performance.md#root-sort-spilling).
 
 ## Sources
 

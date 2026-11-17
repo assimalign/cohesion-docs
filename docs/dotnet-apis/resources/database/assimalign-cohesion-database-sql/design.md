@@ -2277,7 +2277,8 @@ The engine owns an internal StorageTempSpace when a file root or explicit TempDi
 configured. TempDirectory, TempSpaceQuota and StatementTempSpaceQuota are copied from options;
 see [defaults, admission floor and permissions](sql-database-engine-options.md#temporary-space).
 One directory belongs to one spilling engine. Temporary setup/I/O failures use CK05005 without
-taking durable databases offline. Eligible root SELECT and CTAS source sorts now consume it.
+taking durable databases offline. Eligible retained SELECT outputs and operator stages consume
+it, including unordered CTAS sources.
 See [sort eligibility, physical capacity and lazy lifetime](../../../../database/sql/performance.md#root-sort-spilling).
 
 ## Probe costing and hash builds
@@ -2293,7 +2294,9 @@ per distinct cell; further references pay slots. Smaller cells and hash-build re
 pay per reference. Separate equal objects each pay. Outputs and keys share a collector map;
 two live buffers each pay for a shared value. Eligible root ORDER BY and ordered DISTINCT spill
 where their reservation would refuse CS05067. Eligible root hash joins, normalized join buffers
-and plain hash aggregation/DISTINCT also spill; other retained buffers keep their existing policy. Plain bytes that fill the grant first also
+and plain hash aggregation/DISTINCT also spill. Eligible outputs, independent nested SELECTs,
+partitioned windows, set operations and nested-loop inners now spool at their prior refusal.
+Plain bytes that fill the grant first also
 cause window/JSON memory refusals to use CS05067. Without plain bytes live, those retain CS05079
 and CS05094. INSERT SELECT and DML subquery sources keep their existing policy.
 See [statement memory](../../../../database/sql/performance.md#statement-memory).
@@ -2466,7 +2469,9 @@ count before FILTER/arguments across functions, partitions and stages, including
 Equal cached frames spend none. ANALYZE reports frame_visits, transitions, inverse_transitions
 and boundary_visits. CS05079 covers window grant exhaustion with no plain SELECT bytes live;
 when plain bytes fill the grant first it uses CS05067 (53200). DML/recursive cache admission to
-the window owner can also use CS05067. See the linked memory section for default-grant fixture limits.
+the window owner can also use CS05067. Eligible partitioned stages spill; a single partition
+above the remaining grant still refuses with the original code. See the linked memory section for
+eligibility and no-spill fixture limits.
 
 ## SQL transaction isolation
 

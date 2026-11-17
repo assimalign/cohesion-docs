@@ -103,9 +103,11 @@ Eligible root ORDER BY and ordered DISTINCT, including CTAS source roots, and el
 hash aggregation/DISTINCT and INNER/LEFT/RIGHT/FULL hash joins spill at CS05067. Hash joins
 require plain column keys and at least 256 KiB; computed keys still refuse CS05067. All share
 one statement temp quota and grant. See [hash limits](../../../../database/sql/performance.md#hash-join-spilling).
-Other shapes and retained results still need a sufficient grant; an unordered CTAS refuses
-where the same source with an eligible ORDER BY spills. A session allows eight live spilled
-results. Dispose them after enumeration or cancellation.
+Every eligible retained SELECT output has a spill owner: final/unordered CTAS output, primary-key
+scans, nested SELECTs, hash output, partitioned windows, set operations and nested-loop inners.
+Only returned spilled client results take one of eight slots; internal caches, scalar/EXISTS
+bodies, CTAS sources and stage runs take none. A ninth client spool refuses CS05067. Dispose
+client results after enumeration or cancellation. INSERT SELECT does not spill; its source stays uncharged (#1828).
 See [query performance](../../../../database/sql/performance.md#statement-memory).
 
 Every [referential closure](../../../../database/sql/language/constraints.md#referential-closure-memory), including plain ON DELETE CASCADE, charges
@@ -117,8 +119,9 @@ CS05067 (53200) refuses exhaustion before writes; cleanup releases abandoned att
 rows, keys, sort/peer indexes, argument caches, transition state, outputs and ownership bookkeeping.
 Aliased payloads are charged once; partition scratch releases at its boundary. Exhaustion uses
 CS05079 (54000) with no plain SELECT bytes live; when plain bytes fill the grant first it uses
-CS05067 (53200). There is no spill.
-The default-grant fixture admits 138,961 two-window rows or 162,448 moving-AVG rows; widths and
+CS05067 (53200). Eligible PARTITION BY stages spill one partition at a time; a single oversized
+partition and OVER () retain the base refusal. See [exact eligibility and limits](../../../../database/sql/performance.md#remaining-refusals).
+Without spill, the default-grant fixture admits 138,961 two-window rows or 162,448 moving-AVG rows; widths and
 other retained state change these limits.
 
 ## SQL/JSON memory and work

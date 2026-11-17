@@ -102,8 +102,8 @@ see [ordering evaluation](../clauses/order-by.md#evaluation-order). Evaluation c
 Every retained SELECT buffer shares StatementMemoryBudget (64 MiB by default), including joins,
 sorts, group state, set operations, caches and results. A root ORDER BY or ordered DISTINCT can
 spill when its reservation would refuse CS05067. Delivery of a spilled result is lazy; dispose
-the result even after completing or canceling enumeration. At most eight spilled results may
-remain live per session. See [spill eligibility, capacity and reader lifetime](../../performance.md#root-sort-spilling).
+the result even after completing or canceling enumeration. At most eight returned spilled client results may
+remain live per session; internal statement runs take no slot. See [spill eligibility, capacity and reader lifetime](../../performance.md#root-sort-spilling).
 
 [USING](../clauses/join.md#using-columns) merges names and chooses a common type. Unqualified `*`
 expands visible columns after merging; aliases and ordinals in ORDER BY count those columns.
@@ -254,6 +254,13 @@ states. Root INNER/LEFT/RIGHT/FULL hash joins spill only plain column keys; a co
 (CASE, COALESCE or arithmetic) still refuses CS05067 at its memory boundary. See
 [hash aggregation](../../performance.md#hash-aggregation-and-distinct-spilling) and
 [join eligibility](../../performance.md#hash-join-spilling).
+
+Eligible final outputs, unordered CTAS sources, primary-key scans, nested SELECTs and
+hash-aggregation output spool at their previous refusal boundary. Partitioned windows, set
+operations and nested-loop inners also spill. Fitting statements at the same grant/quota retain
+rows/order, volatile calls, sequence values, first error and RecordsExamined. Internal runs take
+no client-result slot. INSERT SELECT does not spill and its source stays uncharged (#1828).
+See [complete eligibility, refusals and limits](../../performance.md#root-sort-spilling).
 
 ## Sources
 

@@ -63,7 +63,7 @@ eligible CTAS source roots.
 | Code | Meaning and trigger |
 | --- | --- |
 | CK05001 | Engine physical temporary-byte quota exceeded |
-| CK05002 | Statement physical temporary-byte quota exceeded |
+| CK05002 | Statement physical temporary-byte quota exceeded where more quota can permit completion; oversized/unencodable SQL rows retain CS05067 at every quota |
 | CK05003 | New temporary page would cross the engine free-space floor |
 | CK05004 | Temporary page/record integrity failure, including the join directory hash check, or retry of a previously failed reader |
 | CK05005 | Temporary space unavailable: probe, lease, sweep, create, read, write or close I/O failure |
@@ -79,8 +79,9 @@ CS05067 (53200) covers every retained plain SELECT buffer and materialized resul
 joins, sorts, grouping, set operations and caches. The default StatementMemoryBudget is 64 MiB;
 eligible root ORDER BY and ordered DISTINCT, including CTAS source roots, plus eligible plain
 hash aggregation/DISTINCT and root hash joins spill where their
-reservation would refuse. Other retained results and excluded operators still need sufficient
-memory. See [spill exclusions and lifetime](sql/performance.md#root-sort-spilling).
+reservation would refuse. Every eligible retained SELECT output now has a spill owner, including
+final/unordered CTAS output, primary-key scans, nested SELECTs, hash output, partitioned windows,
+set operations and loop inners. Excluded owners still need sufficient memory. See [spill exclusions and lifetime](sql/performance.md#root-sort-spilling).
 When plain bytes fill the grant first, window/JSON memory refusals also use CS05067. With no
 plain bytes live, their grants retain CS05079 and CS05094. A declared-script CTAS refusal stays
 online, publishes no table and resumes at that statement on a later Build with a larger budget.
@@ -89,11 +90,18 @@ INSERT SELECT and DML subquery sources keep their existing policy. See
 
 | Code | Additional refusal conditions | SQLSTATE |
 | --- | --- | --- |
-| CS05067 | New index-build workspace charging; ineligible hash states/codecs, an over-budget single group, eight-level repartition exhaustion, computed join keys, oversized build/cache records, insufficient minimum working sets or reservations optional arenas cannot satisfy | 53200 |
+| CS05067 | New index-build workspace charging; ineligible hash states/codecs, an over-budget single group, eight-level repartition exhaustion, computed join keys, oversized build/cache/output records, insufficient minimum working sets or reservations optional arenas cannot satisfy; ninth undisposed spilled client result (internal runs take no slot) | 53200 |
 
 CREATE [UNIQUE] INDEX and UNIQUE/PRIMARY KEY constraints report CS05067 directly; schema-apply
 migration/rollback rebuilds report CS03402 with CS05067 as cause. These are new build refusals;
 increase the statement budget. See [witnesses](sql/language/statements/create-index.md#building-over-existing-data).
+
+INSERT SELECT does not spill and its source stays uncharged (#1828). Membership vectors,
+recursive CTEs, ordered DISTINCT's seen set, joined DML, SQL/JSON, deferred collations and cells
+the temp codec cannot encode retain their refusals. A single oversized window partition retains
+CS05079 (or the original CS05067 when plain bytes filled first); non-equi FULL retains planning
+CS05070. Failed new operator fallbacks preserve the original memory code/message with their temp
+cause in exception data; pre-existing CK05 failures retain their code. No code is retired.
 
 ## SQL COPY TO STDOUT
 
@@ -671,7 +679,9 @@ count before FILTER/arguments across functions, partitions and stages, including
 Equal cached frames spend none. ANALYZE reports frame_visits, transitions, inverse_transitions
 and boundary_visits. CS05079 covers window grant exhaustion with no plain SELECT bytes live;
 when plain bytes fill the grant first it uses CS05067 (53200). DML/recursive cache admission to
-the window owner can also use CS05067. See the linked memory section for default-grant fixture limits.
+the window owner can also use CS05067. Eligible partitioned stages spill; a single partition
+above the remaining grant still refuses with the original code. See the linked memory section for
+eligibility and no-spill fixture limits.
 
 ## GQL composite queries
 
@@ -780,6 +790,8 @@ omitted or explicit variable scopes; writing/unit bodies, named procedures, FORE
 CALL IN TRANSACTIONS retain CK00001. See [CALL scope and diagnostics](graph/language/clauses/next.md#inline-call-subqueries).
 
 ## Sources
+
+- **T3 batch 6** — `cohesion/resources/Database/Assimalign.Cohesion.Database/docs/ERROR-CODES.md`, code/tests and `cohesion/docs/EVENT_SOURCES.md` at `a3daa99a0`.
 
 - **T3 batch 5** — `cohesion/resources/Database/Assimalign.Cohesion.Database/docs/ERROR-CODES.md`, code/tests and `cohesion/docs/EVENT_SOURCES.md` at `2dd935103`.
 - **Batch 19, SQ-A3** — `cohesion/resources/Database/Assimalign.Cohesion.Database/docs/ERROR-CODES.md` and `Assimalign.Cohesion.Database.Sql/src/Internal/Provisioning/SqlProvisioningCodes.cs` at `0b00f181e`, checked against code and tests.

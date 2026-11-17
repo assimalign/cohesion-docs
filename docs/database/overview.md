@@ -183,8 +183,8 @@ service. After Build has opened, recovered, and migrated the engines, that servi
 instance's manifest and restores gateway snapshots in `StartingAsync`, before services or servers
 start. It opens the control plane in `StartAsync`; servers drain before it closes on stop.
 
-Database supplies no actions or instance health contributors of its own yet. The application adds
-actions with `AddAction`, using its source-generated JSON contexts. A gateway write runs on one
+Database contributes live engine/database health and database.accepting; it supplies no actions
+of its own yet. The application adds actions with `AddAction`, using its source-generated JSON contexts. A gateway write runs on one
 instance and its snapshot is restored on the others. Catalog data and principals remain local to
 each instance, so the retired catalog-mutation commands have no replacement yet. See
 [the integration API](../dotnet-apis/resources/database/assimalign-cohesion-database-hosting-applicationmodel/index.md).
@@ -229,7 +229,7 @@ Three limits apply today:
   `StartupTimeout` bounds service start only. Deferred migrations can continue on engine workers.
 
 The integration design records [seven open questions](../dotnet-apis/resources/database/assimalign-cohesion-database-hosting-applicationmodel/design.md#current-limits),
-including Database-owned actions, instance health, and the publication-to-open window. Managed HTTP
+including Database-owned actions, gateway health consumption, and the publication-to-open window. Managed HTTP
 health binds the platform's plain-HTTP `http` assignment at a literal IP or localhost. Unsupported
 schemes/hosts are skipped with Hosting event 18; a usable assignment replaces explicit health with
 event 19. Unmanaged applications opt in with
@@ -353,6 +353,20 @@ After successful automatic commit, they report snapshot-cleanup failure without 
 their payload is `database`, `exceptionType`. `OutOfMemoryException` still propagates. Cleanup
 failure before commit success or in an explicit transaction still fails the operation. See
 [Documents](document/language/diagnostics.md#operation-cleanup) and [Blob](blob/operations.md#operation-cleanup).
+
+## Observed health and failed opens
+
+The host contributes health for each engine and each open, pending-reopen or failed-open database,
+plus database.accepting. Membership is live. Health never opens, reopens or waits for a database;
+a stored database this process never attempted is absent. /readyz takes the minimum over all
+components, /livez over engine/database components. database.accepting becomes Healthy at outer
+host Started after all servers confirmed accept. The gateway does not consume contributors yet.
+
+A failed stored open remains Unhealthy with code when present, exception type, UTC time and
+consecutive attempts, never its message. Successful open/create/drop, absence or engine disposal
+clears it. The reopen service does not retry these records: repair and explicitly open the database.
+See [names, escaping, status precedence and events](../dotnet-apis/resources/database/assimalign-cohesion-database-hosting/design.md#health-observations-and-contributors)
+and the [observation API](../dotnet-apis/resources/database/assimalign-cohesion-database-hosting/database-application-context.md).
 
 ## Engine health and version purge
 
@@ -572,6 +586,13 @@ including mixed numeric keys and skew. Computed join keys still refuse CS05067. 
 statements keep their original charges, results, calls and first errors. See
 [aggregation exclusions](sql/performance.md#hash-aggregation-and-distinct-spilling) and
 [join temporary-space limits](sql/performance.md#hash-join-spilling).
+
+Every eligible retained SQL SELECT output has a spill owner: final results, unordered CTAS,
+primary-key scans, nested SELECTs and hash-aggregation output. Partitioned windows spill one
+partition at a time; set operations and nested-loop inners use input-order stages. Internal
+runs take no client-result slot. INSERT SELECT does not spill and its source stays uncharged
+(#1828). A statement completing at the previous grant/quota keeps rows/order, calls, sequences,
+first error and RecordsExamined. See [remaining refusals and exact limits](sql/performance.md#root-sort-spilling).
 
 ## Format compatibility
 

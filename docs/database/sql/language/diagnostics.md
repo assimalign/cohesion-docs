@@ -543,10 +543,16 @@ records/minimum working sets and eight-level group repartition exhaustion retain
 Index builds add new workspace refusals: direct CREATE INDEX/UNIQUE/PRIMARY KEY reports CS05067;
 schema-apply/rollback rebuilds report CS03402 with that cause. Increase StatementMemoryBudget.
 See [hash limits](../performance.md#hash-aggregation-and-distinct-spilling).
-Excluded shapes still refuse; an unordered CTAS without another eligible spill refuses at its budget
-while the same statement with an eligible ORDER BY spills. CS05067 also refuses a ninth live
-spilled result, an unsupported spill cell/key, or a reader exceeding the result grant.
+Every eligible retained SELECT output now has a spill owner, including unordered CTAS,
+primary-key scans, nested SELECTs, hash-aggregation output, partitioned windows, set operations
+and nested-loop inners. CS05067 still refuses an unsupported spill cell/key, an encoded row
+above the temp record limit at every quota, or a reader exceeding the result grant. Only returned
+spilled client results take one of eight session slots; a ninth refuses CS05067. Internal caches,
+scalar/EXISTS bodies, CTAS sources and stage runs take no slot and close with the statement.
+INSERT SELECT does not spill and its source stays uncharged (#1828).
 
+Failed new operator fallbacks preserve the original CS05067/message with the temp cause in
+exception data. CK05002 is a physical quota refusal where more quota can permit completion.
 Plain bytes filling the grant first can make window/JSON refusal report CS05067; with no plain
 bytes live those owners retain CS05079/CS05094. CK05001–CK05006 remain located temp errors and
 leave durable storage online and an explicit transaction active. At the default four-grant
@@ -723,7 +729,9 @@ count before FILTER/arguments across functions, partitions and stages, including
 Equal cached frames spend none. ANALYZE reports frame_visits, transitions, inverse_transitions
 and boundary_visits. CS05079 covers window grant exhaustion with no plain SELECT bytes live;
 when plain bytes fill the grant first it uses CS05067 (53200). DML/recursive cache admission to
-the window owner can also use CS05067. See the linked memory section for default-grant fixture limits.
+the window owner can also use CS05067. Eligible partitioned stages spill; a single partition
+above the remaining grant still refuses with the original code. See the linked memory section for
+eligibility and no-spill fixture limits.
 
 ## JSON access
 

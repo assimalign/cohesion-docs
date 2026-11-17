@@ -147,6 +147,14 @@ Evaluation completes first; spilled delivery is lazy. See
 CK00001. [JSON_VALUE, JSON_QUERY, JSON_EXISTS and bounded paths](functions/json-path.md) execute; JSON_TABLE,
 question-mark operators and JSONB normalization remain deferred beyond this subset.
 
+Every eligible retained SELECT output has a spill owner, including unordered CTAS, ordered
+primary-key scans, nested SELECTs, hash output, partitioned windows, set operations and loop inners.
+Membership vectors (IN/NOT IN/quantified comparisons), recursive CTEs, ordered DISTINCT's seen
+set, joined DML, SQL/JSON, deferred collations and unencodable cells retain refusals. A single
+oversized window partition still refuses CS05079; non-equi FULL refuses CS05070 at planning.
+INSERT SELECT does not spill and its source stays uncharged (#1828).
+See [capacity and remaining dialect exclusions](../performance.md#remaining-refusals).
+
 ## Sources
 
 - **Dialect contract** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql.Language/docs/DIALECT.md`

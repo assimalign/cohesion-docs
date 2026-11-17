@@ -151,10 +151,14 @@ CS05079 refuses an excess before publication when no plain SELECT bytes are live
 fill the grant first, refusal uses CS05067 (53200). Plain SELECT caches retain their own statement
 reservations, including independent caches first created in a window. In DML and recursion,
 pre-existing subquery vectors and CTE/relation rows are admitted to the window owner; failed
-admission can use CS05067. Window buffers outside its ledger also charge. There is no spill;
-success, failure and cancellation release reservations.
+admission can use CS05067. Window buffers outside its ledger also charge. Success, failure
+and cancellation release reservations. Eligible partitioned stages now spill at the prior refusal
+boundary, computing one charged partition at a time and restoring input ordinal order between
+groups. A single partition exceeding the grant retains CS05079, or the original CS05067 when
+plain SELECT bytes filled first. OVER () and excluded owners retain the base path.
+See [window eligibility and exact limits](../../performance.md#remaining-refusals).
 
-The source's full-output fixture admits 138,961 rows for ROW_NUMBER plus RANK over the three-INT
+Without spill, the source's full-output fixture admits 138,961 rows for ROW_NUMBER plus RANK over the three-INT
 id/p/k source, and 162,448 rows for moving AVG(k) with ROWS 99 PRECEDING, at the default grant.
 The next row is refused. These are fixture limits, not universal row caps; widths, functions,
 partitions and other retained statement state change them.
