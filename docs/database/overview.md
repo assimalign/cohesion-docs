@@ -40,6 +40,7 @@ the server. Cross-engine transactions are not provided.
 | `Assimalign.Cohesion.Database.Indexing` | Shared key/index structures, including B+Tree indexes |
 | `Assimalign.Cohesion.Database.Transactions` | Multi-version concurrency control (MVCC), snapshots, locks, transaction state, and durability binding |
 | `Assimalign.Cohesion.Database.Types` | Shared scalar identities, collation, binary encoding, and boxed-value codec |
+| [`Assimalign.Cohesion.Database.Types.Text`](../dotnet-apis/resources/database/assimalign-cohesion-database-types-text/index.md) | Versioned simple/English analysis and immutable tsvector values; no index/query consumer yet |
 | `Assimalign.Cohesion.Database.Language` | Shared lexer/parser/diagnostic infrastructure |
 | `Assimalign.Cohesion.Database.Execution` | Query request/result and execution-pipeline contracts |
 | `Assimalign.Cohesion.Database.Protocol` | Bounded framing, handshake, lifecycle, errors, version negotiation, fixed model-family binding |

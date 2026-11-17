@@ -61,11 +61,15 @@ projects are retired. Public component namespaces remain unchanged. The five Pro
 | [`Assimalign.Cohesion.Database.Testing`](assimalign-cohesion-database-testing/index.md) | Testing | Not listed in this framework |
 | [`Assimalign.Cohesion.Database.Transactions`](assimalign-cohesion-database-transactions/index.md) | Feature library | Public reference and runtime |
 | [`Assimalign.Cohesion.Database.Types`](assimalign-cohesion-database-types/index.md) | Feature library | Public reference and runtime |
+| [`Assimalign.Cohesion.Database.Types.Text`](assimalign-cohesion-database-types-text/index.md) | Child root | Public reference and runtime |
+
+[Database.Types.Text](assimalign-cohesion-database-types-text/index.md) provides versioned simple/English
+analysis and immutable tsvector values. No index or query uses this new child root yet.
 
 ## Architecture
 
 The area root rolls up model-neutral child roots for types, language, storage, transactions,
-execution, indexing, protocol, security, and governance. Model-specific concepts belong in
+execution, indexing, protocol, security, and text analysis. Model-specific concepts belong in
 the SQL, Documents, Graph, Blob, and KeyValuePair families. The same engines support direct
 in-process use and hosted operation; `Database.Embedded` composes engines without a
 wire server. This architectural capability does not imply that every other resource already
@@ -105,6 +109,7 @@ inventory below.
 | `Assimalign.Cohesion.App.Database` |
 | `Assimalign.Cohesion.Database` |
 | `Assimalign.Cohesion.Database.Types` |
+| `Assimalign.Cohesion.Database.Types.Text` |
 | `Assimalign.Cohesion.Database.Language` |
 | `Assimalign.Cohesion.Database.Storage` |
 | `Assimalign.Cohesion.Database.Transactions` |

@@ -411,6 +411,19 @@ branches. Snapshot reports CG04024; ReadCommitted re-matches. Bare list/map equa
 parser CK00001; other proven/evaluated invalid equalities use CG03004. None of these conditions has
 an assigned SQLSTATE. See [Graph diagnostics](graph/language/diagnostics.md#planning-and-execution-diagnostics).
 
+## Text analysis conditions
+
+Database.Types.Text is an independently consumable child root. TextException.Code uses
+TextErrorCode outside the model diagnostic namespace. No model translates these conditions yet.
+
+| Code | Condition |
+| --- | --- |
+| `UnknownAnalyzer` | Analyzer name is unavailable; names are case-sensitive |
+| `AnalyzerVersionMismatch` | Requested analyzer version is unavailable |
+| `InvalidUnicode` | Input contains an invalid Unicode scalar sequence |
+| `InvalidLexeme` | Explicit lexeme is empty, contains a null or exceeds 2,047 UTF-8 bytes |
+| `VectorTooLarge` | Vector lexeme/position payload exceeds 1,048,575 bytes |
+
 ## Graph catalog requirement
 
 Catalog v5 makes kind-8 edge declarations enforced endpoint/property invariants. V4 refuses

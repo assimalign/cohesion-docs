@@ -24,7 +24,7 @@ servers live in model packages; Hosting consumes the common lifecycle root and e
 callers use the concrete model session.
 
 The root is also the area's **rollup**: it references every child root — the independently
-consumable base components a database is made of (`Database.Types`, `Database.Language`,
+consumable base components a database is made of (`Database.Types`, `Database.Types.Text`, `Database.Language`,
 `Database.Storage`, `Database.Transactions`, `Database.Execution`, `Database.Protocol`,
 `Database.Security`, `Database.Indexing`) — so one reference to the root delivers the whole base
 surface. Child roots never reference the root.
@@ -393,6 +393,7 @@ serialization live in `Database.Sql.Schema`.
 | `Assimalign.Cohesion.Database.Storage` | `CohesionProjectReference` |
 | `Assimalign.Cohesion.Database.Transactions` | `CohesionProjectReference` |
 | `Assimalign.Cohesion.Database.Types` | `CohesionProjectReference` |
+| `Assimalign.Cohesion.Database.Types.Text` | `CohesionProjectReference` |
 | `Assimalign.Cohesion.Web` | `CohesionPrivateProjectReference` |
 
 [Assembly overview](index.md) · [Examples](examples/index.md)

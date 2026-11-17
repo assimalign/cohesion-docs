@@ -116,7 +116,7 @@ See [protected reporting members and events](design.md#worker-failure-reporting)
 
 ## Dependencies
 
-`Core`, the eight child roots the root rolls up (`Database.Execution`, `Database.Indexing`,
+`Core`, the nine child roots the root rolls up (`Database.Types.Text`, `Database.Execution`, `Database.Indexing`,
 `Database.Language`, `Database.Protocol`, `Database.Security`, `Database.Storage`,
 `Database.Transactions`, `Database.Types` — child roots never reference the root), and the
 existing private `Web` implementation reference (excluded from the package dependency list). The
