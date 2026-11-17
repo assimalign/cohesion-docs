@@ -28,6 +28,40 @@ renderer follows planner order and the guarded `dbo` -qualified dialect. New fil
 pair with rollback if the second final move fails. Names are sanitized, existing paths are rejected,
 and ordinals cannot exceed `9999`. Unsupported or destructive operations are errors.
 
+## ALTER COLUMN migration files
+
+The SDK and engine compile Sql.Schema's stateless shared MigrationLowering module. ALTER
+COLUMN TYPE, DEFAULT and nullability phases therefore come from the engine's own lowering,
+including rewrite classification and payload/type refusals. Physical rewrites drop an old
+default before TYPE, restore the declared target default next and change nullability last.
+Compatible facets keep full-definition ALTER, followed by any separate default change.
+DEFAULT-only SET/DROP retains the planner's destructive-change opt-in requirement.
+
+For each lowered ALTER COLUMN step, the SDK parses forward and rollback SQL at the engine's
+expression ceiling before accepting the step. First parse errors and parser-stack refusals
+use the engine's reason text; COHDBSDK206 reports failure before either file is written.
+Files contain forward statements only; compensation text is validated, never written. The
+SDK binding preserves engine text without structured CS diagnostics. DEFAULT admission shares
+scalar-carrier, literal-only and persisted-sequence checks. Canonical literals reparse at the
+ceiling and must reach a render fixed point; the engine also compares expression trees.
+
+This guarantees parser admission for those lowered steps, not that an engine will apply every
+generated file. The writer does not build an engine. Domain registrations, conversions, stored
+values, default bounds and typed-literal DEFAULT kind remain runtime validation. Both per-step
+writers can emit a typed-literal DEFAULT on another storage type or a TYPE without an assignment
+cast; application refuses CS05013 or CS02064 respectively. Moving these checks earlier in both
+writers is tracked by #1863/#1864.
+
+CREATE TABLE, ADD COLUMN and index rendering still use separate SDK helpers, including DEFAULT
+guard limits and keyword quoting (#1860); the ceiling step parser above is called by ALTER
+COLUMN lowering, not every non-ALTER statement. Engine CREATE/ADD/reconciliation helper
+convergence is tracked by #1861. Constraint operations and ALTER TABLE metadata retain SDK
+refusals. Required column additions still need a non-null literal default or backfill.
+
+Typed schema application publishes jointly; a file applies per statement, as its generated
+header explains. Files do not reproduce runtime joint publication, receipts or applied-history
+rollback classification. An empty plan writes no file (COHDBSDK204). Formats are unchanged.
+
 ## Task host and runtime boundary
 
 Build tasks can use the JIT-based MSBuild host and Roslyn. They reference `Database.Sql.Schema`
