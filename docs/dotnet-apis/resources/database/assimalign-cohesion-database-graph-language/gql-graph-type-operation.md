@@ -1,6 +1,6 @@
 # GqlGraphTypeOperation
 
-Current graph-type language vocabulary.
+The four current graph-type operations.
 
 Namespace: `Assimalign.Cohesion.Database.Graph.Language`.
 

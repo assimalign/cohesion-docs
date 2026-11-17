@@ -1,6 +1,6 @@
 # GqlGraphPropertyType
 
-Current graph-type language vocabulary.
+A scalar property declaration in a graph type.
 
 Namespace: `Assimalign.Cohesion.Database.Graph.Language`.
 

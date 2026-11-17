@@ -1,6 +1,6 @@
 # TextPosition
 
-Text analysis and immutable value vocabulary.
+A positive one-based token position and weight.
 
 Namespace: `Assimalign.Cohesion.Database.Types.Text`.
 

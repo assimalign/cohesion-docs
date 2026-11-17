@@ -1,6 +1,6 @@
 # TextAnalyzer
 
-Text analysis and immutable value vocabulary.
+A deterministic immutable built-in analyzer.
 
 Namespace: `Assimalign.Cohesion.Database.Types.Text`.
 

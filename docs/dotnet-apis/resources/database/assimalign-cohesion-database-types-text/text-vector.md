@@ -1,6 +1,6 @@
 # TextVector
 
-Text analysis and immutable value vocabulary.
+An immutable sorted tsvector-style value.
 
 Namespace: `Assimalign.Cohesion.Database.Types.Text`.
 

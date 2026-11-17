@@ -43,8 +43,8 @@ CREATE/DROP commands. Every statement evaluates in the session's bound logical d
 | `CREATE` | Supported | Insertion compatibility extension |
 | `DELETE` | Supported | Bound variables; connected-node deletion is restricted |
 | `DETACH DELETE` | Supported | Bound variables; incident relationships cascade |
-| [Schema DDL](statements/create-index.md) | Supported subset | Node-property indexes, node/relationship type and existence constraints, and Cohesion label/type definitions; autocommit only |
-| `SHOW` | Supported | Six database-scoped metadata subjects, including CONSTRAINTS |
+| [Schema DDL](statements/create-index.md) | Supported subset | Node-property indexes, node/relationship constraints, label/type definitions and [open current graph types](statements/index.md#current-graph-type); autocommit only |
+| `SHOW` | Supported | Seven database-scoped metadata subjects, including CONSTRAINTS and CURRENT GRAPH TYPE |
 | Parameters | Supported | Scalar/list/map values in expressions; stored pattern properties stay scalar-only |
 | [CASE](expressions/case.md), [COALESCE](expressions/coalesce.md), [NULLIF](expressions/nullif.md) | Supported | Lazy conditional values; simple CASE accepts ISO when-operand lists |
 | [Lists](expressions/list-values.md), [maps](expressions/map-values.md) and [access](expressions/property-access.md) | Supported | Transient nested values, with negotiated graph.composite-values over protocol 2.1 |

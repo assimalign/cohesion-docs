@@ -25,8 +25,8 @@ values must match the graph engine's scalar type, including its unsigned numeric
 
 Node and edge declarations enforce these rules; violations use CG03003. Proposed types that fail existing
 member validation use CG03010 without replacing the prior type. Independent node and edge
-rules may agree; conflicting declared property
-types or named type constraints use CG03009 in either publication order.
+rules may agree; conflicting declared property types or named type constraints use CG03009
+in either publication order.
 
 ## Example
 

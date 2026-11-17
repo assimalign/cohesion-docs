@@ -1,6 +1,6 @@
 # GqlGraphTypeCommand
 
-Current graph-type language vocabulary.
+A standalone alteration of the current open graph type.
 
 Namespace: `Assimalign.Cohesion.Database.Graph.Language`.
 
@@ -25,6 +25,16 @@ Programmatic schema-command validation rejects malformed combinations with CG050
 
 See [current graph-type syntax](../../../../database/graph/language/statements/index.md#current-graph-type)
 for command semantics, aliases, supported scalar types and refusals.
+
+## Example
+
+```csharp
+var statement = (GqlQueryStatement)new GqlQueryParser().Parse(
+    "ALTER CURRENT GRAPH TYPE SET {(:Person =>)}");
+var command = statement.GqlExpression.SchemaCommand!.GraphType!;
+Console.WriteLine(command.Operation); // Set
+Console.WriteLine(command.Nodes[0].Label); // Person
+```
 
 ## Related reference
 

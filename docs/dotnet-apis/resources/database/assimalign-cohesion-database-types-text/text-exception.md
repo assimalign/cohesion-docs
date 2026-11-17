@@ -1,6 +1,6 @@
 # TextException
 
-Text analysis and immutable value vocabulary.
+The independent Text child-root failure carrier.
 
 Namespace: `Assimalign.Cohesion.Database.Types.Text`.
 

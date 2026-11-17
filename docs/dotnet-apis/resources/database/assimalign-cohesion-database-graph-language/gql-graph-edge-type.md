@@ -1,6 +1,6 @@
 # GqlGraphEdgeType
 
-Current graph-type language vocabulary.
+A directed edge declaration with node-type endpoints.
 
 Namespace: `Assimalign.Cohesion.Database.Graph.Language`.
 

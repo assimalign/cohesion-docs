@@ -1,6 +1,6 @@
 # TextWeight
 
-Text analysis and immutable value vocabulary.
+The four PostgreSQL-style position weights.
 
 Namespace: `Assimalign.Cohesion.Database.Types.Text`.
 

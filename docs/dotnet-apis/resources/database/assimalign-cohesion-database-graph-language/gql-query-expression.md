@@ -59,7 +59,9 @@ See [transaction syntax](../../../../database/graph/language/statements/transact
 stages; ToString renders its semantic command, including quoted names and normalized relationship
 arrows. It cannot accompany graph stages, a composite, SHOW, transaction control or EXPLAIN.
 Malformed hand-built combinations and path requests use CG05001 at session admission.
-GqlCatalogSurface.Constraints adds SHOW CONSTRAINTS to the read-only catalog subjects.
+GqlCatalogSurface.Constraints selects SHOW CONSTRAINTS; CurrentGraphType selects
+[SHOW CURRENT GRAPH TYPE](../../../../database/graph/language/statements/show.md#current-graph-type).
+SchemaCommand.GraphType carries standalone ALTER CURRENT GRAPH TYPE commands.
 
 For linear queries, Stages is the planner/executor input. The stage constructor rejects a null list with
 ArgumentNullException, retains the supplied list, and initializes compatibility summaries:

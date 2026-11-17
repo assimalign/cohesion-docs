@@ -1,6 +1,6 @@
 # TextAnalyzerDescriptor
 
-Text analysis and immutable value vocabulary.
+The complete persisted identity of an analyzer.
 
 Namespace: `Assimalign.Cohesion.Database.Types.Text`.
 

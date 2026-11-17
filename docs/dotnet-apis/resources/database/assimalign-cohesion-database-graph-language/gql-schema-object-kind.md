@@ -1,6 +1,6 @@
 # GqlSchemaObjectKind
 
-Current graph-type language vocabulary.
+The target of a standalone schema command.
 
 Namespace: `Assimalign.Cohesion.Database.Graph.Language`.
 

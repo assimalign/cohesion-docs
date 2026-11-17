@@ -15,7 +15,8 @@ No query-expression or wire encoding changes. See [runtime choice, recheck and c
 ## Schema DDL
 
 [GqlSchemaCommand](gql-schema-command.md) stores standalone CREATE/DROP index, constraint,
-label and relationship-type commands. The parser checks FOR/property variable identity
+label and relationship-type commands, plus ALTER CURRENT GRAPH TYPE through GraphType. The parser
+checks FOR/property variable identity
 (CG01022); unsupported UNIQUE, composite, relationship-index and closed graph-type forms use
 CK00001. Commands render from semantic fields with quoted names and canonical types;
 relationship arrows normalize to an undirected constraint. The query-expression SchemaCommand

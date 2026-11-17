@@ -1,6 +1,6 @@
 # GqlGraphNodeType
 
-Current graph-type language vocabulary.
+An identifying label with implied labels and property rules.
 
 Namespace: `Assimalign.Cohesion.Database.Graph.Language`.
 

@@ -1345,7 +1345,8 @@ Each index owns its pages independently. DROP retains old snapshots, then frees 
 owner with at most 64 queued candidates and 64 owner pages per pass. Passes yield to due/pending checkpoints and
 admission pauses. Open discovers owners from Storage's recovered directory, avoiding a second
 allocated-page scan; unknown owners are checksum-verified before receiving a retirement receipt.
-Catalog 4, record 5 and B-tree 3 are unchanged.
+The index lifecycle uses catalog 5, record 5 and B-tree 3. Catalog v5 separately fences the
+enforced graph-type edge invariant; the index lifecycle adds no persisted discriminator.
 
 IndexBuildBegan/IndexBuildEnded (16/17) carry database and physical objectId; end adds succeeded.
 Each begun build ends once on publication or failure/cancellation/abandonment. PagesReclaimed
@@ -1355,7 +1356,7 @@ No indexed values are emitted. See [shared lifecycle events](../assimalign-cohes
 
 ## Sources
 
-- **Text indexes and format v4** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Graph/docs/DESIGN.md`, `src/Storage/GraphStore.TextIndexes.cs`, `tests/GraphTextIndexTests.cs` and each model's `tests/FormatOrderIntegrationTests.cs`.
+- **Text indexes introduced in v4** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Graph/docs/DESIGN.md`, `src/Storage/GraphStore.TextIndexes.cs`, `tests/GraphTextIndexTests.cs` and each model's `tests/FormatOrderIntegrationTests.cs`.
 
 - **Inline CALL** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Graph/tests/GqlCallSubqueryTests.cs`, `GqlCallReviewTests.cs` and `cohesion/resources/Database/Assimalign.Cohesion.Database.Graph.Client/tests/GraphCallSubqueryWireTests.cs`.
 - **Memory-only MERGE and lifecycle precedence** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Graph/tests/SavepointMergeLockTests.cs`, `src/Internal/Execution/GraphMergeLocks.cs` and `cohesion/resources/Database/Assimalign.Cohesion.Database/tests/SavepointSeamTests.cs`.

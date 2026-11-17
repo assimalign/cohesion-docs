@@ -1,6 +1,6 @@
 # TextErrorCode
 
-Text analysis and immutable value vocabulary.
+Text conditions outside the model diagnostic namespace.
 
 Namespace: `Assimalign.Cohesion.Database.Types.Text`.
 

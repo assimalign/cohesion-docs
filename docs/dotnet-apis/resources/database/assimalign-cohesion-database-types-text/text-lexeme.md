@@ -1,6 +1,6 @@
 # TextLexeme
 
-Text analysis and immutable value vocabulary.
+An exact lexeme with immutable weighted positions.
 
 Namespace: `Assimalign.Cohesion.Database.Types.Text`.
 
