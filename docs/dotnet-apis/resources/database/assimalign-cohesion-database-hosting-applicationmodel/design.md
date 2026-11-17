@@ -15,7 +15,7 @@ registry and creating every `AddService` product.
 | Piece | Role |
 |---|---|
 | `DatabaseResourceOptions` | Selects the platform client and deployment through `ApplicationInstanceOptions`, and creates the added actions from application services. Adds only `Name`. |
-| `DatabaseResource` (internal) | An `IApplicationInstance` with provider `Database`, the resource name, a fresh instance key, the deployment, exactly the added actions in order, and no health contributors. |
+| `DatabaseResource` (internal) | An `IApplicationInstance` with provider `Database`, the resource name, a fresh instance key, the deployment, exactly the added actions in order, and health contributors mapped from Hosting observations. |
 | `ApplicationInstanceControlPlane` | Dispatches the actions and restores state, using JSON metadata from the added actions' source-generated contexts. Duplicate action names fail composition. |
 | `ApplicationInstanceService` | Publishes and restores in `StartingAsync`, opens the platform client in `StartAsync`, and closes it and stops lease renewal in `StopAsync`. |
 
@@ -61,9 +61,22 @@ the end-to-end test's shutdown criterion. A borrowed platform remains its caller
   There is no generated resource manifest or ambient instance registry.
 - **D3 — Only application-added actions** — Catalog mutations need a management design that fits
   restoring a write's snapshot on every instance, each with its own durable catalog.
-- **D4 — No instance health contributors yet** — Database host/admin health is separate; the
-  gateway does not consume instance health yet.
+- **D4 — Health contributors share Hosting observations** — One per engine and open, pending-reopen
+  or failed-open database, plus database.accepting. Membership is live, cheap and synchronous;
+  each check uses the single-component observation API. The gateway does not consume them yet.
 - **D5 — Content uses source-generated JSON metadata** — There is no reflection fallback.
+
+## Health membership and checks
+
+The integration resolves DatabaseApplicationContext once and maps its live HealthComponentNames
+to IApplicationInstanceHealthContributor objects. Discovery runs no health pass or transition event,
+including at managed Build. Each CheckAsync uses GetHealthAsync(name), copying its status,
+description and immutable invariant string data. Re-read HealthContributors to follow opens/drops.
+There is no cache, timer or subscription. A retained vanished database is Unhealthy, "not open".
+
+Names, ordering, failed-open persistence, escaping, /readyz and /livez aggregation are the shared
+[Hosting contract](../assimalign-cohesion-database-hosting/design.md#health-observations-and-contributors).
+Unmanaged AddResource registers nothing. Gateway consumption remains unresolved.
 
 ## Current limits
 
@@ -81,15 +94,15 @@ The package design records seven open questions:
    Database host `StartupTimeout` bounds service startup and supplies no construction timeout.
 4. **Database-owned actions — owner: Database.** Management operations need a design that fits
    instance snapshot restore and each instance's durable catalog before Database adds actions.
-5. **Instance health — owners: ApplicationModel.Hosting/Gateway.** Health aggregation must be
-   settled (Hosting open question 2; Gateway G18) before Database contributes health.
+5. **Instance health — owners: ApplicationModel.Hosting/Gateway.** Database contributes health.
+   Gateway consumption, readiness mapping, live membership/removal and batch evaluation need
+   an owner decision (Hosting open questions 2/7; Gateway G18).
 6. **Publication-to-open window — owners: ApplicationModel.Hosting/Database.** `AddService`
    services start after publication and restore, before the control plane opens. A slow service
    widens Hosting open question 7's window. Database users cannot reorder these services as Web
    and EmailHub users can.
-7. **Instance health and actions — owner: Database.** Hosting now binds usable plain-HTTP `http`
-   assignments, with the existing readiness gate and loopback-only namespaced probes. Mapping
-   observations to instance health contributors and adding Database actions remain later work.
+7. **Read-only actions — owner: Database.** HTTP health and instance contributors share Hosting
+   observations; read-only database/health actions remain separate work.
 
 The [in-process test](examples/database-resource-in-process-tests.md) waits for the Database host
 to reach `Started` before invoking an action and surfaces a failed startup rather than polling a

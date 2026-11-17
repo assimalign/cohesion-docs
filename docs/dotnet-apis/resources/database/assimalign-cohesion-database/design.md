@@ -651,6 +651,15 @@ and all refused steps in full. Hosting bounds event and health detail to 4,096 U
 including ellipsis, without splitting surrogate pairs. See
 [the SQL policy](../assimalign-cohesion-database-sql/design.md#applied-schema-history-and-rollback).
 
+## Open inventory and failed opens
+
+Every model implements the new protected abstract GetOpenDatabasesCore(). Custom DatabaseEngine
+derivations must do so too. The public non-virtual OpenDatabases copies its snapshot without
+locks, I/O or lifecycle work, filters closing instances and includes offline ones. FailedOpens
+publishes immutable safe [failure metadata](database-open-failure.md); reads remain available
+and empty after disposal. Health consumes these inventories without opening stored databases.
+See [engine contracts and clearing rules](database-engine.md#failedopens).
+
 ## Sources
 
 - **Named admission and protected seam** — `cohesion/resources/Database/Assimalign.Cohesion.Database/src/DatabaseSession.cs`, `src/DatabaseTransaction.cs` and `tests/SavepointSeamTests.cs` beneath the same project.

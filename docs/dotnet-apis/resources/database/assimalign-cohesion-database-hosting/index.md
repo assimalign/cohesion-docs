@@ -4,6 +4,12 @@
 
 > **Status:** Partial.
 
+## Health API
+
+- **[DatabaseApplicationContext](database-application-context.md)** — Live membership and all/single observations.
+- **[DatabaseHealthObservation](database-health-observation.md)** — Immutable status, description and string data.
+- **[DatabaseHealthStatus](database-health-status.md)** — Unhealthy, Degraded and Healthy.
+
 ## Reference pages
 
 - **[DatabaseApplicationBuilder](database-application-builder.md)** — AddHealthEndpoint and managed health precedence.

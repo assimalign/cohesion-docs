@@ -2,7 +2,7 @@
 
 The Database resource integration: `builder.Services.AddResource(name, ...)` makes a Database application a managed resource instance.
 
-> **Status:** Implemented. The resource exposes only application-added actions and contributes no instance health yet.
+> **Status:** Implemented. The resource exposes application-added actions and live engine/database health contributors.
 
 ## Reference pages
 

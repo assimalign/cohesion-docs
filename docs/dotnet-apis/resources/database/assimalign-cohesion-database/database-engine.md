@@ -6,15 +6,44 @@ Namespace: `Assimalign.Cohesion.Database`.
 
 ## Signature
 
-Selected protected composition member:
+Selected inventory and protected composition members:
 
 ```csharp
 public abstract class DatabaseEngine : IAsyncDisposable, IDisposable
 {
+    public IReadOnlyList<DatabaseInstance> OpenDatabases { get; }
+    public IReadOnlyList<DatabaseOpenFailure> FailedOpens { get; }
+    protected abstract IReadOnlyList<DatabaseInstance> GetOpenDatabasesCore();
     protected void ConfigureJournalAdmission(DatabaseInstance database, long journalSizeLimit,
         params Assimalign.Cohesion.Database.Storage.Storage[] storages);
 }
 ```
+
+## OpenDatabases and custom engines
+
+OpenDatabases is public, non-virtual and synchronous. It copies the protected core's published
+instance snapshot into a new read-only list, filters closing instances, retains offline instances
+and returns empty after disposal. Reading performs no I/O, takes no engine lock and never opens,
+reopens or waits. GetDatabasesAsync keeps each model's enumeration semantics; it can open stored
+Documents, Graph and Blob databases through recovery.
+
+Every shipped engine implements GetOpenDatabasesCore(). **A custom engine deriving from
+DatabaseEngine must now implement it.** Return the current published snapshot without locks,
+I/O or lifecycle work; the base filters and copies it.
+
+## FailedOpens
+
+Lock-free, non-virtual read of an immutable [DatabaseOpenFailure](database-open-failure.md)
+snapshot, empty after disposal. Failed stored opens retain safe metadata, including manual opens
+with automatic reopen disabled. Successful open/create/drop or DatabaseNotFoundException clears
+the name; disposal clears all records. A stored database never attempted by this process is absent.
+The reopen service does not retry these records.
+
+Name-validation ArgumentException with ParamName "name" (except ArgumentOutOfRangeException),
+engine disposal and failures while the caller's token is cancelled leave existing records unchanged.
+Internal argument failures and another object's ObjectDisposedException are recorded. Structured
+carriers/coded causes supply the code; CK06003 has precedence over additional model diagnostics.
+Lifecycle completion ordering prevents an older deferred failure from replacing a later success.
 
 ## ConfigureJournalAdmission
 

@@ -114,6 +114,13 @@ admission and idle retirement. Saturation/stuck observations leave databases ser
 root warning 35; disposal waits for in-flight I/O and emits warning 36 periodically.
 See [protected reporting members and events](design.md#worker-failure-reporting).
 
+## Open inventory and failures
+
+[DatabaseEngine.OpenDatabases](database-engine.md#opendatabases-and-custom-engines) is a non-opening
+snapshot. Custom engines must implement the new protected abstract GetOpenDatabasesCore().
+[FailedOpens](database-engine.md#failedopens) exposes immutable [DatabaseOpenFailure](database-open-failure.md)
+metadata for failed stored opens, retained until success, drop, absence or disposal.
+
 ## Dependencies
 
 `Core`, the nine child roots the root rolls up (`Database.Types.Text`, `Database.Execution`, `Database.Indexing`,
