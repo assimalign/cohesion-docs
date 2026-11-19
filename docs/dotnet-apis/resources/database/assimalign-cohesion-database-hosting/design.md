@@ -140,8 +140,7 @@ the provider also owns, so both dispose it. Its `Dispose` must be idempotent. Us
 Provisioning belongs to each model's engine build. It opens or creates the databases declared on
 its builder and completes inline schema migration before returning. Deferred migrations can
 continue on engine workers with their admission gates. The concrete `Build(CancellationToken)`
-passes cancellation to construction; `StartupTimeout` only bounds service start. A managed
-program's gateway startup window must cover Build's recovery and inline migration.
+passes cancellation to construction; `StartupTimeout` only bounds service start.
 
 `DatabaseApplication` remains `Host<DatabaseApplicationContext>` and its context remains
 `HostContext` / `IHealthContributor`. `Run`, `RunAsync`, and `AsService` use the Hosting
@@ -187,11 +186,11 @@ restoration for another process's condition. Reopen, rewrite and refused explici
 the hold while the stored hash is unchanged; redeploying the stored or successfully applied
 newer declaration clears it. See [rollback](../assimalign-cohesion-database-sql/design.md#applied-schema-history-and-rollback).
 
-## Health observations and contributors
+## Health observations
 
 [DatabaseApplicationContext](database-application-context.md) exposes live HealthComponentNames and
-both GetHealthAsync overloads. HTTP health and instance contributors share its evaluation core.
-There is one contributor per engine and each open, pending-reopen or failed-open database,
+both GetHealthAsync overloads, and HTTP health uses the same evaluation core. There is one
+component per engine and each open, pending-reopen or failed-open database,
 followed by database.accepting. Re-read membership to follow opens and drops; discovery evaluates
 no health and waits for no lifecycle operation. A stored database this process never attempted
 is absent. Every model reads OpenDatabases, pending reopens and FailedOpens without opening,
@@ -202,7 +201,7 @@ and `database.accepting`. URI-escape each segment separately. Engine identity is
 registration rejects invalid UTF-16. Database names lower-case only ASCII letters before escaping;
 K and the Kelvin sign remain distinct. Engines follow registration order, each followed by its
 databases in ordinal ignore-case component-name order, with database.accepting last. Single lookup
-compares the complete name ordinally. A vanished database contributor answers Unhealthy, "not open".
+compares the complete name ordinally. A vanished database component answers Unhealthy, "not open".
 
 Running engines are Healthy, Faulted engines Degraded, and disposed/unknown engines Unhealthy.
 Database precedence is offline, admission pause, provisioning, then Healthy. Offline/pending
@@ -229,8 +228,7 @@ by keeping the engine name, except OutOfMemoryException. Separate checks observe
 /readyz takes the minimum status over all contributions; /livez takes the minimum over engine
 and database contributions. database.accepting is Healthy only when the outer host is Started,
 after all model servers confirmed accept, including the host gate for a serverless application.
-It alone describes accepting, not overall readiness. The gateway still counts publication as
-ready and does not consume contributors yet. HTTP retains its throwing-check handling.
+It alone describes accepting, not overall readiness. HTTP retains its throwing-check handling.
 
 ### Failed-open transition events
 

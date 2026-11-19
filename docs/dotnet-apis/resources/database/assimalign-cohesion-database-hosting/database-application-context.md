@@ -25,8 +25,8 @@ HealthComponentNames discovers live membership without evaluating health, awaiti
 waiting for lifecycle operations. Re-read to follow opens/drops. All-component GetHealthAsync
 evaluates each engine independently; the named overload evaluates only that engine, or only the
 host gate for database.accepting. A missing component answers Unhealthy, "not open". Names compare
-ordinally; [names, escaping, order and status precedence](design.md#health-observations-and-contributors)
-are shared with HTTP and managed-resource contributors.
+ordinally; [names, escaping, order and status precedence](design.md#health-observations)
+are shared with HTTP health.
 
 Health never opens, reopens or waits for a database. Stored databases never attempted by this
 process are absent; failed stored opens remain Unhealthy until cleared. Cancellation of the

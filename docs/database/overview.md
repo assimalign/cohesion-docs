@@ -309,7 +309,7 @@ host Started after all servers confirmed accept.
 A failed stored open remains Unhealthy with code when present, exception type, UTC time and
 consecutive attempts, never its message. Successful open/create/drop, absence or engine disposal
 clears it. The reopen service does not retry these records: repair and explicitly open the database.
-See [names, escaping, status precedence and events](../dotnet-apis/resources/database/assimalign-cohesion-database-hosting/design.md#health-observations-and-contributors)
+See [names, escaping, status precedence and events](../dotnet-apis/resources/database/assimalign-cohesion-database-hosting/design.md#health-observations)
 and the [observation API](../dotnet-apis/resources/database/assimalign-cohesion-database-hosting/database-application-context.md).
 
 ## Engine health and version purge
