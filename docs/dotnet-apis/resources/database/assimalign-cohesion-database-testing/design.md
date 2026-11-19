@@ -50,11 +50,10 @@ Database.Hosting without extending that permission to production features.
 
 The SDK sample uses configuration for its data path and endpoint. Its SQL engine builder declares
 and provisions the schema inside application Build. The old generated-resource gateway E2E fixture
-is absent at this revision; the separate
-[managed integration tests](../assimalign-cohesion-database-hosting-applicationmodel/examples/index.md)
-exercise the new gateway path.
+is absent at this revision, and its successor's integration tests were removed with
+`Database.Hosting.ApplicationModel` in cohesion #1869.
 
-The TCP SDK fixture runs unmanaged without `AddResource` and leaves schema compilation off;
+The TCP SDK fixture runs unmanaged and leaves schema compilation off;
 SampleHost retains SQL schema compilation.
 
 ## Sources

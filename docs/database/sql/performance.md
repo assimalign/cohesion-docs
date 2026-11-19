@@ -53,8 +53,9 @@ await using var engine = SqlDatabaseEngine.Create("orders", options);
 
 The positive byte budget defaults to 64 MiB and covers retained SELECT buffers. Eligible root
 ORDER BY, ordered DISTINCT, eligible hash joins and plain hash aggregation/DISTINCT spill where
-they would otherwise refuse CS05067 (53200). Other retained results/operators need a sufficient grant. File engines use configured temporary
-space; in-memory engines need an explicit TempDirectory. Fitting sorts retain their existing path.
+they would otherwise refuse CS05067 (53200). Every eligible retained SELECT output also has
+a spill owner, including nested results, set operations and partitioned windows. File engines use
+configured temporary space; in-memory engines need an explicit TempDirectory. Fitting sorts retain their existing path.
 
 ## Statement memory
 
@@ -81,14 +82,14 @@ Paths that preserve volatile evaluation or resolve deferred collations can still
 Evaluation completes before delivery. Fitting results retain their existing materialization;
 spilled results decode lazily within their reader grant.
 Plan-sized traversal, current-row state, storage iterator scratch and transient planning are
-outside it. INSERT SELECT and DML subquery sources keep their existing policy.
+outside it. INSERT SELECT does not spill and its source stays uncharged (#1828). DML subquery
+sources keep their existing policy.
 
 [CTAS](language/statements/create-table.md#create-table-as) charges like any SELECT, including
 sorting, grouping and caches, then charges kept output and copy buffers. Pagination does not
 reserve collection capacity. [Joined mutations](#joined-mutations) and recursive query state
 retain their existing accounting. Refusal stops input immediately, even before a later input error,
-unless an eligible root sort, hash join, normalized join buffer or plain hash aggregation/DISTINCT
-hands retained state to temporary storage.
+unless an eligible output, sort, hash, window, set or join owner hands retained state to temporary storage.
 
 [SQL/JSON paths](language/functions/json-path.md#limits) charge transient DOM, result references
 and selected-result serialization to the same statement memory grant (CS05094 / 54000).
@@ -174,7 +175,7 @@ accumulating while new-group inputs partition. A single skewed group's state mus
 | Text/CHAR and binary MIN/MAX | CS05067 |
 | SUM/AVG over stored integer columns, declared integer calls, sequences, bounded stored NUMERIC columns/casts or numeric constants | Can prove magnitude × physical statement temp quota fits Decimal |
 | SUM/AVG over pseudo-type calls, derived/Null-typed columns, unbounded NUMERIC, floating sums or unproved compound inputs | CS05067 |
-| STRING_AGG/ARRAY_AGG, aggregate DISTINCT/ORDER BY, statistical/application accumulators, grouping sets, direct window-over-group owners, nested relation bodies | Existing refusal/ownership; no hash spill permission |
+| STRING_AGG/ARRAY_AGG, aggregate DISTINCT/ORDER BY, statistical/application accumulators and grouping sets | Existing refusal/ownership; no hash spill permission |
 | Deferred collation, second key family, unsupported cells or application-binary cells | CS05067 |
 | Join-output hash DISTINCT | Existing memory refusal |
 | Subquery-bearing group inputs/expressions or unproved MIN/MAX argument families | Existing refusal |
@@ -205,8 +206,9 @@ Eligible root INNER, LEFT, RIGHT and FULL hash joins spill to an indexed tempora
 the original CS05067 boundary, including when other operators hold part of the statement grant.
 Only plain column keys spill, including mixed numeric types: 1 matches 1.0. A computed key
 such as CASE, COALESCE or arithmetic still refuses CS05067 when its hash build exceeds memory.
-Correlated/lateral inputs, non-hash steps, deferred collations, SQL/JSON, application-binary
-build cells, joined DML and join-output DISTINCT also receive no join-spill permission.
+Correlated/lateral inputs, deferred collations, SQL/JSON, application-binary
+build cells and joined DML retain their existing join-spill exclusions.
+Join-output DISTINCT excludes hash-build spill; eligible nested-loop buffers can still spool.
 
 The build sorts once by composed hash and insertion ordinal. Probes read only matching hash
 chunks through a bounded cache and never write temp records. Equal-hash groups stream across
@@ -238,44 +240,97 @@ durable database online. See [EXPLAIN hash fields](language/statements/explain.m
 
 ## Root sort spilling
 
-A root plain SELECT ORDER BY, its OFFSET + LIMIT heap, and ordered DISTINCT can spill under
-the same statement grant. Rows, headers, stable ties, DISTINCT's first sorted representative,
-volatile/sequence evaluation, access paths and pagination are unchanged. Ordered DISTINCT's
-seen set must still fit. CTAS source roots have the same permission in sessions and declared
-scripts; see [CTAS](language/statements/create-table.md#create-table-as).
+Eligible retained SELECT output spills only where the previous build refused at its statement
+grant. Fitting statements at the same grant and temp quota complete identically: rows, order,
+CLR types/metadata, volatile calls, sequence values, first error and RecordsExamined. Statements
+that still refuse retain their previous code. Spilling does not repeat expressions or storage visits.
+File engines use configured temporary space; in-memory engines require an explicit TempDirectory.
 
-Spill permission does not extend to nested/subquery or derived/CTE operand bodies, compounds,
-correlated frames, recursion, windows, grouping sets, SQL/JSON statements, inferred SQL/JSON
-domain checks during CTAS assignment, deferred subqueries, plain ordered index scans without
-DISTINCT, ordered aggregates, ordered sequence deferral, or preceding operator buffers without
-a handoff. DML sources gain no spill permission; INSERT SELECT retains its existing source
-budgeting gap. Window/SQL/JSON owners keep their own grant code when they fill first.
+| Owner | Spill behavior |
+| --- | --- |
+| Final-result spool, unordered CTAS source, primary/secondary ordered index scan | Drains evaluated output once to an encounter-order run; no sort is added |
+| Independent nested SELECT and derived/view/CTE cache | Inherits outer permission; retains spilled output or drains a refusing cache copy once; reads decode in encounter order |
+| Hash-aggregation output | Output can spool even when aggregate states fit; hash-state eligibility still applies |
+| ORDER BY, bounded OFFSET + LIMIT and ordered DISTINCT sort | Stable ties, first sorted representative and pagination retained; ordered DISTINCT's seen set must fit |
+| Partitioned window stage | Sorts saved input/keys, computes one charged partition at a time, then restores input ordinal order before the next group/final projection |
+| UNION ALL | Appends converted operands in encounter order |
+| UNION | Keeps the first occurrence under common-type comparison through bounded hash partitions and encounter ordinals |
+| INTERSECT / EXCEPT, including ALL | Stages both converted inputs, partitions counts/representatives, then restores left order; ALL keeps the first min(m,n) left copies or skips the first n respectively |
+| Nested-loop inner and normalized buffers | Spools pushed-filter rows once, then rereads for each outer row; no base-table rescan, repeated predicate or changed ON pair order |
 
-CS05067 also remains without temp space, with a nonfixed ordering collation, an unsupported
-row/key family, a binary cell returned by an application function (including through CASE or
-a projected cell), or a record beyond the sort bound. Binary columns, parameters and built-in
-binary results remain eligible. For grant G, encoded key + row + 16 framing bytes must fit
-`(G - 32768) / 16 - 8192`; G must be at least 65,536 and the bound at least 16. Before publishing
-a result, one reader plus its maximum decoded row and one decoding overlap must fit the grant.
+Set operands finish in order; conversions precede comparison. NULL equality and collation-equal
+representatives are unchanged. UNION/hash partitions use eight partitions per level and at most
+eight levels. Mixed comparison families per column, capacity or repartition exhaustion retain
+CS05067. A correlated consumer of an already spilled CTE can reread its run; this does not grant
+spill permission to excluded correlated/lateral execution owners.
+
+### Remaining refusals
+
+Membership vectors (`NOT IN`, `IN` and quantified comparisons), recursive CTEs, a single window
+partition larger than the grant, ordered DISTINCT's seen set, joined DML (#1828), SQL/JSON,
+deferred collations and cells the temp codec cannot encode retain their refusals. Non-equi FULL
+joins refuse CS05070 during planning. **INSERT SELECT does not spill and its source stays uncharged
+(#1828).** CTAS is the table-writing statement whose source can spool.
+
+The dialect also retains exclusions for correlated/deferred frames and lateral inputs, grouping
+sets, ordered/opaque aggregate state, unproved hash expressions, ordered sequence deferral,
+inferred SQL/JSON domain checks during CTAS assignment, unsupported key families and buffers
+without a handoff. Computed hash-join keys retain their existing refusal. Application-produced
+binary cells remain excluded; binary columns, parameters and built-in binary results are eligible.
+
+Value-identity gates conservatively exclude catalogs with reference-bearing or pseudo-type
+application/SQL function parameters, application casts or checked domains, even unused registrations.
+Window eligibility is captured at planning and cannot change after concurrent DDL. Numeric
+application functions/aggregates can remain eligible. Every spilled window group needs PARTITION BY
+and fixed key collations; OVER () retains the base path. A partition still must fit the remaining
+grant. Its first recorded refusal is CS05079 (54000), or CS05067 (53200) when plain SELECT bytes
+filled the grant first. An unsuccessful window memory/quota/floor fallback preserves that code
+and message, attaching its cause in exception data. No spilled-stage codec failure restarts evaluation.
+
+### Record, workspace and quota limits
+
+| Storage/workspace | Limit |
+| --- | --- |
+| Sequential output/cache and stage row | At most 16,384 encoded bytes, including an internal ordinal where present |
+| Sequential output admission | For encoded L and decoded cost D, 9,984 + L + 24 + 2D bytes must fit the grant |
+| Sequential writer/encoding scratch | Charged when possible; at most 26,392 fixed bytes beyond the grant while producer state drains |
+| Sort record | Key + row + 16 framing bytes must fit (min(G, Int32.MaxValue) - 32,768) / 16 - 8,192; G at least 65,536 and bound at least 16 |
+| Window sort arena | Remaining grant after active reader/fixed stage state, less 32,768 B construction allowance; record bound must admit a two-way merge |
+| Window handoff scratch | At most 131,072 fixed bytes beyond the grant |
+| Set/join stage handoff scratch | At most 65,536 fixed bytes beyond the grant |
+| Nested-loop staged reader | 8,192 + L + 256 + 2D bytes charged for the buffer lifetime; each pass opens its own page and record destination |
+| Relation/group-input cache reader | Workspace W + four decoded-row allowances + 64 bytes per column on the outer ledger |
+| Scalar/EXISTS reader | Workspace plus two decoded-row allowances on the live outer ledger |
+| CTAS copy after original admission refuses | Releases consumed source-cell payload charges; existing 64-row batch may use at most 520,472 B beyond the grant |
+
+An unencodable row, an encoded row above its record limit or a first reader/decoded overlap
+that cannot fit refuses CS05067 at every quota. Known retained and pending rows are validated
+before the first temp write, so quota cannot hide their record refusal. CK05002 is a physical
+statement-temp quota refusal where more quota can permit completion, not a replacement for a
+record-size refusal. Newly permitted operator fallback that cannot finish preserves its original
+CS05067/message with the temp cause in exception data; a pre-existing temp failure reached
+before a new handoff retains its CK05 code.
 
 The default physical statement quota is four grants (256 MiB at the default 64 MiB grant).
-Ten grants of 20- or 50-character ASCII rows complete; session and declared-script CTAS complete
-ten grants of 20-character ASCII input. Twenty three-byte characters fit six grants, but seven
-refuse CK05002: payload capacity before rounding is 6.66 grants. Framing, width, run tails and
-intermediate merges determine capacity. A physical quota is not a fixed multiple of decoded rows.
+Ten grants of 20- or 50-character ASCII sort rows complete; CTAS completes ten grants of
+20-character ASCII input. Twenty three-byte characters fit six grants but seven refuse CK05002:
+payload capacity before rounding is 6.66 grants. Width, framing, run tails and intermediate
+merges determine capacity; physical quota is not a fixed multiple of decoded rows.
 
-CK05001–CK05006 remain located statement/delivery errors, releasing temp files while leaving
-durable storage online and an explicit transaction active. Cleanup cannot replace a statement
-error or completed wire delivery. EXPLAIN keeps its fields; an actual spill adds `spilled_bytes`,
-`spill_peak_bytes`, `spill_runs` and `spill_merge_passes` to EXPLAIN ANALYZE.
+CK05001–CK05006 are located statement/delivery errors; durable storage stays online and an
+explicit transaction stays active. Cleanup cannot replace a statement error or completed wire
+delivery. EXPLAIN ANALYZE adds spill bytes/runs on the operator that actually spilled, including
+beneath sequence scopes, only after a spill. Plain EXPLAIN of a fitting statement is unchanged.
 
 ### Spilled result lifetime
 
 Delivery is lazy after evaluation completes. A result supports repeated or concurrent
 enumerations until disposed, session close or engine disposal; a later statement leaves it
 valid. Dispose ExecuteAsync results even after enumeration completes or is canceled. A session
-permits at most eight undisposed spilled results; a further spill refuses CS05067 until one
-is disposed. CTAS borrows a slot only while its source is live and releases it before statement end.
+permits at most eight undisposed returned spilled client results; a ninth refuses CS05067 until
+one is disposed. Relation caches, scalar/EXISTS bodies, CTAS sources and operator stage runs
+are internal: they consume no client slot and close with the statement (or earlier stage exit).
+All internal runs share the statement temp quota and are also registered for session/engine cleanup.
 
 Active reader workspace and retained decoded rows, including one row of old/new decoding
 overlap, share the result grant. A further reader exceeding it refuses CS05067 at its first
@@ -291,7 +346,9 @@ or shutdown.
 ## Window frame work
 
 [Window stages](language/clauses/window.md) retain full partitions under the statement memory
-grant (CS05079), with no spill. Safe native moving aggregates run in O(n) work using inverse
+grant. Eligible partitioned stages spill as described [above](#root-sort-spilling); a single
+partition larger than the remaining grant still refuses CS05079 (or the original CS05067 when
+plain bytes filled first). Safe native moving aggregates run in O(n) work using inverse
 transitions or MIN/MAX queues, including exclusion. Application/order-sensitive aggregates
 recompute under the shared 1,000,000-visit cap (CS05084 / 54000). Volatile or subquery inputs/FILTER
 restart evaluation when the head moves; this fallback can also hit CS05084 for native aggregates.
@@ -299,7 +356,9 @@ ANALYZE reports frame_visits, transitions, inverse_transitions and boundary_visi
 
 ## Sources
 
-- **Hash spilling** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/docs/DESIGN.md`, `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql.Language/docs/DIALECT.md` and `SqlPlanExecutor.HashSpill.cs`, `SqlPlanExecutor.JoinSpill.cs`, `SqlHashJoinSpill.cs` under the SQL project's `src/Internal/Execution/` at `2dd935103`.
+- **Retained outputs, windows and stage spooling** — SQL DESIGN and DIALECT at `a3daa99a0`; `SqlOutputSpool.cs`, `SqlWindowInputSpool.cs`, `SqlOperatorSpillRefusal.cs` and set/inner spill executors under the SQL project's `src/Internal/Execution/`; `SqlSetInnerSpillTests.cs` and `SqlSortSpillConformanceTests.ResultSpooling.cs`, `WindowSweeps.cs`, `Owners.cs` and `BatchIntegration.cs` in its tests (the latter three retain the SqlSortSpillConformanceTests prefix).
+
+- **Hash spilling** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/docs/DESIGN.md`, `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql.Language/docs/DIALECT.md` and `SqlPlanExecutor.HashSpill.cs`, `SqlPlanExecutor.JoinSpill.cs`, `SqlHashJoinSpill.cs` under the SQL project's `src/Internal/Execution/` at `a3daa99a0`.
 - **Root sort/CTAS spilling** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql.Language/docs/DIALECT.md` and `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/tests/SqlSortSpillConformanceTests*.cs`.
 
 - **SELECT retention and memory** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/tests/SqlSelectRetentionTests.cs`, `SqlSelectMemoryTests.cs`, `SqlSelectWideMemoryTests.cs` and `SqlJointTypeMigrationTests.BatchIntegration.cs` in the same directory; implementation is `src/Internal/Execution/SqlPlanExecutor.Retention.cs` and `SqlSelectMemory.cs` in that project.

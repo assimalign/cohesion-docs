@@ -51,7 +51,8 @@ ANALYZE's actual_rows counts candidate pairs, excluding the separately emitted u
 ### Hash spill fields
 
 Under ANALYZE, hash_budget reports each hash build's executed permission as spill_on_refusal
-or no_spill, including an unbuilt step. Plain EXPLAIN reports configured permission as
+or no_spill, including an unbuilt step. Nested hash joins under a permitted spill root print
+`hash_budget=spill_on_refusal` even when nothing spills. Plain EXPLAIN reports configured permission as
 spill_on_refusal_if_eligible. Non-hash steps keep no_spill. The new hash_status is fitting or
 spilled; a spilled JoinPlan reads "bounded hash" rather than "bounded in-memory hash".
 Zero-candidate hash actuals remain NULL.
@@ -330,9 +331,13 @@ UPDATE/DELETE WHERE conditions retain bound source order.
 See [performance](../../performance.md#joined-mutations).
 EXPLAIN ANALYZE remains SELECT-only.
 
-An actual root sort spill adds `spilled_bytes`, `spill_peak_bytes`, `spill_runs` and
-`spill_merge_passes` to EXPLAIN ANALYZE sorting detail, beneath With/Subqueries wrappers.
-EXPLAIN fields remain unchanged. See [root sort spilling](../../performance.md#root-sort-spilling).
+Actual output, window, set, join or sort spills add `spilled_bytes`, `spill_peak_bytes`,
+`spill_runs` and `spill_merge_passes` to EXPLAIN ANALYZE on the operator that spilled, including
+beneath sequence scopes and With/Subqueries wrappers. Fields appear only when that operator
+spilled; a staged join source reports its spill even when projection fits or LIMIT 0 returns no
+rows. Under EXPLAIN ANALYZE, nested hash joins under a permitted spill root print
+`hash_budget=spill_on_refusal` even when nothing spills. Plain EXPLAIN of a fitting statement is unchanged.
+See [root sort spilling](../../performance.md#root-sort-spilling).
 
 ## Sources
 

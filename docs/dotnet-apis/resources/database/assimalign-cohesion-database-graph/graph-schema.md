@@ -103,12 +103,16 @@ any node type (CG03011). Existing members of new or tightened node rules are che
 postings; CG03010 leaves the previous type and data unchanged. Missing implied labels are refused,
 never added. Writes enforce implied labels (CG03012), property types and NOT NULL (CG03003),
 including typed creates, INSERT/CREATE, SET/REMOVE and MERGE's final working copy. Multiple matching
-node types all apply. Additional labels, relationship types and properties remain writable. Edge
-properties and endpoints are stored but not yet enforced. Text ALTER/SHOW CURRENT GRAPH TYPE
-remains refused.
+node types all apply. Additional labels, relationship types and properties remain writable.
+Edge creates validate source/target identifying labels (CG03013) and property rules (CG03003);
+relationship property writes check properties. Label removal checks affected incident edges;
+label additions do no edge work. Without a current type, no edge-validation work is added.
+New or strengthened edge rules stream type postings and validate endpoints and properties
+before publication (CG03010). Text [ALTER](../../../../database/graph/language/statements/index.md#current-graph-type)
+and [SHOW CURRENT GRAPH TYPE](../../../../database/graph/language/statements/show.md#current-graph-type) execute.
 
 Independent property metadata and named constraints survive every type mutation. They may agree
-with node-type rules; incompatible types use CG03009 in either publication order. New, changed and
+with node- and edge-type rules; incompatible types use CG03009 in either publication order. New, changed and
 removed rules check ownership on identifying labels, implied labels and relationship types,
 including removed implied labels. A schema-owned definition raises DatabaseObjectLockedException;
 unrelated changes can retain its unchanged declaration. Dropping a declared identifying/implied
@@ -153,10 +157,11 @@ failures leave an explicit transaction usable.
 | CG01002 | Label/type requested for DROP is absent |
 | CG01021 | Named index or constraint requested for DROP is absent |
 | CG03008 | An index or constraint already uses the database-wide name |
-| CG03009 | Duplicate constraint kind or incompatible property type rule, including a node-type conflict |
+| CG03009 | Duplicate constraint kind or incompatible property type rule, including a node- or edge-type conflict |
 | CG03010 | Existing data violates the new constraint or proposed graph type; publication rolls back |
-| CG03011 | Invalid graph-type mutation name/reference or identifying/implied label overlap |
+| CG03011 | Invalid graph-type declaration/mutation name, endpoint reference or identifying/implied label overlap |
 | CG03012 | Node write omits an implied label required by its node type |
+| CG03013 | Relationship or endpoint-label write violates declared source/target node-type membership |
 | CG03003 | Missing owner, unsupported property type, invalid existing data for a property save, or a nonempty definition requested for DROP |
 
 These conditions have no assigned SQLSTATE. Mutating a schema-owned definition or its child
@@ -171,7 +176,7 @@ transaction; schema writes require autocommit. An aborted transaction refuses wo
 Catalog snapshot changes raise DatabaseTransactionAbortedException with structured CG04007.
 Other deterministic identity/owner/index-target errors raise DatabaseException with CG03003,
 and malformed catalog records use CG06006. Unsupported catalog versions use CG06019 at open;
-only v4 records are admitted, with v3 refused before any write and no upgrade reader. Metadata records over 8,092 encoded bytes, including
+only v5 records are admitted, with v4 and earlier refused before any write and no upgrade reader. Metadata records over 8,092 encoded bytes, including
 names and owning schema, use CG02009. These engine exceptions retain ordinary unprefixed
 messages and their original cause. Disposal during an admitted operation uses CG09019;
 the direct Open/lifetime guard retains ObjectDisposedException. See [diagnostics](../../../../database/graph/language/diagnostics.md).

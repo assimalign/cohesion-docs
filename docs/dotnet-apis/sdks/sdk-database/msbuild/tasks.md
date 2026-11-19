@@ -76,6 +76,14 @@ timestamps.
 output paths, and planner/serialization/filesystem failures. Destructive or unsupported SQL
 operations fail without partial outputs.
 
+### ALTER COLUMN admission
+
+TYPE, DEFAULT and nullability phases share the engine's lowering. The task parses each lowered
+ALTER COLUMN forward/rollback statement at the engine ceiling and reports the engine reason
+through COHDBSDK206 before writing either file. Only forward SQL is written. Runtime domain,
+cast and stored-value checks, plus separate non-ALTER helpers, retain their boundaries; see
+[migration parity and limits](../assimalign-cohesion-sdk-database-tasks/design.md#alter-column-migration-files).
+
 ### Tests in source
 
 - **`CreateDatabaseMigrationTaskTests`** —

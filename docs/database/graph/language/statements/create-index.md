@@ -114,7 +114,8 @@ CREATE TEXT INDEX and DROP INDEX wait for journal admission outside catalog/dire
 metadata and data reads remain available. A backfill already admitted when J/2 is crossed
 finishes its physical bracket and mandatory commit, and can overshoot J.
 
-Catalog v4 admits the new kind; v3 refuses CG06019 before writes with all files unchanged.
+Catalog v4 introduced this kind. Current v5 refuses v4 and earlier with CG06019 before writes,
+including after an abrupt stop, with all files unchanged. Recreate the Graph database.
 Graph entity format remains 5, and current B-tree pages are format 3.
 
 ## Diagnostics

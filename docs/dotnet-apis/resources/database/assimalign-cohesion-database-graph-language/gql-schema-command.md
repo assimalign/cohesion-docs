@@ -9,6 +9,7 @@ Namespace: `Assimalign.Cohesion.Database.Graph.Language`.
 ```csharp
 public sealed record GqlSchemaCommand
 {
+    public GqlGraphTypeCommand? GraphType { get; init; }
     public bool Drop { get; init; }
     public GqlSchemaObjectKind Kind { get; init; }
     public bool IsText { get; init; }
@@ -22,7 +23,7 @@ public sealed record GqlSchemaCommand
     public override string ToString();
 }
 
-public enum GqlSchemaObjectKind { Index, Constraint, Label, RelationshipType }
+public enum GqlSchemaObjectKind { Index, Constraint, Label, RelationshipType, GraphType }
 public enum GqlSchemaPropertyType
 {
     Boolean, Int8, Int16, Int32, Int64, Float32, Float64, Decimal, String
@@ -50,6 +51,9 @@ Text mismatched property variables use CG01022. These codes have no assigned SQL
 See the [schema statement pages](../../../../database/graph/language/statements/index.md#schema-statements)
 for generated names, type aliases, autocommit, CG04025 and limits. GqlCatalogSurface.Constraints
 selects SHOW CONSTRAINTS; it is a read-only catalog subject rather than a schema command.
+
+GraphType carries the [current graph-type command](gql-graph-type-command.md) when Kind is
+GqlSchemaObjectKind.GraphType. It renders standalone ALTER CURRENT GRAPH TYPE DDL.
 
 ## Example
 

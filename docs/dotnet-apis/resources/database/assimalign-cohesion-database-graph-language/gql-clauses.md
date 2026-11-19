@@ -13,6 +13,7 @@ Namespace: `Assimalign.Cohesion.Database.Graph.Language`.
 ```csharp
 public static class GqlClauses
 {
+    public const string AlterCurrentGraphType = "ALTER CURRENT GRAPH TYPE";
     public const string CreateTextIndex = "CREATE TEXT INDEX";
     public const string QuantifiedPath = "QUANTIFIED PATH";
     public const string PathMode = "PATH MODE";
@@ -96,6 +97,10 @@ Console.WriteLine(GqlLanguageProfile.Instance.Supports(GqlClauses.Merge)); // Tr
 
 Exists is enabled for braced pattern blocks, represented by
 [GqlExistsExpression](gql-exists-expression.md). Full-query bodies remain CK00001.
+
+AlterCurrentGraphType is enabled in GqlLanguageProfile.Instance for standalone open-type
+SET/ADD/ALTER/DROP commands. Reading the constant adds no exceptions. CLOSED/OPEN mode
+clauses remain CK00001; see [syntax](../../../../database/graph/language/statements/index.md#current-graph-type).
 
 ## Documented behavior
 

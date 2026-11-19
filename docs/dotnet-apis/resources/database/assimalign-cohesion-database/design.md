@@ -24,7 +24,7 @@ servers live in model packages; Hosting consumes the common lifecycle root and e
 callers use the concrete model session.
 
 The root is also the area's **rollup**: it references every child root — the independently
-consumable base components a database is made of (`Database.Types`, `Database.Language`,
+consumable base components a database is made of (`Database.Types`, `Database.Types.Text`, `Database.Language`,
 `Database.Storage`, `Database.Transactions`, `Database.Execution`, `Database.Protocol`,
 `Database.Security`, `Database.Indexing`) — so one reference to the root delivers the whole base
 surface. Child roots never reference the root.
@@ -393,6 +393,7 @@ serialization live in `Database.Sql.Schema`.
 | `Assimalign.Cohesion.Database.Storage` | `CohesionProjectReference` |
 | `Assimalign.Cohesion.Database.Transactions` | `CohesionProjectReference` |
 | `Assimalign.Cohesion.Database.Types` | `CohesionProjectReference` |
+| `Assimalign.Cohesion.Database.Types.Text` | `CohesionProjectReference` |
 | `Assimalign.Cohesion.Web` | `CohesionPrivateProjectReference` |
 
 [Assembly overview](index.md) · [Examples](examples/index.md)
@@ -649,6 +650,15 @@ apply refuses CS03105 even with the old destructive opt-in. The observation keep
 and all refused steps in full. Hosting bounds event and health detail to 4,096 UTF-16 code units,
 including ellipsis, without splitting surrogate pairs. See
 [the SQL policy](../assimalign-cohesion-database-sql/design.md#applied-schema-history-and-rollback).
+
+## Open inventory and failed opens
+
+Every model implements the new protected abstract GetOpenDatabasesCore(). Custom DatabaseEngine
+derivations must do so too. The public non-virtual OpenDatabases copies its snapshot without
+locks, I/O or lifecycle work, filters closing instances and includes offline ones. FailedOpens
+publishes immutable safe [failure metadata](database-open-failure.md); reads remain available
+and empty after disposal. Health consumes these inventories without opening stored databases.
+See [engine contracts and clearing rules](database-engine.md#failedopens).
 
 ## Sources
 

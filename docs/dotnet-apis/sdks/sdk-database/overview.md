@@ -75,8 +75,10 @@ first.
 
 SQL analysis uses C# syntax and symbols, not `Program.Main` or `Schema/**/*.sql`. Names and numeric
 settings must be constants; schema callbacks must be inline and statically analyzable. The current
-SQL migration renderer rejects constraints, custom types, ALTER metadata, and required added columns
-without a default or backfill.
+SQL migration writer rejects constraint operations, ALTER TABLE metadata and required added
+columns without a non-null literal default or backfill. ALTER COLUMN TYPE/default/nullability
+uses the engine's shared lowering and validates both directions at its parser ceiling. Runtime
+registration, conversion and value checks remain engine work; see [exact parity and limits](assimalign-cohesion-sdk-database-tasks/design.md#alter-column-migration-files).
 
 ```sh
 dotnet msbuild -t:CohesionDatabaseCreateMigration -p:CohesionDatabaseMigrationName=add-orders

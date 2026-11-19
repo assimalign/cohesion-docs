@@ -14,6 +14,15 @@ This package parses the executable Cohesion subset of ISO/IEC 39075 GQL into an 
 
 > **Status:** Partial.
 
+## Current graph types
+
+- **[GqlGraphTypeCommand](gql-graph-type-command.md)** — Current-type DDL and canonical rendering.
+- **[GqlGraphTypeOperation](gql-graph-type-operation.md)** — Set, Add, Alter and Drop.
+- **[GqlGraphNodeType](gql-graph-node-type.md)** — Identifying and implied labels.
+- **[GqlGraphEdgeType](gql-graph-edge-type.md)** — Directed endpoint declarations.
+- **[GqlGraphPropertyType](gql-graph-property-type.md)** — Scalar rules and requiredness.
+- **[GqlSchemaObjectKind](gql-schema-object-kind.md)** — Schema targets including GraphType.
+
 ## Reference pages
 
 - **[GqlSchemaCommand](gql-schema-command.md)** — Standalone schema AST, object kinds and scalar types.

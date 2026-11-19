@@ -57,13 +57,14 @@ SQLSTATE mappings are documented code mappings, not separate wire fields.
 
 StorageTempException exposes Code separately from its unprefixed message. These conditions
 refuse disposable work without taking durable databases offline; they have no assigned SQLSTATE.
-Eligible root SQL sorts, hash aggregation/DISTINCT and hash joins use this substrate, including
-eligible CTAS source roots.
+Eligible SQL sorts, hash aggregation/DISTINCT, hash joins, retained SELECT outputs (including
+nested SELECTs and unordered CTAS sources), partitioned window stages, set operations and
+nested-loop inners use this substrate.
 
 | Code | Meaning and trigger |
 | --- | --- |
 | CK05001 | Engine physical temporary-byte quota exceeded |
-| CK05002 | Statement physical temporary-byte quota exceeded |
+| CK05002 | Statement physical temporary-byte quota exceeded where more quota can permit completion; oversized/unencodable SQL rows retain CS05067 at every quota |
 | CK05003 | New temporary page would cross the engine free-space floor |
 | CK05004 | Temporary page/record integrity failure, including the join directory hash check, or retry of a previously failed reader |
 | CK05005 | Temporary space unavailable: probe, lease, sweep, create, read, write or close I/O failure |
@@ -79,8 +80,9 @@ CS05067 (53200) covers every retained plain SELECT buffer and materialized resul
 joins, sorts, grouping, set operations and caches. The default StatementMemoryBudget is 64 MiB;
 eligible root ORDER BY and ordered DISTINCT, including CTAS source roots, plus eligible plain
 hash aggregation/DISTINCT and root hash joins spill where their
-reservation would refuse. Other retained results and excluded operators still need sufficient
-memory. See [spill exclusions and lifetime](sql/performance.md#root-sort-spilling).
+reservation would refuse. Every eligible retained SELECT output now has a spill owner, including
+final/unordered CTAS output, ordered index scans (primary or secondary), nested SELECTs, hash output, partitioned windows,
+set operations and loop inners. Excluded owners still need sufficient memory. See [spill exclusions and lifetime](sql/performance.md#root-sort-spilling).
 When plain bytes fill the grant first, window/JSON memory refusals also use CS05067. With no
 plain bytes live, their grants retain CS05079 and CS05094. A declared-script CTAS refusal stays
 online, publishes no table and resumes at that statement on a later Build with a larger budget.
@@ -89,11 +91,18 @@ INSERT SELECT and DML subquery sources keep their existing policy. See
 
 | Code | Additional refusal conditions | SQLSTATE |
 | --- | --- | --- |
-| CS05067 | New index-build workspace charging; ineligible hash states/codecs, an over-budget single group, eight-level repartition exhaustion, computed join keys, oversized build/cache records, insufficient minimum working sets or reservations optional arenas cannot satisfy | 53200 |
+| CS05067 | New index-build workspace charging; ineligible hash states/codecs, an over-budget single group, eight-level repartition exhaustion, computed join keys, oversized build/cache/output records, insufficient minimum working sets or reservations optional arenas cannot satisfy; ninth undisposed spilled client result (internal runs take no slot) | 53200 |
 
 CREATE [UNIQUE] INDEX and UNIQUE/PRIMARY KEY constraints report CS05067 directly; schema-apply
 migration/rollback rebuilds report CS03402 with CS05067 as cause. These are new build refusals;
 increase the statement budget. See [witnesses](sql/language/statements/create-index.md#building-over-existing-data).
+
+INSERT SELECT does not spill and its source stays uncharged (#1828). Membership vectors,
+recursive CTEs, ordered DISTINCT's seen set, joined DML, SQL/JSON, deferred collations and cells
+the temp codec cannot encode retain their refusals. A single oversized window partition retains
+CS05079 (or the original CS05067 when plain bytes filled first); non-equi FULL retains planning
+CS05070. Failed new operator fallbacks preserve the original memory code/message with their temp
+cause in exception data; pre-existing CK05 failures retain their code. No code is retired.
 
 ## SQL COPY TO STDOUT
 
@@ -196,11 +205,12 @@ Unresolved predicate registrations use existing CS01009 (42883) for table writes
 | CG01023 | Warning: read-only statement names an entity property unknown throughout its visible catalog; once per ordinal name | — |
 | CG03008 | Database-wide ordinal, case-sensitive index/constraint name is already used | — |
 | CG03009 | Duplicate constraint kind or incompatible property type rule | — |
-| CG03010 | Existing data violates a newly created named constraint or proposed graph type | — |
-| CG03011 | Invalid graph-type mutation name/reference or identifying/implied label overlap | — |
+| CG03010 | Existing data violates a newly created named constraint or proposed graph type, including edge endpoints and properties | — |
+| CG03011 | Invalid graph-type declaration/mutation name, endpoint reference or identifying/implied label overlap | — |
 | CG03012 | Node write omits an implied label required by its node type | — |
+| CG03013 | Relationship or endpoint-label write violates declared source/target node-type membership | — |
 | CG04025 | Schema write inside an explicit transaction, including typed writes and conditional no-ops; aborts the transaction | — |
-| CG06019 | Catalog record version differs from v4; recreate the database, no legacy reader | — |
+| CG06019 | Catalog record version differs from v5; recreate the database, no legacy reader | — |
 
 See [GraphSchema](../dotnet-apis/resources/database/assimalign-cohesion-database-graph/graph-schema.md)
 for the typed surface and [schema DDL](graph/language/statements/create-index.md) for text commands.
@@ -269,7 +279,7 @@ clean and abruptly stopped images receive one stable refusal per model on repeat
 | SQL | CS06041 | Current format 39 refuses earlier catalog/data-storage markers, including 37/38, before any write; then B-tree roots |
 | KeyValuePair | CV06107 | Entry-space marker, then B-tree roots |
 | Documents | CD06105 | Catalog kind/version headers, then B-tree roots |
-| Graph | CK06101, in its existing message-only carrier | Entity/registration and B-tree roots, then catalog v4 |
+| Graph | CK06101, in its existing message-only carrier | Entity/registration and B-tree roots, then catalog v5 |
 
 Every file, journal, backup and sidecar remains unchanged through refusal and disposal. Blob
 uses no B-tree. Recreate using exported data from the engine that wrote the old image; there
@@ -279,7 +289,8 @@ Current SQL format 39 retains applied-schema history and per-index owners. Forma
 all earlier markers refuse CS06041 before any file write. Documents index format 4 refuses
 version 3 with CD06105; KeyValuePair entry format 3 refuses version 2 with CV06107. All these
 refusals apply to clean and abruptly stopped files. Every SQL, Documents and
-KeyValuePair database in an earlier format must be recreated; Graph formats are unchanged.
+KeyValuePair database in an earlier format must be recreated. Graph catalog is now v5;
+entity/registration format 5 is unchanged.
 
 ## Journal admission
 
@@ -408,6 +419,25 @@ lifecycle refusal. See [Graph diagnostics](graph/language/diagnostics.md#typed-s
 branches. Snapshot reports CG04024; ReadCommitted re-matches. Bare list/map equalities retain
 parser CK00001; other proven/evaluated invalid equalities use CG03004. None of these conditions has
 an assigned SQLSTATE. See [Graph diagnostics](graph/language/diagnostics.md#planning-and-execution-diagnostics).
+
+## Text analysis conditions
+
+Database.Types.Text is an independently consumable child root. TextException.Code uses
+TextErrorCode outside the model diagnostic namespace. No model translates these conditions yet.
+
+| Code | Condition |
+| --- | --- |
+| `UnknownAnalyzer` | Analyzer name is unavailable; names are case-sensitive |
+| `AnalyzerVersionMismatch` | Requested analyzer version is unavailable |
+| `InvalidUnicode` | Input contains an invalid Unicode scalar sequence |
+| `InvalidLexeme` | Explicit lexeme is empty, contains a null or exceeds 2,047 UTF-8 bytes |
+| `VectorTooLarge` | Vector lexeme/position payload exceeds 1,048,575 bytes |
+
+## Graph catalog requirement
+
+Catalog v5 makes kind-8 edge declarations enforced endpoint/property invariants. V4 refuses
+CG06019 before any write, clean or after an abrupt stop. Recreate every old Graph database;
+there is no legacy reader. SQL, Documents, KeyValuePair and B-tree formats are unchanged.
 
 ## Graph format requirement
 
@@ -650,7 +680,9 @@ count before FILTER/arguments across functions, partitions and stages, including
 Equal cached frames spend none. ANALYZE reports frame_visits, transitions, inverse_transitions
 and boundary_visits. CS05079 covers window grant exhaustion with no plain SELECT bytes live;
 when plain bytes fill the grant first it uses CS05067 (53200). DML/recursive cache admission to
-the window owner can also use CS05067. See the linked memory section for default-grant fixture limits.
+the window owner can also use CS05067. Eligible partitioned stages spill; a single partition
+above the remaining grant still refuses with the original code. See the linked memory section for
+eligibility and no-spill fixture limits.
 
 ## GQL composite queries
 
@@ -717,7 +749,7 @@ CK07102 reports an HTTP health listener socket bind failure in DatabaseException
 The original Web startup failure and socket cause are retained; host startup rolls back prior
 services. Unsupported managed health assignments are skipped with informational Hosting event 18,
 while event 19 reports replacement of a different explicit health URI. Neither event changes
-gateway readiness. See [health composition](../dotnet-apis/resources/database/assimalign-cohesion-database-hosting/design.md#platform-endpoints-and-http-health).
+readiness. See [health composition](../dotnet-apis/resources/database/assimalign-cohesion-database-hosting/design.md#platform-endpoints-and-http-health).
 
 ## OQL compound queries
 
@@ -759,6 +791,8 @@ omitted or explicit variable scopes; writing/unit bodies, named procedures, FORE
 CALL IN TRANSACTIONS retain CK00001. See [CALL scope and diagnostics](graph/language/clauses/next.md#inline-call-subqueries).
 
 ## Sources
+
+- **T3 batch 6** — `cohesion/resources/Database/Assimalign.Cohesion.Database/docs/ERROR-CODES.md`, code/tests and `cohesion/docs/EVENT_SOURCES.md` at `a3daa99a0`.
 
 - **T3 batch 5** — `cohesion/resources/Database/Assimalign.Cohesion.Database/docs/ERROR-CODES.md`, code/tests and `cohesion/docs/EVENT_SOURCES.md` at `2dd935103`.
 - **Batch 19, SQ-A3** — `cohesion/resources/Database/Assimalign.Cohesion.Database/docs/ERROR-CODES.md` and `Assimalign.Cohesion.Database.Sql/src/Internal/Provisioning/SqlProvisioningCodes.cs` at `0b00f181e`, checked against code and tests.

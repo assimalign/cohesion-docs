@@ -575,7 +575,9 @@ count before FILTER/arguments across functions, partitions and stages, including
 Equal cached frames spend none. ANALYZE reports frame_visits, transitions, inverse_transitions
 and boundary_visits. CS05079 covers window grant exhaustion with no plain SELECT bytes live;
 when plain bytes fill the grant first it uses CS05067 (53200). DML/recursive cache admission to
-the window owner can also use CS05067. See the linked memory section for default-grant fixture limits.
+the window owner can also use CS05067. Eligible partitioned stages spill; a single partition
+above the remaining grant still refuses with the original code. See the linked memory section for
+eligibility and no-spill fixture limits.
 
 ## SQL transaction isolation
 

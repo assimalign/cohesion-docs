@@ -23,10 +23,10 @@ Int64, Float32, Float64, Decimal and String. A blank name or unsupported type th
 Required defaults to false, allowing absent/null values; true expresses NOT NULL. Present non-NULL
 values must match the graph engine's scalar type, including its unsigned numeric promotions.
 
-Node declarations enforce these rules; violations use CG03003. Proposed types that fail existing
-member validation use CG03010 without replacing the prior type. Edge property declarations are
-persisted but not yet enforced. Independent node rules may agree; conflicting declared property
-types or named type constraints use CG03009 in either publication order.
+Node and edge declarations enforce these rules; violations use CG03003. Proposed types that fail existing
+member validation use CG03010 without replacing the prior type. Independent node and edge
+rules may agree; conflicting declared property types or named type constraints use CG03009
+in either publication order.
 
 ## Example
 

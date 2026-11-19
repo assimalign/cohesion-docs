@@ -42,8 +42,10 @@ See [execution and transactions](design.md#sql-transaction-control-and-the-b7-se
 ## Spilled results
 
 Dispose every ExecuteAsync result even after enumeration completes or is canceled. Eligible
-root sorts return lazy, rewindable results that survive later statements. The session holds at
-most eight live spilled results. Canceling one reader ends only its cursor; session close
+SELECT outputs return lazy, rewindable results that survive later statements. The session holds
+at most eight returned spilled client results; a ninth refuses CS05067. Internal caches,
+scalar/EXISTS bodies, CTAS sources and operator stage runs take no slot and close with the
+statement. Canceling one reader ends only its cursor; session close
 disposes every owned result. A client's exchange cancellation aborts its transport. See
 [spill limits and ownership](../../../../database/sql/performance.md#root-sort-spilling).
 
