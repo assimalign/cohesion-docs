@@ -69,10 +69,7 @@ rather than the SQL engine, storage, or TCP connection implementation. Those bui
 not become application runtime dependencies through the SDK. Microsoft Build host assemblies are
 excluded from the shipped task dependency closure.
 
-The SDK emits no resource manifest. A Database program becomes a managed instance with
-`builder.Services.AddResource(...)` from
-[Database.Hosting.ApplicationModel](../../../resources/database/assimalign-cohesion-database-hosting-applicationmodel/index.md).
-Schema compilation and migrations remain independent of management.
+The SDK emits no resource manifest.
 
 ## Verification
 

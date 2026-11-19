@@ -30,10 +30,8 @@ flowchart LR
 ```
 
 `COHRES001`–004 remain enforced. Private Web hosting/health references implement admin health.
-[Database.Hosting.ApplicationModel](../assimalign-cohesion-database-hosting-applicationmodel/index.md)
-supplies the managed-resource registration on `builder.Services`. Database.Hosting has no
-ApplicationModel reference. Resource publication, restoration, and action dispatch are composed by
-the integration package.
+Database.Hosting has no ApplicationModel reference; the old model's Database integration was
+removed in cohesion #1869.
 
 ## `Build` and configuration
 

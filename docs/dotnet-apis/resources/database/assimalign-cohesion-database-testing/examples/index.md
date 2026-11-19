@@ -10,9 +10,6 @@ examples require their original test project’s dependencies and supporting obj
 - **[Database Application Test Factory Tests](database-application-test-factory-tests.md)** — This example exercises `Assimalign.Cohesion.Database.Testing` through its co-located test source.
 - **[Executable test fixture](executable-fixture.md)** — The test factory invokes this real executable fixture entry point.
 
-The [managed-resource examples](../../assimalign-cohesion-database-hosting-applicationmodel/examples/index.md)
-cover publication, restore, and gateway action calls separately.
-
 [Assembly overview](../index.md) · [Design](../design.md)
 
 ## Sources

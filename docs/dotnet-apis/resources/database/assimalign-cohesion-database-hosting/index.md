@@ -57,11 +57,8 @@ factories/instances. See [DESIGN.md](design.md) for ordering, rollback, isolatio
 details.
 
 The runtime references the area root and non-area infrastructure, never Database model packages.
-[Database.Hosting.ApplicationModel](../assimalign-cohesion-database-hosting-applicationmodel/index.md)
-makes a program managed with `builder.Services.AddResource(...)`. Its lifecycle service publishes
-and restores during `StartingAsync`, after Build has opened, recovered, and migrated the engines,
-before any service or server starts. It opens the platform client in `StartAsync`; servers drain
-before it closes on stop. The gateway's startup window must cover Build's inline work.
+The old model's Database integration, `Database.Hosting.ApplicationModel`
+(`builder.Services.AddResource(...)`), was removed in cohesion #1869.
 
 Managed health binds the platform's `http` assignment when its scheme is plain HTTP and its host
 is a literal IP address or localhost. It overrides an explicit health URI; unsuitable assignments
