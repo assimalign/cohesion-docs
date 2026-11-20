@@ -13,7 +13,7 @@ reserved projects.
 
 | Area | Purpose |
 |---|---|
-| [Amqp](amqp/index.md) | Advanced Message Queuing Protocol (AMQP) wire handling and connection bindings. |
+| [Amqp](amqp/index.md) | Advanced Message Queuing Protocol (AMQP) 1.0: the model and the protocol engine. |
 | [App](app/index.md) | Hosting kernel, shared-framework producers, and framework membership validation. |
 | [ApplicationModel](application-model/index.md) | Resource identity and protocol, gateway models, the instance runtime, and the gateway. |
 | [Cache](cache/index.md) | Cache contracts and an in-process memory-cache implementation. |

@@ -4,12 +4,9 @@ Source-backed examples for `Assimalign.Cohesion.Amqp.Connections`.
 
 [Assembly overview](../index.md) · [Design](../design.md)
 
-- **[Behavioral tests](behavioral-tests.md)** — Exercise Amqp Codec and Transport Capability behavior using the original repository tests.
+- **[Behavioral tests](behavioral-tests.md)** — the end-to-end and carrier capability tests of the engine, as complete listings.
 
 ## Sources
 
-- **Source** — `cohesion/libraries/Amqp/Assimalign.Cohesion.Amqp.Connections/src/Assimalign.Cohesion.Amqp.Connections.csproj`.
-- **Source** — `cohesion/libraries/Directory.Build.props`.
-- **Source** — `cohesion/libraries/Amqp/Assimalign.Cohesion.Amqp.Connections/docs/OVERVIEW.md`.
-- **Source** — `cohesion/libraries/Amqp/Assimalign.Cohesion.Amqp.Connections/docs/DESIGN.md`.
-- **Source** — `cohesion/libraries/Amqp/Assimalign.Cohesion.Amqp.Connections/src`.
+- **Source** — `cohesion/libraries/Amqp/Assimalign.Cohesion.Amqp.Connections/tests/AmqpConnectionTests.cs`.
+- **Source** — `cohesion/libraries/Amqp/Assimalign.Cohesion.Amqp.Connections/tests/AmqpCarrierCapabilityTests.cs`.

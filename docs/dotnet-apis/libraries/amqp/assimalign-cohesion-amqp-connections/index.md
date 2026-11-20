@@ -1,6 +1,6 @@
 # Assimalign.Cohesion.Amqp.Connections
 
-Negotiates AMQP connections and encodes protocol frames and messages over Cohesion carriers.
+The AMQP 1.0 protocol engine: establishes connections over Cohesion carriers and runs their sessions, links and deliveries.
 
 ## Reference
 
@@ -14,74 +14,120 @@ Negotiates AMQP connections and encodes protocol frames and messages over Cohesi
 
 ## Scope
 
-The AMQP 1.0 transport layer for Cohesion: protocol-header negotiation, frame and message
-codecs for the AMQP and SASL protocol phases, and server/client transports that establish AMQP
-connections over carrier connections produced by the `Assimalign.Cohesion.Connections`
-contracts. Carriers are selected by capability (a reliable, ordered byte stream), never by
-protocol identity; both single-stream and multiplexed carriers are supported. Session, link,
-and messaging semantics are out of scope — they belong to the sibling
-`Assimalign.Cohesion.Amqp` library.
+The AMQP 1.0 engine for Cohesion. `AmqpConnectionListener` and `AmqpConnectionFactory` establish
+AMQP connections over carrier connections produced by the `Assimalign.Cohesion.Connections`
+contracts, and return each one open: protocol headers exchanged, SASL done when configured, and
+both `open` frames exchanged. The connections they return implement the root package's
+`IAmqpConnection`, and the engine behind them runs the connection, session and link state machines,
+checks every frame against the specification, and encodes the Part 1 type system and the Part 3
+message format.
+
+Carriers are chosen by capability, a reliable and ordered byte stream, never by protocol identity:
+TCP, Unix domain sockets, named pipes, QUIC, TLS over any of them, or the in-memory driver.
+Single-stream and multiplexed carriers are both supported.
 
 ## Dependencies
 
 | Reference | Build item |
 |---|---|
-| [`Assimalign.Cohesion.Core`](../../core/assimalign-cohesion-core/index.md) | `CohesionProjectReference` |
+| [`Assimalign.Cohesion.Amqp`](../assimalign-cohesion-amqp/index.md) | `CohesionProjectReference` |
 | [`Assimalign.Cohesion.Connections`](../../connections/assimalign-cohesion-connections/index.md) | `CohesionProjectReference` |
+| [`Assimalign.Cohesion.Core`](../../core/assimalign-cohesion-core/index.md) | `CohesionProjectReference` |
 
-## Key Types
+- `Assimalign.Cohesion.Amqp`: the model the engine implements
+- `Assimalign.Cohesion.Connections`: the carrier contracts, listener and factory bases, and the layered listener that runs establishment
 
-- `AmqpServerTransport` — accepts AMQP connections over an `IDuplexConnectionListener` or
-  `IMultiplexedConnectionListener`; owns and disposes the listener.
-- `AmqpClientTransport` — establishes AMQP connections to an `EndPoint` over an
-  `IDuplexConnectionFactory` or `IMultiplexedConnectionFactory`.
-- `IAmqpConnection` / `AmqpConnection` — an AMQP connection over a carrier; `Open()` /
-  `OpenAsync()` yield the (cached) connection context.
-- `IAmqpConnectionContext` / `AmqpConnectionContext` — the opened context; **is** an
-  `IDuplexPipe`, with `AsStream()`, `NegotiateAsync` / `SwitchProtocolAsync`, and
-  `SendAsync` / `ReceiveAsync` for frames.
-- `AmqpTransportOptions` — initial protocol header, auto-negotiation toggle, max frame size.
-- `AmqpProtocolHeader`, `AmqpProtocolId`, `AmqpFrame`, `AmqpFrameType` — the wire-level value
-  types.
-- `AmqpPerformative` family — `AmqpOpenPerformative`, `AmqpBeginPerformative`,
-  `AmqpAttachPerformative`, `AmqpFlowPerformative`, `AmqpTransferPerformative`,
-  `AmqpDispositionPerformative`, `AmqpDetachPerformative`, `AmqpEndPerformative`,
-  `AmqpClosePerformative`, and the SASL performatives.
-- `AmqpMessage`, `AmqpSource`, `AmqpTarget`, `AmqpError`, `AmqpSymbol`,
-  `AmqpDescribedValue` — the AMQP 1.0 data model.
-- `AmqpProtocolCodec`, `AmqpFrameCodec`, `AmqpMessageCodec` — static encode/decode facades.
-- `AmqpProtocolException` — the area exception root.
+## Key types
 
-## Source Layout
+| Type | Role |
+|---|---|
+| `AmqpConnectionListener` (`IAmqpConnectionListener`) | Accepts AMQP connections over an `IDuplexConnectionListener` or `IMultiplexedConnectionListener` and returns each one open. It owns the carrier listener; a connection whose establishment fails or times out is dropped without stopping the listener. |
+| `AmqpConnectionFactory` (`IAmqpConnectionFactory`) | Opens AMQP connections over an `IDuplexConnectionFactory` or `IMultiplexedConnectionFactory`, one new carrier per `ConnectAsync(EndPoint)` call. |
+| `AmqpConnectionListenerOptions`, `AmqpConnectionFactoryOptions` | Container id, maximum frame size, channel maximum, idle and handshake timeouts, session defaults, the `open`'s capabilities and properties; the listener's SASL mechanisms and handshake bound, the factory's host name and SASL mechanism. |
+| `AmqpMessageCodec` | Encodes and decodes `AmqpMessage` without a connection, and lets an intermediary read the bare message and replace the annotated sections around it unchanged. |
 
-- `src/` — transports, connection/context guided bases, performative and message DTOs, value
-  types, and the public codec facades.
-- `src/Abstractions` — `IAmqpConnection`, `IAmqpConnectionContext`.
-- `src/Exceptions` — `AmqpProtocolException`.
-- `src/Extensions` — carrier capability gating (`ThrowIfNotAmqpCarrier`).
-- `src/Internal` — the concrete carrier connections (single-stream, multiplexed), the
-  connection context, and the `AmqpEncoding` wire toolbox.
+Everything an application does with a connection (sessions, links, deliveries, settlement,
+transactions) is the root package's API; see its
+[overview](../assimalign-cohesion-amqp/index.md).
+
+## Usage
+
+A server accepts open connections and the sessions and links peers begin on them:
+
+```csharp
+using System.Net;
+
+using Assimalign.Cohesion.Amqp;
+using Assimalign.Cohesion.Amqp.Connections;
+using Assimalign.Cohesion.Connections.Tcp;
+
+AmqpConnectionListenerOptions options = new() { ContainerId = "orders-broker" };
+options.SaslMechanisms.Add(AmqpSaslPlainServerMechanism.Create(ValidateAsync));
+
+// The AMQP listener takes ownership of the TCP listener.
+await using AmqpConnectionListener listener = AmqpConnectionListener.Create(
+    TcpConnectionListener.Create(tcp => tcp.EndPoint = new IPEndPoint(IPAddress.Any, 5672)),
+    options);
+await listener.BindAsync(cancellationToken);
+
+await using IAmqpConnection connection = await listener.AcceptAsync(cancellationToken);
+IAmqpSession session = await connection.AcceptSessionAsync(cancellationToken);
+IAmqpLinkRequest request = await session.AcceptLinkAsync(cancellationToken);
+```
+
+A client connects and begins its own:
+
+```csharp
+AmqpConnectionFactory factory = AmqpConnectionFactory.Create(new TcpConnectionFactory(), new AmqpConnectionFactoryOptions
+{
+    SaslMechanism = AmqpSaslPlainClientMechanism.Create("user", password)
+});
+
+await using IAmqpConnection connection = await factory.ConnectAsync(new DnsEndPoint("broker", 5672), cancellationToken);
+IAmqpSession session = await connection.BeginSessionAsync(cancellationToken: cancellationToken);
+```
+
+For TLS, compose the TLS layer on the carrier, below AMQP:
+`AmqpConnectionListener.Create(tcpListener.UseTls(tlsServerOptions))` and
+`AmqpConnectionFactory.Create(tcpFactory.UseTls(tlsClientOptions))`, with `UseTls` from
+`Assimalign.Cohesion.Connections.Security`. The TLS facts are then on the AMQP connection's
+features, and SASL EXTERNAL authenticates the client certificate.
+
+Disposing the listener disposes the carrier listener and any connection still being established,
+but not the connections it already returned: their owners dispose them. Disposing a connection
+closes it with the `close` exchange; `Abort` ends it at once.
+
+## Source layout
+
+```
+src/
+├── Abstractions/      IAmqpConnectionListener, IAmqpConnectionFactory
+├── Internal/
+│   ├── Carriers/      the multiplexed carrier adapters
+│   ├── Encoding/      the Part 1 encoder and reader, the message format, terminus rules
+│   ├── Engine/        the connection, session and link state machines, deliveries, the frame writer
+│   ├── Establishment/ the handshake (headers, SASL, open), the listener's layer, settings
+│   ├── Extensions/    carrier capability gating, exception helpers
+│   ├── Frames/        frame layout and size checks
+│   └── Performatives/ the Part 2 and Part 5 performatives
+├── Properties/        AssemblyInfo.cs and ErrorMessages.resx
+└── *.cs               AmqpConnectionListener, AmqpConnectionFactory, their options, AmqpMessageCodec
+```
+
+The design record, including the compliance maps, the interoperability tests against AMQPNetLite
+(`tests/Interop/`) and the breaking changes from 10.0.0-preview.1, is the [design](design.md) page.
 
 ## Principal public types
 
-| Type | Source file |
+| Type | Source |
 |---|---|
-| `AmqpAttachPerformative` | `src/AmqpAttachPerformative.cs` |
-| `AmqpBeginPerformative` | `src/AmqpBeginPerformative.cs` |
-| `AmqpClientTransport` | `src/AmqpClientTransport.cs` |
-| `AmqpClosePerformative` | `src/AmqpClosePerformative.cs` |
-| `AmqpConnection` | `src/AmqpConnection.cs` |
-| `AmqpConnectionContext` | `src/AmqpConnectionContext.cs` |
-| `AmqpDescribedValue` | `src/AmqpDescribedValue.cs` |
-| `AmqpDetachPerformative` | `src/AmqpDetachPerformative.cs` |
-| `AmqpDispositionPerformative` | `src/AmqpDispositionPerformative.cs` |
-| `AmqpEndPerformative` | `src/AmqpEndPerformative.cs` |
-| `AmqpError` | `src/AmqpError.cs` |
-| `AmqpFlowPerformative` | `src/AmqpFlowPerformative.cs` |
-| `AmqpFrame` | `src/AmqpFrame.cs` |
-| `AmqpFrameCodec` | `src/AmqpFrameCodec.cs` |
-| `AmqpFrameType` | `src/AmqpFrameType.cs` |
-| `AmqpMessage` | `src/AmqpMessage.cs` |
+| `AmqpConnectionFactory` | `src/AmqpConnectionFactory.cs` |
+| `AmqpConnectionFactoryOptions` | `src/AmqpConnectionFactoryOptions.cs` |
+| `AmqpConnectionListener` | `src/AmqpConnectionListener.cs` |
+| `AmqpConnectionListenerOptions` | `src/AmqpConnectionListenerOptions.cs` |
+| `AmqpMessageCodec` | `src/AmqpMessageCodec.cs` |
+| `IAmqpConnectionFactory` | `src/Abstractions/IAmqpConnectionFactory.cs` |
+| `IAmqpConnectionListener` | `src/Abstractions/IAmqpConnectionListener.cs` |
 
 ## Sources
 
@@ -89,40 +135,10 @@ and messaging semantics are out of scope — they belong to the sibling
 
 - **Source** — `cohesion/libraries/Directory.Build.props`.
 
+- **Source** — `cohesion/libraries/Amqp/Assimalign.Cohesion.Amqp.Connections/README.md`.
+
 - **Source** — `cohesion/libraries/Amqp/Assimalign.Cohesion.Amqp.Connections/docs/OVERVIEW.md`.
 
 - **Source** — `cohesion/libraries/Amqp/Assimalign.Cohesion.Amqp.Connections/docs/DESIGN.md`.
 
 - **Source** — `cohesion/libraries/Amqp/Assimalign.Cohesion.Amqp.Connections/src`.
-
-- **Source** — `cohesion/libraries/Amqp/Assimalign.Cohesion.Amqp.Connections/src/AmqpAttachPerformative.cs`.
-
-- **Source** — `cohesion/libraries/Amqp/Assimalign.Cohesion.Amqp.Connections/src/AmqpBeginPerformative.cs`.
-
-- **Source** — `cohesion/libraries/Amqp/Assimalign.Cohesion.Amqp.Connections/src/AmqpClientTransport.cs`.
-
-- **Source** — `cohesion/libraries/Amqp/Assimalign.Cohesion.Amqp.Connections/src/AmqpClosePerformative.cs`.
-
-- **Source** — `cohesion/libraries/Amqp/Assimalign.Cohesion.Amqp.Connections/src/AmqpConnection.cs`.
-
-- **Source** — `cohesion/libraries/Amqp/Assimalign.Cohesion.Amqp.Connections/src/AmqpConnectionContext.cs`.
-
-- **Source** — `cohesion/libraries/Amqp/Assimalign.Cohesion.Amqp.Connections/src/AmqpDescribedValue.cs`.
-
-- **Source** — `cohesion/libraries/Amqp/Assimalign.Cohesion.Amqp.Connections/src/AmqpDetachPerformative.cs`.
-
-- **Source** — `cohesion/libraries/Amqp/Assimalign.Cohesion.Amqp.Connections/src/AmqpDispositionPerformative.cs`.
-
-- **Source** — `cohesion/libraries/Amqp/Assimalign.Cohesion.Amqp.Connections/src/AmqpEndPerformative.cs`.
-
-- **Source** — `cohesion/libraries/Amqp/Assimalign.Cohesion.Amqp.Connections/src/AmqpError.cs`.
-
-- **Source** — `cohesion/libraries/Amqp/Assimalign.Cohesion.Amqp.Connections/src/AmqpFlowPerformative.cs`.
-
-- **Source** — `cohesion/libraries/Amqp/Assimalign.Cohesion.Amqp.Connections/src/AmqpFrame.cs`.
-
-- **Source** — `cohesion/libraries/Amqp/Assimalign.Cohesion.Amqp.Connections/src/AmqpFrameCodec.cs`.
-
-- **Source** — `cohesion/libraries/Amqp/Assimalign.Cohesion.Amqp.Connections/src/AmqpFrameType.cs`.
-
-- **Source** — `cohesion/libraries/Amqp/Assimalign.Cohesion.Amqp.Connections/src/AmqpMessage.cs`.
