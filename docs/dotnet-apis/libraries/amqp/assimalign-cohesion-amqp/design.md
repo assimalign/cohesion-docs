@@ -27,3 +27,5 @@ properties still apply.
 - **Source** — `cohesion/libraries/Directory.Build.props`.
 
 - **Source** — `cohesion/libraries/Amqp/Assimalign.Cohesion.Amqp/src`.
+
+- **Source** — `cohesion/libraries/Amqp/README.md`.

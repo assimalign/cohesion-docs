@@ -9,7 +9,7 @@ Advanced Message Queuing Protocol (AMQP) wire handling and connection bindings.
 | Package | Responsibility | Reference |
 |---|---|---|
 | `Assimalign.Cohesion.Amqp` | Reserves the Advanced Message Queuing Protocol (AMQP) session and messaging layer. | [Overview](assimalign-cohesion-amqp/index.md) |
-| `Assimalign.Cohesion.Amqp.Connections` | Negotiates AMQP connections and encodes protocol frames and messages over Cohesion carriers. | [Overview](assimalign-cohesion-amqp-connections/index.md) |
+| `Assimalign.Cohesion.Amqp.Connections` | Establishes AMQP 1.0 connections over Cohesion carriers and encodes their frames and messages. | [Overview](assimalign-cohesion-amqp-connections/index.md) |
 
 ## Dependencies and delivery
 
@@ -24,6 +24,8 @@ release or completeness guarantee.
 ## Sources
 
 - **Source** — `cohesion/libraries/README.md`.
+
+- **Source** — `cohesion/libraries/Amqp/README.md`.
 
 - **Source** — `cohesion/README.md`.
 
