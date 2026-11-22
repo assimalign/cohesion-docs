@@ -21,15 +21,16 @@ counts matching expanded rows.
 An omitted alias defaults to the last named path step; an expression without one needs an
 explicit alias. Binding names compare ordinally, with case preserved. Variables shadow document
 fields. The explicit FROM alias (or unaliased collection name) and all UNNEST variables must be
-unique. An unaliased collection name is reserved for duplicate checks and the synthetic star key;
-it does not become an implicit path variable.
+unique. The unaliased collection name is an implicit path binding as well as the synthetic star key.
 
-[JOIN and NEST](join.md) can interleave with UNNEST. When a statement contains either, every
-SELECT source requires an explicit alias, including UNNEST; inferred path aliases use CD00016.
+[JOIN and NEST](join.md) can interleave with UNNEST and accept inferred names. An inferred UNNEST
+name does not make an inner bare FROM correlate: `UNNEST tags` leaves `FROM tags` naming the
+collection; `UNNEST tags AS tags` permits that inner FROM to iterate the outer value. Explicit
+paths can capture either kind of name.
 
 With UNNEST, SELECT * constructs an object keyed by the source alias (or collection name) and
 each UNNEST variable. MISSING bindings are omitted and explicit NULL is retained. An unaliased
-system source uses its full COHESION_SCHEMA name as the key. Plain star without UNNEST, JOIN or NEST retains
+system source uses its last name segment as written as the key. Plain star without UNNEST, JOIN or NEST retains
 the stored value and exact bytes. Named projections retain
 [SupportsMissing/IsMissing](../../../../dotnet-apis/resources/database/assimalign-cohesion-database-execution/database-row.md).
 
@@ -46,7 +47,7 @@ adds Unnest/LeftUnnest nodes with each variable name.
 
 | Code | Meaning and trigger |
 | --- | --- |
-| CD00010 | Repeated FROM/UNNEST binding name, including the reserved unaliased collection name; located at the repeated/inferred path name |
+| CD00010 | Repeated FROM/UNNEST binding name, including the implicit collection name; located at the repeated/inferred path name |
 | CD01023 | Direct SELECT AST repeats a binding name or supplies an empty UNNEST name |
 | CD00002 | Expression has no inferable path name and no alias |
 | CD05001 | META(variable) on an UNNEST variable, or aggregate in the array expression |

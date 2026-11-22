@@ -257,17 +257,26 @@ primary data file before sidecars. Preserve ambiguous file sets and follow the c
 
 These codes have no assigned SQLSTATE. Recovery tolerates uncommitted torn tails; that does not
 permit replacing missing journals. Transient open/inspection I/O failures can be retried after
-resolution and do not advise restore or drop. SQL remains at format 34.
+resolution and do not advise restore or drop. SQL remains at format 35.
 
 Key-Value Pair refuses an entirely missing catalog before opening either storage. File-backed
 data of at most one page also receives CV06106 and a drop/recreate remedy; longer data with no
 catalog requires restoring the complete backup. These refusals leave all surviving files unchanged.
 
-The shared storage format is **4**, independent of SQL's data/catalog format 34 and Graph's record
+The shared storage format is **4**, independent of SQL's data/catalog format 35 and Graph's record
 format 5. Storage formats 3 and older have no upgrade reader. A Free page must be entirely zero;
 reclaimed pages have a separate type and checksum. Every nonzero pooled page requires checksum
 verification, with a raw CRC of zero escaped as `0xFFFFFFFF`. Page 0 has its own identity and
 header-slot checksums. See [page integrity](../dotnet-apis/resources/database/assimalign-cohesion-database-storage/design.md#storage-format-4).
+
+A format refusal leaves every file byte-for-byte unchanged, whether the database was cleanly
+closed or crashed on an older format. This includes data, journals, backups, catalog sets and
+sidecars. When replay is needed to inspect a gate, the engine uses a recovered read-only view,
+disposes it, then opens the accepted database for normal physical and logical recovery. Probing
+performs no checkpoint, truncation or file creation. Accepted-database recovery is unchanged.
+Recovered probes emit no Storage lifecycle events, page-read counts or storage-gauge changes;
+a corrupt page they read still emits PageChecksumFailed (Error). See
+[read-only format preflight](../dotnet-apis/resources/database/assimalign-cohesion-database-storage/design.md#read-only-recovered-format-preflight).
 
 Detected storage damage raises
 [DatabaseCorruptionException](../dotnet-apis/resources/database/assimalign-cohesion-database/database-corruption-exception.md)
@@ -286,11 +295,12 @@ still require full verification. Newly initialized anchors have journal repair i
 ### Header read fallback
 
 Storage reads page 0 in independent 4 KiB halves. After a read error it accepts the other valid
-slot only when the retained journal proves coverage, before replay writes. Every accepted fallback
+slot only when the retained journal proves coverage, before replay writes. Every accepted writable-open fallback
 emits HeaderReadFallback (Warning 18); missing coverage refuses open as I/O. A readable damaged
 survivor with no valid slot is CK06003 corruption; two wholly unreadable halves retain I/O.
 See [storage recovery](../dotnet-apis/resources/database/assimalign-cohesion-database-storage/design.md#page-0-and-alternating-headers).
-The journal-size checkpoint setting remains a soft trigger; the hard bound is deferred.
+The journal-size checkpoint setting is a soft trigger; holder-release progress is described under
+[checkpoint triggering](#checkpoint-triggering).
 
 ## Engine failure diagnostics
 
@@ -403,10 +413,13 @@ completed uploads then await host commit and downloads pin one metadata/content 
 
 ## Checkpoint triggering
 
-Checkpoint size and interval are soft triggers. After collecting a deferred lane, the shared worker
-rechecks due work in the same pass and attempts at most one new checkpoint. Failures keep their
-retry delay; busy storage waits for the next pass. This closes a consumed-wake gap without bounding
-journal size; #1283 remains open. See [storage design](../dotnet-apis/resources/database/assimalign-cohesion-database-storage/design.md#checkpoint-triggering).
+Catalog writes and table reclamation share the checkpoint interlock with statement apply, undo
+and pruning. A holder releasing admission checks size-due work and runs the checkpoint before
+another writer enters, bounding journal growth under sustained writes even if the worker has not
+run. Lanes recheck due state after dispatch. Refusals name the gate holder and physical blockers
+through checkpoint events. One atomic bracket can still overshoot the size trigger; there is no
+fixed byte cap. See
+[storage design](../dotnet-apis/resources/database/assimalign-cohesion-database-storage/design.md#checkpoint-triggering).
 
 ## Read-only transactions and durability
 
@@ -481,7 +494,7 @@ describes warning counters, final cleanup joining and the remaining TLS delivery
 
 ## MVP boundaries
 
-SQL [schema DDL](sql/language/statements/create-schema.md) persists namespaces in current storage format 34;
+SQL [schema DDL](sql/language/statements/create-schema.md) persists namespaces in current storage format 35;
 dbo remains protected and code-first provisioning stays there. [Set operations](sql/language/clauses/set-operations.md)
 execute in every query position. Document adds [34 SQL++ scalars](document/language/functions/scalar-functions.md),
 and Graph supports [streaming stage composition](graph/language/clauses/next.md), including Cypher WITH/UNWIND.

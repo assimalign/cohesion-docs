@@ -398,7 +398,7 @@ charge statement work/memory (CG05004/CG05020); invalid limits retain CG08021. T
 use engine ceilings; text requests may lower limits. Catalog v2 and entity/tree format 5 stay unchanged.
 
 Catalog v2 adds kind-5 constraint records and refuses every other catalog record version with
-CG06019 before logical recovery scrub. Physical journal redo can precede that refusal. Recreate
+CG06019 before recovery writes. Clean and crashed refusals preserve every file byte for byte. Recreate
 affected databases; there is no upgrade reader. Entity/tree format remains 5.
 
 | Code | Named-schema condition (no assigned SQLSTATE) |
@@ -1250,6 +1250,16 @@ teardown drain admitted undo. Uncommitted roots are scrubbed after crash; commit
 the retained prefix and subsequent committed writes. No persistent marker or new diagnostic code is introduced.
 Evidence: the model project's `tests/SavepointMatrixTests.cs` and the Transactions design's
 Cross-model conformance (#1726, XT-5) section.
+
+## Refused opens and recovery
+
+Format gates finish before any recovery writes. When journal replay is needed, they inspect
+Storage's recovered read-only view; a refusal leaves every data, journal, backup, catalog and
+sidecar byte unchanged, including after a crash on an older format. Accepted databases retain
+the existing physical and logical recovery. Probes emit no Storage lifecycle telemetry or page-read
+counts; a corrupt page they read still emits PageChecksumFailed (Error). See
+[shared format preflight](../assimalign-cohesion-database-storage/design.md#read-only-recovered-format-preflight).
+Evidence: this model project's `tests/RefusedOpenTests.cs` and `tests/FormatProbeFixTests.cs`.
 
 ## Sources
 

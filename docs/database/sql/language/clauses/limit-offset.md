@@ -84,7 +84,7 @@ For early-stop examples and their CS02001 (22012) boundary, see
 
 The renderer retains the limit family, normalizing FETCH to OFFSET before FETCH FIRST and TOP
 to `TOP (count)`. PERCENT and TIES are ordinary identifiers outside paging suffixes and render
-quoted in persisted SQL (format 19); the current storage format is 34.
+quoted in persisted SQL (format 19); the current storage format is 35.
 
 Format 19 quotes PERCENT and TIES in persisted SQL. Format 20 adds persisted SET NULL,
 SET DEFAULT and NO ACTION delete actions. Format 21 introduced namespace records of kind 15. Format 22 quotes STRING_AGG and LISTAGG
@@ -94,8 +94,10 @@ Format 26 fenced temporal DEFAULT and frozen missing-value text.
 Format 29 added owned-sequence metadata. Format 30 added ON UPDATE action metadata in table extension 8.
 Format 31 added partial-index predicates in index extension 2. Format 32 added per-column
 direction and NULL placement in mandatory index extension 3 and retained TYPE default assignment coercion.
-Format 33 fenced SQL/JSON names and ordinary-call quoting. Current format 34 adds joint typed
-migration intent semantics; format 33 and earlier are refused before data recovery.
+Format 33 fenced SQL/JSON names and ordinary-call quoting. Format 34 introduced joint typed
+migration intent semantics. Current format 35 fences separate physical owners for kept-table
+index trees and durable per-table migration classification; format 34 and earlier are refused
+before recovery writes.
 Every earlier format is refused at open; there is no
 upgrade path. Compiled schema format remains version 11.
 

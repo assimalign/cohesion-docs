@@ -98,8 +98,9 @@ The payload begins at byte 16:
 | Following name, kind 5 | string, byte | Property key and DatabaseType (255 denotes existence) |
 
 Only catalog v2 is admitted. Earlier/future record versions refuse with CG06019 before logical
-recovery scrub, with no legacy reader or upgrade path; recreate the database. Physical journal
-redo runs before this gate. Empty catalogs have no versioned records to refuse. The graph
+recovery scrub, with no legacy reader or upgrade path; recreate the database. The gate uses a
+recovered read-only preflight when replay is needed, before any writes. Clean and crashed refusals
+preserve all files byte for byte. Empty catalogs have no versioned records to refuse. The graph
 entity/tree format remains 5.
 
 All fixed-width numeric values are little-endian. Strings use a signed 32-bit little-endian UTF-8

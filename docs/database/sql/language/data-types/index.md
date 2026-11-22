@@ -73,11 +73,11 @@ See [Constraints](../constraints.md) and [CAST](../expressions/cast.md).
 See [CAST](../expressions/cast.md) for conversions and [DEFAULT](../clauses/default.md) for typed
 literal defaults. Day-time INTERVAL supports [temporal arithmetic](../expressions/operators.md#temporal-arithmetic)
 and [EXTRACT/DATE_TRUNC](../functions/builtin-functions.md#clock-temporal-and-uuid-functions).
-SQL row-storage is format 34; compiled schema artifacts are version 11. Format 17 introduced the
+SQL row-storage is format 35; compiled schema artifacts are version 11. Format 17 introduced the
 insert-default/frozen-missing-value split (table extension 6); format 18 separately changes canonical
 quoting of newly executable function names. These
 unreleased formats have no compatibility reader for older formats.
-See the [format-34/schema-v11 export and rebuild procedure](../../index.md#sql-format-34-and-schema-v11).
+See the [format-35/schema-v11 export and rebuild procedure](../../index.md#sql-format-35-and-schema-v11).
 
 ## JSON and JSONB
 
@@ -164,8 +164,10 @@ Format 26 fenced temporal DEFAULT and frozen missing-value text.
 Format 29 added owned-sequence metadata. Format 30 added ON UPDATE action metadata in table extension 8.
 Format 31 added partial-index predicates in index extension 2. Format 32 added per-column
 direction and NULL placement in mandatory index extension 3 and retained TYPE default assignment coercion.
-Format 33 fenced SQL/JSON names and ordinary-call quoting. Current format 34 adds joint typed
-migration intent semantics; format 33 and earlier are refused before data recovery.
+Format 33 fenced SQL/JSON names and ordinary-call quoting. Format 34 introduced joint typed
+migration intent semantics. Current format 35 fences separate physical owners for kept-table
+index trees and durable per-table migration classification; format 34 and earlier are refused
+before recovery writes.
 Every earlier format is refused at open; there is no
 upgrade path. Compiled schema format remains version 11.
 

@@ -8,8 +8,9 @@ Namespace: `Assimalign.Cohesion.Database.Documents.Language`.
 public sealed class OqlUnnestExpression : OqlSourceBindingExpression
 {
     public OqlUnnestExpression(OqlExpression collection, string variable,
-        bool isLeft = false, Location? location = null);
+        bool isLeft = false, Location? location = null, bool isAliasImplicit = false);
     public OqlExpression Collection { get; }
+    public string? Alias { get; }
     // Expression, Variable and IsLeft are inherited.
 }
 ```
@@ -18,7 +19,10 @@ public sealed class OqlUnnestExpression : OqlSourceBindingExpression
 
 Collection aliases the inherited Expression and evaluates in the preceding binding scope.
 [OqlSelectExpression.Bindings](oql-select-expression.md) interleaves array and key bindings.
-Joined statements require explicit aliases for every SELECT source, including UNNEST (CD00016 in text). IsLeft preserves empty/non-array input
+Variable is the resolved name. Alias is null when isAliasImplicit is true, otherwise Variable.
+The parser marks names inferred from paths as implicit. Inferred names are valid in joined
+statements, but only an explicit alias makes an inner bare FROM name correlate.
+IsLeft preserves empty/non-array input
 with a MISSING variable; false emits only array elements. Actual null elements remain NULL.
 The constructor retains arguments without validation or evaluation. The engine rejects duplicate
 or empty UNNEST names with DatabaseException/CD01023; parsed duplicates use CD00010.
@@ -31,6 +35,7 @@ var statement = (OqlQueryStatement)new OqlQueryParser().Parse(
     "SELECT t FROM items d LEFT UNNEST d.tags t");
 var binding = ((OqlSelectExpression)statement.OqlExpression).Unnest[0];
 Console.WriteLine(binding.Variable); // t
+Console.WriteLine(binding.Alias);    // t
 Console.WriteLine(binding.IsLeft);   // True
 ```
 

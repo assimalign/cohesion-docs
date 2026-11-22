@@ -12,7 +12,7 @@ FROM { collection_name [ [ AS ] iteration_variable ]
 
 <collection_name> ::= { identifier | COHESION_SCHEMA . identifier }
 <source_binding> ::= { [ INNER ] UNNEST | LEFT [ OUTER ] UNNEST } expression [ [ AS ] variable ]
-                  | [ INNER | LEFT [ OUTER ] ] { JOIN | NEST } collection_name [ AS ] alias
+                  | [ INNER | LEFT [ OUTER ] ] { JOIN | NEST } collection_name [ [ AS ] alias ]
                     ON META(alias).id = key_expression
 ```
 
@@ -23,7 +23,7 @@ FROM { collection_name [ [ AS ] iteration_variable ]
 | One collection | Supported | Stored or system source |
 | Derived SELECT | Supported | Required alias; AS optional |
 | Expression | Supported | AS required before an explicit alias |
-| `AS iteration_variable` or `iteration_variable` | Supported | Optional path qualifier |
+| `AS iteration_variable` or `iteration_variable` | Supported | Explicit binding name; omission uses the collection name |
 | `COHESION_SCHEMA` source | Supported | Reserved current-database metadata collection |
 | [JOIN and NEST](join.md) | Supported | Stored right-hand collection and META(alias).id key equality |
 
@@ -56,10 +56,19 @@ See [composite/UNIQUE indexes](../statements/create-index.md).
 case-insensitive, including fully quoted names, while JSON field names remain case-sensitive.
 
 [UNNEST and LEFT UNNEST](unnest.md) can follow any source. They expand arrays
-before WHERE; a missing alias defaults to the final named path step. Bindings must be unique,
-including the reserved unaliased collection name (CD00010 in text, CD01023 in a direct AST).
-Inside a correlated subquery, the collection name reaches an unaliased outer row. Own-row
-paths retain the [known scope inconsistency](../expressions/subqueries.md#correlation-and-scope).
+before WHERE; a missing alias defaults to the final named path step. Explicit and implicit
+bindings must be unique (CD00010 in text, CD01023 in a direct AST).
+
+Without an explicit alias, the collection name is the source binding in every context. In
+`FROM items`, `items.g` reads field `g`, and `items` is the whole value. A field named `items`
+is reached as `items.items.g` or as `d.items.g` with `FROM items AS d`. System sources use their
+last name segment as written: `cohesion_schema.indexes` binds `indexes`, including synthetic
+star and GROUP AS wrapper keys. Quoted stored names stay opaque, including dots.
+
+An inner bare `FROM items` correlates only to an explicit outer alias named `items`; under an
+implicit binding it still reads the collection. Inferred UNNEST and expression-source names
+follow the same rule. Explicit paths can capture either kind of name. See
+[correlation and scope](../expressions/subqueries.md#correlation-and-scope).
 
 ## Derived and expression rows
 
@@ -106,7 +115,7 @@ EXPLAIN describes DerivedSource/ExpressionSource and nested plans without execut
 
 Correlated sources and derived/expression INSERT/UPSERT SELECT sources execute.
 [Key JOIN and NEST](join.md) can follow these sources and interleave with UNNEST. A statement
-containing JOIN/NEST requires explicit source aliases in every SELECT scope (CD00016 in text).
+containing JOIN/NEST accepts implicit collection and inferred UNNEST aliases in every SELECT scope.
 Comma joins and general predicates remain CK00001. See [expression subqueries](../expressions/subqueries.md)
 for captures, shared work limits and statement-start mutation reads.
 
@@ -117,7 +126,7 @@ for captures, shared work limits and statement-start mutation reads.
 | CD00015 | Derived SELECT has no alias | — |
 | CD01033 | Expression source has neither an explicit alias nor an implicit field name | — |
 | CD01034 | Free variable in a source expression with no input-row scope | — |
-| CD00016 | Unaliased SELECT source in a statement containing JOIN/NEST | — |
+| CD00010 / CD01023 | Duplicate explicit or implicit binding in text / direct AST | — |
 | CK00001 | General/comma joins or unsupported key predicates | — |
 | CD05015 | Serialized projection exceeds 256 levels, including the star wrapper | — |
 | CD05018 | Shared statement memory budget exhausted | — |
@@ -151,6 +160,8 @@ Returns bare rows `3`, `2`, then `{"total":6}`, respectively.
 [Clauses](index.md), [SELECT](../statements/select.md), and [WHERE](where.md).
 
 ## Sources
+
+- **Implicit aliases and refusals** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Documents/tests/DocumentImplicitAliasTests.cs`, `DocumentImplicitAliasBindingTests.cs` and `DocumentImplicitAliasFixTests.cs` in the same directory.
 
 - **Scope and grammar** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Documents.Language/docs/DESIGN.md`.
 - **System collections** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Documents/docs/DESIGN.md`.

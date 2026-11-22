@@ -81,7 +81,10 @@ and index pages. It projects conversion growth, rather than charging declared VA
 For example, INT to TEXT/VARCHAR allows 11 rendered ASCII characters plus four encoding bytes per
 non-NULL value; NULL remains one byte. CHAR adds possible padding. Application casts without a
 known growth bound start at measured size, then remain subject to the copy watchdog. Unchanged
-tables do not increase the estimated need. Resumed intents repeat worker admission.
+tables do not increase the estimated need. Kept tables charge only new index trees, with no heap
+copy or retained-tree charge. Their new trees build against original row locations and MVCC
+stamps; failed preparation reclaims only unpublished tree owners. See
+[kept-table classification](design.md#joint-tables-that-keep-storage). Resumed intents repeat worker admission.
 
 Admission requires `N = R + J + ceil((R + J) / 4) + V + E`: replacement allocation R after reusable
 free pages, bounded copy WAL J, a 25% estimate margin, metadata-derived publication allowance V
@@ -154,7 +157,7 @@ Other corruption/recovery fences keep their existing policies. See
 
 ## Identity and sequence reservations
 
-SQL format 34 persists standalone and identity-owned definitions as catalog kind 18 and
+SQL format 35 persists standalone and identity-owned definitions as catalog kind 18 and
 reservations as kind 19. Kind 18 includes owning table id, column name and identity ownership;
 kind 16 is retired and never decoded. Compiled schemas use v11. Format 33 and earlier SQL
 formats are refused with no upgrade reader. See [catalog sequence objects](catalog-design.md#standalone-sequences).

@@ -82,7 +82,7 @@ stamps. The disk layout and storage format remain unchanged.
 
 `StorageFileHeader.CurrentFormatVersion` is 4. Older and newer storage formats are refused with
 `StorageFormatException` / CK06001 before reading the journal; there is no upgrade or legacy
-reader. This kernel version is separate from SQL data/catalog format 34 and Graph record format 5.
+reader. This kernel version is separate from SQL data/catalog format 35 and Graph record format 5.
 
 The changed public members are:
 
@@ -439,6 +439,38 @@ record per page in one streaming pass. Recovery consumes that cached analysis, t
 ordered replay through a bounded page cache. The immediate replay can reuse the verified prefix;
 ordinary subsequent reads do not. See [streaming recovery](#empty-pages-and-streaming-journal-recovery).
 
+### Read-only recovered format preflight
+
+Opening a model storage over a data stream whose CanWrite is false produces a recovered read-only
+view. SQL, Documents, Graph, Key-Value Pair and Blob use this view when format gates need journal
+replay. Gates finish before any recovery writes, including for an older format after a crash.
+Refusal, cancellation and probe disposal leave every original data, journal, backup, catalog and
+sidecar byte unchanged. A mutation through a probe throws NotSupportedException.
+
+The shared journal analysis and replay rules reconstruct only requested pages into bounded scratch
+and buffer-pool storage. The probe retains frame locations rather than page-image payloads; it
+creates no temporary files or sidecars. A torn current-format page covered by the journal is
+reconstructed before the gate reads it. SQL and Key-Value Pair gate catalog and data sets together,
+with catalog refusals taking precedence. When journal analysis proves there are no applicable page
+records, engines may skip the full probe: writable physical recovery then has no writes, and gates
+still precede logical scrub and checkpoint. Acceptance discards probes and performs the existing
+physical replay, data flush, logical scrub and recovery checkpoint on the original files.
+
+| Model | Model-specific gates |
+| --- | --- |
+| SQL | Catalog/record-space and recorded schema formats; every registered data index root |
+| Documents | Metadata and physical-registration versions; every registered index root |
+| Graph | Entity and registration versions, index roots and every catalog record version |
+| Key-Value Pair | Catalog record-space format and registered data index roots |
+| Blob | Owner-zero catalog record versions |
+
+Shared file-header/checkpoint-chain and journal-frame gates also apply to each storage set.
+Recovered probes emit no HeaderReadFallback, RecoveryStart, RecoveryStop, JournalTailLost or
+open/close lifecycle signals, page-read counts or current-storages gauge transitions. Only the
+real writable open reports recovery. A corrupt page read by a probe still emits PageChecksumFailed
+(Error); refusal prevents a second writable-open count. Format and corruption diagnostics retain
+their existing identities, with no new format version from this preflight.
+
 ### Checkpoints
 
 Recovery protects both complete, verified checkpoint anchor chains from allocation and replay.
@@ -475,7 +507,7 @@ monitor released. Eviction never takes the flush gate, and frame-lease waits rel
 Never wait for the medium while holding the append lock. Medium owners briefly
 take the append lock to detach/publish prefixes and latch failures before yielding the medium.
 A checkpoint attempted while transactions are active still throws
-`StorageTransactionException` — background checkpointers treat that as "busy, retry next pass".
+`StorageTransactionException`; interlocked engine holders retain pending work for a later safe release.
 
 Read-only logical transactions can begin, pin cached pages and commit or roll back while a
 checkpoint flushes. Sequence reservations use an atomic counter rather than the physical
@@ -500,19 +532,26 @@ overlap is observed. Measured times have no pass/fail threshold.
 
 ### Checkpoint triggering
 
-Journal size and interval are soft triggers, not a hard journal bound. When the shared checkpoint
-worker collects a lane that ended deferred, it rechecks backoff and due state in that same pass
-and attempts at most one new checkpoint. It no longer leaves a consumed size wake until the next
-poll. Failed outcomes keep their retry delay; busy storage waits for the next pass. Cancellation
-and shutdown retain lane ownership, and unfinished work is reported once per database per pass.
-This resolves the deferred-lane wake gap only; #1283 remains open and journal growth is not bounded.
+Physical write scopes and sharp checkpoints share one per-storage
+[TransactionCheckpointInterlock](../assimalign-cohesion-database-transactions/transaction-checkpoint-interlock.md).
+Statement apply, undo, pruning, SQL/Key-Value catalog writes and SQL table reclamation use the
+matching interlock. Every holder release checks the size-only due predicate, even before a worker
+gets its first attempt, and services a due or deferred checkpoint before the next admission.
+This bounds journal growth under sustained writes by ensuring checkpoints get a turn at bracket
+boundaries. A dispatched lane rechecks due state, so a foreground checkpoint does not cause a
+redundant sharp checkpoint.
+
+Physical brackets outside admission still make truncation busy. The pending request remains;
+foreground retries wait for a fresh worker request or until no active physical bracket remains.
+Non-busy deferred failures retain their identity for the worker to collect and report. Cancellation,
+shutdown ownership and existing storage offline policies are unchanged. The trigger is not a fixed
+journal byte cap.
 
 See the root and storage DESIGN sources and
 `cohesion/resources/Database/Assimalign.Cohesion.Database/shared/Engine/DatabaseCheckpointWorker.cs`.
 
 The journal-size checkpoint setting remains a soft trigger: one atomic statement can overshoot it
-before a checkpoint runs. The hard journal-size bound is deferred; wave 7 does not impose bracket
-caps or split statements. See [checkpoint triggering](#checkpoint-triggering).
+before a checkpoint runs. No fixed journal-size cap is imposed, and statements are not split. See [checkpoint triggering](#checkpoint-triggering).
 
 ### Appends during journal I/O
 
@@ -632,13 +671,20 @@ unreadable halves without checksum evidence, remain I/O failures.
 
 ## Storage EventSource
 
-Provider `Assimalign.Cohesion.Database.Storage` emits the following recovery warning:
+Provider `Assimalign.Cohesion.Database.Storage` reports recovery and checkpoint attribution:
 
 | Id | Event | Level | Payload | Trigger |
 | --- | --- | --- | --- | --- |
-| 18 | HeaderReadFallback | Warning | database, slot, generation, lsnFloor, exceptionType, exceptionMessage | A half-page read failed and journal coverage proves the selected fallback safe, before replay |
+| 18 | HeaderReadFallback | Warning | database, slot, generation, lsnFloor, exceptionType, exceptionMessage | Writable open accepts a covered header fallback before replay |
+| 19 | CheckpointBusy | Verbose | database, bracketClass, owner, transactionSequence, refusal | Each physical bracket blocking a refused checkpoint |
+| 20 | CheckpointJournalPeak | Verbose | database, peakLength | Exact journal high-water mark since open, before an admitted checkpoint |
 
-It reports every accepted fallback without throttling, including consecutive opens. Missing coverage
+Events 19 and 20 use the Checkpoints keyword (0x1). A refusal identifier groups event 19's
+blockers for one attempt. Peak length is measured under the journal append lock and survives
+truncation; it is a since-open high-water mark, not a sum of appended bytes. Physical brackets
+carry the class and owner supplied to [Storage.BeginTransaction](storage.md#begintransaction).
+
+Writable opens report every accepted fallback without throttling, including consecutive opens. Missing coverage
 emits no success warning and refuses open before replay writes. The existing PageChecksumFailed
 (Error 16) still reports pooled-page checksum failures; page 0 is outside that pool.
 
@@ -714,6 +760,10 @@ for the fitting target. No eager full-page scan, persisted map or page/file form
 StorageCompactionTests, StorageRecordFreeBytesTests and model decode-location tests exercise compaction, rollback/recovery, stale selections and confirmed malformed records.
 
 ## Sources
+
+- **Checkpoint admission and attribution** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Transactions/src/TransactionCheckpointInterlock.cs`, `tests/TransactionCoordinatorRecoveryTests.cs` and `cohesion/resources/Database/Assimalign.Cohesion.Database.Storage/src/Internal/EventSource/StorageEventSource.cs`.
+
+- **Recovered format gates** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Storage/src/Internal/Recovery/StorageRecoveredStream.cs`, `tests/StorageRecoveredViewTests.cs` and the model projects' `tests/RefusedOpenTests.cs`.
 
 - **Review regressions** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Storage/tests/StorageReviewTests.cs` and `StorageBufferPoolIoTests.Review.cs` in the same directory.
 - **Mutable handle ownership** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Storage/src/StoragePageHandle.cs`.

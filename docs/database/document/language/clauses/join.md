@@ -7,8 +7,8 @@ Looks up one stored document by key for each preceding input row.
 ## Syntax
 
 ```syntaxsql
-FROM source AS a
-{ [ INNER | LEFT [ OUTER ] ] { JOIN | NEST } collection [ AS ] b
+FROM source [ [ AS ] a ]
+{ [ INNER | LEFT [ OUTER ] ] { JOIN | NEST } collection [ [ AS ] b ]
   ON META(b).id = key_expression } [ ...n ]
 ```
 
@@ -16,7 +16,7 @@ FROM source AS a
 
 - **`source`** — A stored/system collection, derived SELECT or expression source.
 - **`collection`** — A stored collection in the session database.
-- **`b`** — Required explicit alias for the right-hand source.
+- **`b`** — Optional explicit alias; omission binds the collection name.
 - **`key_expression`** — A string, NULL or MISSING evaluated over preceding bindings and outer captures.
 
 ## Remarks
@@ -32,13 +32,13 @@ subqueries and earlier aliases. A self/forward reference uses CD01035; qualify a
 when its name collides with a self or later alias. Key comparison is ordinal. Arrays and other
 non-string, non-NULL/MISSING values use CD02028; this subset does not accept key lists.
 
-Every FROM and UNNEST source in **every SELECT scope of a statement containing JOIN or NEST**
-requires an explicit alias, including nested scopes without joins. Inferred path aliases do not
-satisfy this rule. AS is optional for collection and UNNEST aliases; expression FROM keeps its
-existing AS requirement. Text uses CD00016; an invalid direct AST uses CD01035. DML target alias
-rules are unchanged. This restriction tracks
-[assimalign/cohesion#1767](https://github.com/assimalign/cohesion/issues/1767).
-Aliases are ordinal and unique within their SELECT.
+FROM and JOIN/NEST collections may omit aliases; their names become implicit aliases.
+UNNEST may infer its name from the final named path step. AS is optional for explicit collection,
+JOIN/NEST and UNNEST aliases; expression FROM keeps its AS requirement before an explicit alias.
+Explicit and implicit names compare ordinally and must be unique within their SELECT:
+`FROM items JOIN items ON ...` repeats `items`, as does `FROM items UNNEST tags items`.
+Duplicates use CD00010 in text and CD01023 in direct ASTs. CD00016 is retired and reserved.
+An inner bare FROM correlates only to an explicit outer alias; see [FROM](from.md).
 
 ### Unmatched rows and metadata
 
@@ -60,7 +60,7 @@ comprehension variables are invalid META receivers, including names shadowing ca
 
 ### Projection and evaluation
 
-SELECT * constructs an object keyed by the explicit FROM alias and each JOIN/NEST/UNNEST alias.
+SELECT * constructs an object keyed by the explicit or implicit FROM alias and each JOIN/NEST/UNNEST name.
 MISSING members are omitted; NULL members remain. A top-level qualified star, such as `b.*`,
 returns that binding's value in an ungrouped joined SELECT. As the sole projection it uses the
 bare document result mode. Qualified stars outside joined queries retain their existing refusal.
@@ -90,8 +90,7 @@ cache policy. Joined ordering retains a sort; index candidates report `key_join_
 
 | Code | Meaning and trigger | SQLSTATE |
 | --- | --- | --- |
-| CD00016 | SELECT source without an explicit alias in text containing JOIN/NEST | — |
-| CD01035 | Unbound/self/forward source, missing direct-AST alias, ambiguous/invalid joined META receiver | — |
+| CD01035 | Unbound/self/forward source or ambiguous/invalid joined META receiver | — |
 | CD02028 | Key is neither string, NULL nor MISSING; arrays are unsupported | — |
 | CD00010 | Duplicate parsed binding name | — |
 | CD01023 | Duplicate/empty direct-AST binding name | — |
@@ -108,6 +107,7 @@ Execute each statement separately in a fresh database:
 ```sql
 CREATE COLLECTION items;
 INSERT INTO items (KEY, VALUE) VALUES ('a', {n:1}), ('b', {n:2}), ('c', {n:3});
+SELECT RAW items.n FROM [1] AS seed JOIN items ON META(items).id = 'a';
 SELECT META(a).id AS l, META(b).id AS r
 FROM items AS a JOIN items AS b ON META(b).id = META(a).id ORDER BY l;
 SELECT * FROM [1] AS a LEFT JOIN items AS b ON META(b).id = 'absent';
@@ -116,7 +116,7 @@ SELECT b FROM [1] AS a LEFT NEST items AS b ON META(b).id = 'absent';
 SELECT b IS MISSING AS m FROM [1] AS a LEFT NEST items AS b ON META(b).id = NULL;
 ```
 
-The queries return `{"l":"a","r":"a"}`, `{"l":"b","r":"b"}`, `{"l":"c","r":"c"}`;
+The queries return bare `1`; then `{"l":"a","r":"a"}`, `{"l":"b","r":"b"}`, `{"l":"c","r":"c"}`;
 then `{"a":1}`; then bare documents `{"n":1}`, `{"n":2}`, `{"n":3}`;
 then `{"b":[]}`; then `{"m":true}`.
 

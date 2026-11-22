@@ -6,6 +6,7 @@ The physical storage kernel of the Cohesion Data Platform: fixed-size pages, a b
 
 ## Reference pages
 
+- **[Storage](storage.md)** — Physical bracket attribution and advisory active-transaction state.
 - **[Page](page.md)** — Bounded caller-memory spans and reserved overflow geometry.
 - **[StorageTransactionException](storage-transaction-exception.md)** — Machine-readable foreign-storage refusal.
 - **[StorageTransactionErrorCode](storage-transaction-error-code.md)** — Unspecified and ForeignStorage reasons.

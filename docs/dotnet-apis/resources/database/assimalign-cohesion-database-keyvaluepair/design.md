@@ -624,6 +624,16 @@ the retained prefix and subsequent committed writes. No persistent marker or new
 Evidence: the model project's `tests/SavepointMatrixTests.cs` and the Transactions design's
 Cross-model conformance (#1726, XT-5) section.
 
+## Refused opens and recovery
+
+Format gates finish before any recovery writes. When journal replay is needed, they inspect
+Storage's recovered read-only view; a refusal leaves every data, journal, backup, catalog and
+sidecar byte unchanged, including after a crash on an older format. Accepted databases retain
+the existing physical and logical recovery. Probes emit no Storage lifecycle telemetry or page-read
+counts; a corrupt page they read still emits PageChecksumFailed (Error). See
+[shared format preflight](../assimalign-cohesion-database-storage/design.md#read-only-recovered-format-preflight).
+Evidence: this model project's `tests/RefusedOpenTests.cs` and `tests/FormatProbeFixTests.cs`.
+
 ## Sources
 
 - **Lane isolation evidence** — `cohesion/resources/Database/Assimalign.Cohesion.Database.KeyValuePair/tests/KeyValueWorkerResilienceTests.cs` and `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/tests/MaintenanceCapacityTests.cs`.

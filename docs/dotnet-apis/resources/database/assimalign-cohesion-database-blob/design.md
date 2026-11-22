@@ -106,10 +106,12 @@ and `tests/Catalog/BlobCatalogTests.MaintenanceFailures.cs` in the same project.
 
 ## Checkpoint triggering
 
-The shared worker rechecks due work after collecting a deferred lane and attempts at most one new
-checkpoint in that pass. Failures retain their retry delay and busy storage waits for the next pass.
-This closes a consumed-wake gap without imposing a journal bound. Size/interval triggers remain
-soft, and #1283 remains open.
+The shared checkpoint interlock services size-due work when a holder releases, before another
+admission, including after undo and pruning. This bounds growth under sustained writes at bracket
+boundaries. Lanes recheck due state after dispatch; a foreground checkpoint does not cause a
+redundant sharp checkpoint. One bracket may overshoot the size trigger; there is no fixed journal
+cap. See
+[shared checkpoint triggering](../assimalign-cohesion-database-storage/design.md#checkpoint-triggering).
 
 ## Chunk chain and disk compatibility
 
@@ -722,6 +724,16 @@ teardown drain admitted undo. Uncommitted roots are scrubbed after crash; commit
 the retained prefix and subsequent committed writes. No persistent marker or new diagnostic code is introduced.
 Evidence: the model project's `tests/SavepointMatrixTests.cs` and the Transactions design's
 Cross-model conformance (#1726, XT-5) section.
+
+## Refused opens and recovery
+
+Format gates finish before any recovery writes. When journal replay is needed, they inspect
+Storage's recovered read-only view; a refusal leaves every data, journal, backup, catalog and
+sidecar byte unchanged, including after a crash on an older format. Accepted databases retain
+the existing physical and logical recovery. Probes emit no Storage lifecycle telemetry or page-read
+counts; a corrupt page they read still emits PageChecksumFailed (Error). See
+[shared format preflight](../assimalign-cohesion-database-storage/design.md#read-only-recovered-format-preflight).
+Evidence: this model project's `tests/RefusedOpenTests.cs` and `tests/FormatProbeFixTests.cs`.
 
 ## Sources
 

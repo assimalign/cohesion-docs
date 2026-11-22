@@ -73,7 +73,7 @@ CS03067 (0A000, incomplete RESTRICT closure), CS04066 (25001, explicit transacti
 work retained), and retryable CS04064 (40001, concurrent closure change).
 [SqlCreateTableAsExpression](sql-create-table-as-expression.md) represents inferred-table creation,
 including a complete optional name list and WITH DATA/NO DATA policy. It shares ordinary query
-parsing and view output inference; execution uses atomic publication in SQL format 34.
+parsing and view output inference; execution uses atomic publication in SQL format 35.
 
 CTAS output-name failures use CS03068 (42601); explicit transactions use CS04003 (25001).
 [SqlMergeExpression](sql-merge-expression.md) and [SqlMergeWhenClause](sql-merge-when-clause.md)
@@ -193,7 +193,7 @@ feature lands.
 
 [SqlCreateSchemaExpression](sql-create-schema-expression.md) and [SqlDropSchemaExpression](sql-drop-schema-expression.md)
 carry namespace guards and dependency policy. AUTHORIZATION/nested elements are CK00001.
-The engine seeds and protects dbo, persists namespaces as kind 15 records in current format 34, and keeps
+The engine seeds and protects dbo, persists namespaces as kind 15 records in current format 35, and keeps
 code-first provisioning in dbo. [Schema diagnostics](../../../../database/sql/language/diagnostics.md)
 include CS01028, CS03029, CS03030 and CS03031 and their source SQLSTATE categories.
 
@@ -253,7 +253,7 @@ sibling reference requires LATERAL; enclosing-query references execute. [WITH](s
 definitions without RECURSIVE bind in declaration order, with schema-less names and stored-table
 fallback for self or later-sibling names. RECURSIVE lists use dependency order and execute fixpoints on demand. Every definition binds;
 unused definitions do not execute. Required DML source reads complete before writes.
-The renderer and persisted definitions use this canonical shape. Current SQL storage format 34
+The renderer and persisted definitions use this canonical shape. Current SQL storage format 35
 quotes newly executable function names and BOTH/LEADING/TRAILING when used as identifiers in
 persisted CHECKs, defaults and function bodies. It follows format 17 (default/missing-value split,
 table extension 6) and format 16 (SEARCH/MATERIALIZED quoting). Older formats are refused without
@@ -325,7 +325,7 @@ validation, ownership checks and atomic publication. RENAME/TO are contextual id
 Renames carry CHECK/FK/index references without changing row/index identity. Defaults use INSERT
 assignment compatibility; Stable/Volatile calls execute per row on the transaction clock. The catalog separates
 insert defaults from frozen ADD COLUMN missing values in table extension 6 (format 17); the current
-format is 34; format 25 introduced distinct predicates, Boolean tests and LIKE ESCAPE after format 24 for NULL
+format is 35; format 25 introduced distinct predicates, Boolean tests and LIKE ESCAPE after format 24 for NULL
 placement, format 23 for views and format 22 for STRING_AGG/LISTAGG identifier quoting, after
 format 21 for persisted namespaces and format 20 for referential actions. See [ALTER TABLE](../../../../database/sql/language/statements/alter-table.md).
 
@@ -337,8 +337,10 @@ Format 26 fenced temporal DEFAULT and frozen missing-value text.
 Format 29 added owned-sequence metadata. Format 30 added ON UPDATE action metadata in table extension 8.
 Format 31 added partial-index predicates in index extension 2. Format 32 added per-column
 direction and NULL placement in mandatory index extension 3 and retained TYPE default assignment coercion.
-Format 33 fenced SQL/JSON names and ordinary-call quoting. Current format 34 adds joint typed
-migration intent semantics; format 33 and earlier are refused before data recovery.
+Format 33 fenced SQL/JSON names and ordinary-call quoting. Format 34 introduced joint typed
+migration intent semantics. Current format 35 fences separate physical owners for kept-table
+index trees and durable per-table migration classification; format 34 and earlier are refused
+before recovery writes.
 Every earlier format is refused at open; there is no
 upgrade path. Compiled schema format remains version 11.
 
@@ -365,7 +367,7 @@ clauses including the two exclusions. See [FILTER](../../../../database/sql/lang
 Bodies use the existing query-body grammar. The engine persists expanded bound inputs and output
 aliases remain output references. [SqlOrderByColumn](sql-order-by-column.md) independently retains
 Default/First/Last placement; the renderer emits only written modifiers. Format 24 introduced
-persisted NULL modifiers, following format 23's view records. Format 25 introduced the predicates below; current format 34 also fences temporal default text.
+persisted NULL modifiers, following format 23's view records. Format 25 introduced the predicates below; current format 35 also fences temporal default text.
 
 DML nodes retain optional Returning SELECT lists. OUTPUT, OLD/NEW, INTO and RETURNING WITH (...)
 are contextual refusals; ordinary identifier quoting is unchanged. RETURNING subqueries retain
@@ -388,7 +390,7 @@ IsCaseInsensitive set. SIMILAR TO, regex and postfix ISNULL/NOTNULL retain CK000
 Postfix expr::type uses the complete CAST target grammar, chains left to right, binds above
 unary signs and renders as CAST. Both +1::TEXT and -1::TEXT therefore fail with CS02003
 (42804). Integer bitwise operators execute; ^ remains refused exponentiation with CK00001.
-These expressions add no named clause or reserved identifier spelling. Current format 34 admits the
+These expressions add no named clause or reserved identifier spelling. Current format 35 admits the
 persisted grammar and changed precedence; earlier files have no upgrade reader.
 
 ## Conflict clause shape
@@ -403,7 +405,7 @@ CS05092 (no assigned SQLSTATE); unproven inference uses CS03035 (42P10). The
 shape explicit. SqlClauses.OnConflict enables the named clause. With quantified comparisons,
 UPDATE FROM, DELETE USING and CREATE TABLE AS, the profile measures 91 of 93 declared clauses,
 including executable MERGE, executable RECURSIVE and nonexecuting plain EXPLAIN. Existing
-keywords/identifier quoting and format 34 are unchanged.
+keywords/identifier quoting and format 35 are unchanged.
 
 Malformed forms retain syntax diagnostics; unsupported inference modifiers, DO UPDATE action
 subqueries and MySQL/SQLite alternatives receive CK00001. Binding owns unique-index selection (CS03035, 42P10) and repeated

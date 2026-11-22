@@ -18,7 +18,7 @@ FROM { collection_name [ [ AS ] iteration_variable ]
 
 <projection> ::= { * | alias.* | expression } [ AS output_name ]
 <source_binding> ::= { [ INNER ] UNNEST | LEFT [ OUTER ] UNNEST } expression [ [ AS ] variable ]
-                  | [ INNER | LEFT [ OUTER ] ] { JOIN | NEST } collection_name [ AS ] alias
+                  | [ INNER | LEFT [ OUTER ] ] { JOIN | NEST } collection_name [ [ AS ] alias ]
                     ON META(alias).id = key_expression
 ```
 
@@ -102,8 +102,8 @@ paging consume expanded rows. A star over a stored collection without UNNEST/JOI
 
 [Key JOIN and NEST](../clauses/join.md) bind documents or arrays by scalar key. Joined SELECT *
 constructs an alias-keyed object; top-level qualified stars such as b.* return a binding value in
-ungrouped joined projections. All SELECT sources throughout a joined statement need explicit
-aliases. META(alias) retains each stored source's own identity. See the linked page for unmatched
+ungrouped joined projections. Collections supply implicit aliases when omitted, and inferred
+UNNEST names are valid too. META(alias) retains each stored source's own identity. See the linked page for unmatched
 MISSING values, NEST arrays, paging and the bounded lookup cache.
 
 ## Derived and expression sources

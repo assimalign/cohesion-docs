@@ -67,12 +67,16 @@ outer row and follows the [expression-source rules](../clauses/from.md#derived-a
 Captured references are checked against **every** enclosing GROUP BY. An aggregate in an inner
 query does not make a hidden outer field legal; invalid grouped captures report CD05001.
 
-Inside a correlated subquery, reach an unaliased outer row by its collection name, such as
-`items.g`. There is an open inconsistency, [cohesion#1767](https://github.com/assimalign/cohesion/issues/1767):
-at top level without a subquery, `items.g` in `FROM items` reads field `items` then `g`.
-Once the statement contains a subquery, that own-row path resolves to field `g` instead.
-Use an explicit source alias for consistent qualified paths. Grouping validation still distinguishes
-own unaliased field paths from captured collection receivers.
+An unaliased collection name is its implicit alias in both local and captured paths: `items.g`
+in `FROM items` reads `g`, with or without subqueries. Group-key matching, DISTINCT, RAW ordering,
+index bounds and EXPLAIN use the same normalization. Use `items.items.g` or an explicit alias to
+reach a self-named field. A standalone ORDER BY projection alias retains precedence.
+
+An inner bare `FROM items` still names the collection under an implicit outer `items`; it
+correlates to the outer value only when that outer alias was explicit. This also applies to
+JOIN/NEST, inferred UNNEST and inferred FROM-expression names. `UNNEST tags` leaves an inner
+`FROM tags` naming the collection; `UNNEST tags AS tags` lets it iterate the outer value.
+Explicit paths may capture either kind of binding, including through grouped scopes.
 
 ## Mutation subqueries
 
@@ -80,6 +84,13 @@ UPDATE predicates and SET, DELETE predicates, INSERT/UPSERT VALUES and SELECT so
 RETURNING accept subqueries. All pending writes are staged before mutation. Nested reads see
 statement-start content, including earlier statements in the same transaction, and never see
 this statement's writes. Derived and expression INSERT/UPSERT SELECT sources also execute.
+
+VALUES has no destination row. A VALUES subquery referencing the destination binding without a
+local declaration fails planning with CD01036, including nested captures and META. A bare FROM
+may read the destination collection; a bare FROM naming an explicit destination alias is refused
+too, unless a local declaration shadows it. Local aliases, quantifiers and comprehensions may
+shadow the name. Direct VALUES document paths retain CD05001, even beside an unrelated subquery.
+The destination binding remains available in RETURNING.
 
 [RETURNING](../clauses/returning.md) binds the post-image and actual reserved durable version on
 INSERT/UPSERT/UPDATE, and the pre-image and old version on DELETE. Its nested collection reads
@@ -92,6 +103,7 @@ succeeds. Failed statements can leave version gaps. Unreached RETURNING branches
 | Code | Meaning and trigger | SQLSTATE |
 | --- | --- | --- |
 | CD00014 | Direct IN subquery uses SELECT without RAW/VALUE | — |
+| CD01036 | VALUES subquery references its destination binding without a local declaration | — |
 | CK00001 | Qualified star outside an ungrouped joined SELECT or other unsupported form | — |
 | CD05001 | Invalid expression/grouping context; known-array subquery passed to LENGTH, ABS or CONCAT | — |
 | CD05015 | Serialized JSON projection exceeds 256 levels; named output reserves one level for its row object | — |
@@ -146,6 +158,8 @@ Returns `[{"document":42},{"x":1},{"document":[1]},{"document":null}]`.
 [Expressions](index.md) · [SELECT](../statements/select.md) · [OqlSubqueryExpression](../../../../dotnet-apis/resources/database/assimalign-cohesion-database-documents-language/oql-subquery-expression.md)
 
 ## Sources
+
+- **Implicit aliases and refusals** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Documents/tests/DocumentImplicitAliasTests.cs`, `DocumentImplicitAliasBindingTests.cs` and `DocumentImplicitAliasFixTests.cs` in the same directory.
 
 - `cohesion/resources/Database/Assimalign.Cohesion.Database.Documents/tests/DocumentCorrelatedSubqueryTests.cs`, `DocumentDmlSubqueryTests.cs` and `DocumentSourceScopingTests.cs`.
 - `cohesion/resources/Database/Assimalign.Cohesion.Database.Documents/tests/DocumentSubqueryTests.cs`.

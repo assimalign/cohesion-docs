@@ -66,7 +66,9 @@ still classify its writes.
 Snapshots and visibility retain their existing semantics. Sequence reservation and reader ends
 bypass the checkpoint's transaction/log gates, so readers can begin, pin cached pages and
 commit or roll back during checkpoint flush I/O. Writers still wait through the checkpoint's
-statement-apply gate. See [checkpoint behavior and measurements](../assimalign-cohesion-database-storage/design.md#checkpoints).
+statement-apply gate. Catalog and reclamation scopes now share the storage's
+[TransactionCheckpointInterlock](transaction-checkpoint-interlock.md); holder release services
+size-due and deferred checkpoints before another admission. See [checkpoint behavior and measurements](../assimalign-cohesion-database-storage/design.md#checkpoints).
 
 ## Current lifecycle handle
 

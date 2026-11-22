@@ -16,10 +16,11 @@ public sealed class OqlSelectExpression : OqlExpression
         OqlExpression? limit = null, OqlExpression? offset = null, Location? location = null,
         IReadOnlyList<OqlUnnestExpression>? unnest = null,
         IReadOnlyList<string?>? groupAliases = null, string? groupAs = null, OqlExpression? source = null,
-        IReadOnlyList<OqlSourceBindingExpression>? bindings = null);
+        IReadOnlyList<OqlSourceBindingExpression>? bindings = null, bool isAliasImplicit = false);
     public string Collection { get; }
     public OqlExpression? Source { get; }
     public string? Alias { get; }
+    public bool IsAliasImplicit { get; }
     public IReadOnlyList<OqlUnnestExpression> Unnest { get; }
     public IReadOnlyList<OqlSourceBindingExpression> Bindings { get; }
     public IReadOnlyList<OqlProjection> Projections { get; }
@@ -61,8 +62,8 @@ over unnest; Unnest then exposes only its array bindings. With no key bindings, 
 ordinary Unnest representation. Construction retains children without executing. Expansion precedes Predicate. A direct SELECT AST with a repeated binding
 or empty UNNEST name raises DatabaseException/CD01023. Parser duplicates use CD00010, including
 collision with an unaliased collection name. Star with bindings constructs synthetic objects.
-A joined statement requires explicit aliases in every SELECT scope; missing direct-AST aliases
-use CD01035 (text CD00016). See [OqlJoinExpression](oql-join-expression.md),
+Collection and inferred UNNEST names are valid implicit aliases, including in joined statements.
+CD00016 is retired and reserved. See [OqlJoinExpression](oql-join-expression.md),
 [OqlUnnestExpression](oql-unnest-expression.md) and [UNNEST](../../../../database/document/language/clauses/unnest.md).
 
 GroupAliases is empty when no aliases are supplied, or parallel to GroupBy with null entries for
@@ -84,6 +85,13 @@ Construction only stores these arguments. Planning raises DatabaseException/CD01
 source alias, CD01034 for an unbound source variable. Correlated sources evaluate per outer row. Text without a
 derived alias reports CD00015. None has an assigned SQLSTATE. LIMIT 0 validates statically then
 returns planned metadata without executing. See [FROM](../../../../database/document/language/clauses/from.md).
+
+Alias retains the supplied iteration name, including an inferred expression-source name. It may
+be null for an unresolved implicit collection binding; planner copies resolve the name and keep
+IsAliasImplicit true. The constructor sets IsAliasImplicit when alias is null or isAliasImplicit
+is true. A stored collection uses its whole name; a system source uses its last segment as written.
+Only explicit aliases allow an inner bare FROM name to correlate. Inferred names still work in
+qualified paths, grouping, ordering, index analysis and EXPLAIN.
 
 ## Example
 
@@ -124,6 +132,7 @@ var derived = (OqlSelectExpression)((OqlQueryStatement)new OqlQueryParser().Pars
 Console.WriteLine(derived.Collection);                      // empty string
 Console.WriteLine(derived.Source is OqlSubqueryExpression); // True
 Console.WriteLine(derived.Alias);                           // d
+Console.WriteLine(derived.IsAliasImplicit);                 // False
 ```
 
 ## Related reference
