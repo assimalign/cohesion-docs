@@ -4,6 +4,19 @@ This page describes the boundaries and implementation shape of `Assimalign.Cohes
 
 > **Status:** Partial.
 
+## UNION query values
+
+Top-level UNION/UNION ALL consume the closed
+[query-expression family](../assimalign-cohesion-database-documents-language/oql-query-expression.md).
+UNION uses structural DISTINCT equality and retains the first representative; UNION ALL streams
+operand rows. Headers are planned as value, matching named columns or whole-document Json.
+Compound ordering binds result members and reports CD01037 for all-RAW/VALUE ordering and CD01038
+for unbound members, META or star. Compound sorting, distinct keys and output share the memory
+grant; row/equality/sort work shares the work grant. Fixed-type unordered pages stop when complete;
+dynamic headers inspect pre-page values. LIMIT 0 does not open sources. EXPLAIN remains nonexecuting.
+INTERSECT/EXCEPT and nested compounds remain CK00001. No catalog or wire format changes.
+See [SELECT](../../../../database/document/language/statements/select.md#set-operations).
+
 ## Model component boundaries
 
 Catalog, Storage and the empty Security satellite are now part of `Assimalign.Cohesion.Database.Documents`.

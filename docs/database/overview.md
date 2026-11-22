@@ -210,9 +210,11 @@ The Database program references `ApplicationModel.Hosting.InProcess` for its pla
 
 Three limits apply today:
 
-- **Endpoints** — Database binds code-configured wire endpoints and reads no
-  `COHESION_ENDPOINT_*` variable. The in-process platform reports an HTTP `endpoint` unrelated to
-  the Database wire listener. Dependents pass the wire endpoint as a literal setting.
+- **Endpoints** — When COHESION_GATEWAY is nonempty, a model server without an explicit listener
+  consumes its named runtime assignment: `sql`, `documents`, `graph`, `kv` or `blob`. Explicit
+  listeners win. The in-process platform currently allocates only `http`, now used for Database
+  health; dependents still pass wire addresses as literal settings. Two servers of one model need
+  distinct listeners. See [server options](../dotnet-apis/resources/database/assimalign-cohesion-database/database-server-options.md).
 - **Readiness** — The gateway treats first publication as ready, before Database servers listen
   and before its control plane opens. A dependent can deploy before Database accepts connections.
   The Database admin readiness gate is separate and does not change that gateway behavior.
@@ -221,8 +223,13 @@ Three limits apply today:
   `StartupTimeout` bounds service start only. Deferred migrations can continue on engine workers.
 
 The integration design records [seven open questions](../dotnet-apis/resources/database/assimalign-cohesion-database-hosting-applicationmodel/design.md#current-limits),
-including Database-owned actions, instance health, and the publication-to-open window. No production
-path starts the internal admin service, so a managed Database application serves no HTTP health yet.
+including Database-owned actions, instance health, and the publication-to-open window. Managed HTTP
+health binds the platform's plain-HTTP `http` assignment at a literal IP or localhost. Unsupported
+schemes/hosts are skipped with Hosting event 18; a usable assignment replaces explicit health with
+event 19. Unmanaged applications opt in with
+[DatabaseApplicationBuilder.AddHealthEndpoint(Uri)](../dotnet-apis/resources/database/assimalign-cohesion-database-hosting/database-application-builder.md#addhealthendpoint).
+Health starts before model servers, stops after they drain, and retains its existing readiness
+gate. Socket bind failures report CK07102 and roll back startup.
 
 Gateway `StopAsync` leaves the Database application running. Disposing the gateway disposes its
 owned platform; the in-process platform then shuts down its Database program. See the
@@ -257,13 +264,13 @@ primary data file before sidecars. Preserve ambiguous file sets and follow the c
 
 These codes have no assigned SQLSTATE. Recovery tolerates uncommitted torn tails; that does not
 permit replacing missing journals. Transient open/inspection I/O failures can be retried after
-resolution and do not advise restore or drop. SQL remains at format 35.
+resolution and do not advise restore or drop. SQL remains at format 36.
 
 Key-Value Pair refuses an entirely missing catalog before opening either storage. File-backed
 data of at most one page also receives CV06106 and a drop/recreate remedy; longer data with no
 catalog requires restoring the complete backup. These refusals leave all surviving files unchanged.
 
-The shared storage format is **4**, independent of SQL's data/catalog format 35 and Graph's record
+The shared storage format is **4**, independent of SQL's data/catalog format 36 and Graph's record
 format 5. Storage formats 3 and older have no upgrade reader. A Free page must be entirely zero;
 reclaimed pages have a separate type and checksum. Every nonzero pooled page requires checksum
 verification, with a raw CRC of zero escaped as `0xFFFFFFFF`. Page 0 has its own identity and
@@ -494,7 +501,7 @@ describes warning counters, final cleanup joining and the remaining TLS delivery
 
 ## MVP boundaries
 
-SQL [schema DDL](sql/language/statements/create-schema.md) persists namespaces in current storage format 35;
+SQL [schema DDL](sql/language/statements/create-schema.md) persists namespaces in current storage format 36;
 dbo remains protected and code-first provisioning stays there. [Set operations](sql/language/clauses/set-operations.md)
 execute in every query position. Document adds [34 SQL++ scalars](document/language/functions/scalar-functions.md),
 and Graph supports [streaming stage composition](graph/language/clauses/next.md), including Cypher WITH/UNWIND.

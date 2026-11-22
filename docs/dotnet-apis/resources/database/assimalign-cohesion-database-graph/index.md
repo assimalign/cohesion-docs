@@ -11,6 +11,11 @@ packages are retired. Wire contracts ship separately in [Graph.Protocol](../assi
 
 ## Reference pages
 
+- **[GraphType](graph-type.md)** — Immutable open database type.
+- **[GraphNodeType](graph-node-type.md)** — Identifying/implied labels and enforced node properties.
+- **[GraphEdgeType](graph-edge-type.md)** — Stored directed edge declarations.
+- **[GraphPropertyType](graph-property-type.md)** — Scalar type and NOT NULL declarations.
+
 - **[GraphFunctionContext](graph-function-context.md)** — Database identity and statement cancellation.
 - **[GraphArguments](graph-arguments.md)** — Borrowed callback values.
 

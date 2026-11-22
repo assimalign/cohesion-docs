@@ -28,7 +28,17 @@ Direct IN subqueries require RAW or VALUE. They use [array membership](operators
 MISSING on the left stays MISSING, NULL stays NULL even for an empty result, a match wins over
 NULL elements, and an unmatched NULL element yields NULL. With a valued left operand, an empty
 array gives FALSE for IN and TRUE for NOT IN. Extra parentheses around a subquery instead make
-it one array-valued item in the ordinary value-list grammar.
+it one array-valued item in the ordinary value-list grammar: `x IN ((SELECT ...))` has one item
+containing the subquery array, with no RAW/VALUE requirement. Redundant wrappers preserve that rule.
+A compound beginning with a parenthesized operand, such as
+`x IN ((SELECT RAW a FROM d) UNION SELECT RAW b FROM e)`, is instead a query. It retains the current
+CK00001 refusal for nested compounds. A scalar operator or comma after a leading wrapper keeps
+the expression/value-list grammar. A query tail after that wrapper selects query grammar.
+
+Top-level [UNION/UNION ALL](../statements/select.md#set-operations) execute; compounds in expression
+subqueries, derived sources and write sources remain refused. A lone parenthesized SELECT is valid
+as an INSERT/UPSERT source. Subscripts require a named path, so bind a subquery result to a name
+before indexing it.
 
 ## Evaluation
 

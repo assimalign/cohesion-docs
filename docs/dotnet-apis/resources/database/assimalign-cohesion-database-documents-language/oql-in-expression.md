@@ -34,6 +34,11 @@ A direct `IN (SELECT RAW ...)` stores [OqlSubqueryExpression](oql-subquery-expre
 in Array. VALUE is a RAW synonym; a direct SELECT without RAW/VALUE reports CD00014
 (no assigned SQLSTATE).
 
+`x IN ((SELECT ...))` stores one subquery-array item in Values, with Array null and no RAW/VALUE
+requirement. A compound starting with a parenthesized operand instead occupies Array and retains
+the current CK00001 nested-compound refusal. A following scalar operator or comma keeps value-list
+grammar; a query tail after the wrapper selects query grammar.
+
 ## Example
 
 ```csharp

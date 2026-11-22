@@ -7,7 +7,7 @@ Namespace: `Assimalign.Cohesion.Database.Documents.Language`.
 ## Signature
 
 ```csharp
-public sealed class OqlSelectExpression : OqlExpression
+public sealed class OqlSelectExpression : OqlQueryExpression
 {
     public OqlSelectExpression(string collection, string? alias,
         IReadOnlyList<OqlProjection> projections, OqlExpression? predicate,
@@ -38,6 +38,9 @@ public sealed class OqlSelectExpression : OqlExpression
 ```
 
 ## Behavior and exceptions
+
+This sealed leaf inherits OrderBy, IsValue, Limit and Offset from
+[OqlQueryExpression](oql-query-expression.md); the signature above includes these inherited members.
 
 IsDistinct controls duplicate removal after projection and before ordering. IsValue represents
 VALUE and RAW, which share one bare-value result with metadata column `value`. A top-level MISSING
@@ -141,6 +144,6 @@ Console.WriteLine(derived.IsAliasImplicit);                 // False
 
 ## Sources
 
-- `cohesion/resources/Database/Assimalign.Cohesion.Database.Documents.Language/src/OqlSelectExpression.cs`.
+- `cohesion/resources/Database/Assimalign.Cohesion.Database.Documents.Language/src/OqlQueryExpression.Select.cs`.
 - `cohesion/resources/Database/Assimalign.Cohesion.Database.Documents.Language/tests/OqlProjectionParserTests.cs`.
 - `cohesion/resources/Database/Assimalign.Cohesion.Database.Documents.Client/tests/DocumentProjectionWireTests.cs`.

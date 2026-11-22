@@ -18,16 +18,16 @@ public IReadOnlyList<SqlCatalogIndexKeyOrder> KeyOrders { get; }
 
 public enum SqlCatalogIndexKeyOrder
 {
-    AscendingNullsLast = 0,
-    AscendingNullsFirst = 1,
-    DescendingNullsLast = 2,
-    DescendingNullsFirst = 3
+    AscendingNullsFirst = 0,
+    AscendingNullsLast = 1,
+    DescendingNullsFirst = 2,
+    DescendingNullsLast = 3
 }
 ```
 
 ## Behavior and exceptions
 
-Omitting keyOrders supplies ASC NULLS LAST per key. The constructor copies the inputs;
+Omitting keyOrders supplies ASC NULLS FIRST per key. The constructor copies the inputs;
 KeyOrders is aligned with ColumnNames. An invalid vector width/value, or any nondefault
 primary-key order, throws SqlCatalogException with CS03085 (SQLSTATE 42P17).
 A primary key must also be unique (ArgumentException) and unconditional (CS03082, 42P16).
@@ -35,7 +35,7 @@ Blank predicate text or dependencies without text use CS03084 (42P17).
 
 A null column list throws ArgumentNullException; a blank name throws ArgumentException;
 an empty key list uses CS03059 (42P17). Constructing a description does not build or publish
-an index. The catalog persists effective orders in format 35's mandatory index extension 3;
+an index. The catalog persists effective orders in format 36's mandatory index extension 3;
 malformed loaded vectors use CS06059 and unsupported extensions CS06060.
 
 ## Example

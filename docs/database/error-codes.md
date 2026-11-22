@@ -154,9 +154,11 @@ Unresolved predicate registrations use existing CS01009 (42883) for table writes
 | CG01023 | Warning: read-only statement names an entity property unknown throughout its visible catalog; once per ordinal name | — |
 | CG03008 | Database-wide ordinal, case-sensitive index/constraint name is already used | — |
 | CG03009 | Duplicate constraint kind or incompatible property type rule | — |
-| CG03010 | Existing data violates a newly created named constraint | — |
+| CG03010 | Existing data violates a newly created named constraint or proposed graph type | — |
+| CG03011 | Invalid graph-type mutation name/reference or identifying/implied label overlap | — |
+| CG03012 | Node write omits an implied label required by its node type | — |
 | CG04025 | Schema write inside an explicit transaction, including typed writes and conditional no-ops; aborts the transaction | — |
-| CG06019 | Catalog record version differs from v2; recreate the database, no legacy reader | — |
+| CG06019 | Catalog record version differs from v3; recreate the database, no legacy reader | — |
 
 See [GraphSchema](../dotnet-apis/resources/database/assimalign-cohesion-database-graph/graph-schema.md)
 for the typed surface and [schema DDL](graph/language/statements/create-index.md) for text commands.
@@ -233,14 +235,14 @@ Direct/referential overlaps compose without CS05036. CS04064 (40001) covers targ
 modified-row version conflicts, including stale Snapshot targets; shared cascade/parent checks and
 host-ended transactions retain their ordinary uncoded aborts. Direct uniqueness (CS03037, 23505)
 precedes final FK (CS03039, 23503) and referential SET-action constraint failures. Plain EXPLAIN
-remains nonexecuting; SQL storage stays at format 35.
+remains nonexecuting; SQL storage stays at format 36.
 
 ## SQL CREATE TABLE AS
 
 [CTAS](sql/language/statements/create-table.md#create-table-as) adds CS03068 for missing, blank,
 duplicate or wrong-width output names (42601, syntax_error). Existing CS03049 covers a destination
 collision (42P07); IF NOT EXISTS instead skips. Explicit transactions use CS04003 (25001), and
-retained source/copy memory exhaustion uses CS05067 (53200). SQL format 35 is unchanged.
+retained source/copy memory exhaustion uses CS05067 (53200). SQL format 36 is unchanged.
 
 ## SQL table rewrite
 
@@ -248,7 +250,7 @@ retained source/copy memory exhaustion uses CS05067 (53200). SQL format 35 is un
 reuses CS04006 (no SQLSTATE) for DML needing a retired layout, including stale foreign-key probes;
 retry the whole transaction. Its exclusive source-table lock is acquired before queueing and uses
 engine LockTimeout: expiry retains CS04044 / 55P03. Missing tables retain CS01051 / 42P01 and
-changed descriptions CS04064 / 40001. SQL format 35 is unchanged.
+changed descriptions CS04064 / 40001. SQL format 36 is unchanged.
 
 ## Document array indexes
 
@@ -621,6 +623,21 @@ without lookups. No SQLSTATE is assigned to these conditions.
 | CD02028 | JOIN/NEST key is neither string, NULL nor MISSING; arrays unsupported | — |
 | CD05018 | Shared retained statement memory exhausted, including lookup cache and retained rows | — |
 | CD05020 | Shared expression/lookup work exhausted, including cache hits | — |
+
+## HTTP health binding
+
+CK07102 reports an HTTP health listener socket bind failure in DatabaseException.Diagnostics.
+The original Web startup failure and socket cause are retained; host startup rolls back prior
+services. Unsupported managed health assignments are skipped with informational Hosting event 18,
+while event 19 reports replacement of a different explicit health URI. Neither event changes
+gateway readiness. See [health composition](../dotnet-apis/resources/database/assimalign-cohesion-database-hosting/design.md#platform-endpoints-and-http-health).
+
+## OQL compound queries
+
+OQL compound ordering reports CD01037 for an all-RAW/VALUE result with no named members, or
+CD01038 for an unbound member, META or star. Neither has an assigned SQLSTATE. UNION distinct,
+sort and output state uses CD05018; compound row/equality/sort work uses CD05020. INTERSECT/EXCEPT
+and nested compounds retain CK00001. See [set operations](document/language/statements/select.md#set-operations).
 
 ## Sources
 

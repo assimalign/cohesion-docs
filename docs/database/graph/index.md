@@ -36,7 +36,13 @@ require autocommit; CG04025 refuses and aborts an explicit transaction, includin
 variable names use ordinal, case-sensitive identity. String predicates use ordinal comparison;
 SQL collation settings do not apply.
 
-Graph catalog records are v2; earlier or future record versions refuse at open with CG06019
+The typed [GraphType API](../../dotnet-apis/resources/database/assimalign-cohesion-database-graph/graph-schema.md#graph-type-operations)
+sets, adds, alters, drops and reads an open database type. Identifying labels select node members;
+each member must already carry implied labels and satisfy property types/NOT NULL. Extra labels
+and properties remain writable. Proposed types validate existing members (CG03010). Edge declarations
+are stored but their properties and endpoints are not yet enforced. Text graph-type DDL remains refused.
+
+Graph catalog records are v3; v2 and other record versions refuse at open with CG06019
 and require recreation. There is no legacy reader. Graph entity/tree format remains 5.
 SHOW PROPERTY KEYS reports effective rules and SHOW OBJECT OWNERSHIP includes CONSTRAINT rows.
 

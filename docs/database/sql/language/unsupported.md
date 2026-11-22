@@ -127,8 +127,8 @@ volatile outputs instead evaluate in sorted order before pagination, preserving 
 count. [ORDER BY](clauses/order-by.md#evaluation-order) explains alias dependencies and collation
 fallbacks. Fixed-collation ORDER BY with a non-DISTINCT limit retains only OFFSET + LIMIT candidates.
 DISTINCT, aggregate input, join inputs/results and set operands retain their materialization rules.
-Selected rows still materialize before delivery; ordered index output, spillable sorts and streaming
-result execution are unavailable.
+Selected index order avoids sorting. Selected rows still materialize before delivery; spillable
+sorts and streaming result execution are unavailable.
 
 ## See also
 

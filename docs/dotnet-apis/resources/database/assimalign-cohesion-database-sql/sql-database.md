@@ -29,8 +29,8 @@ allocation, constraints, defaults, frozen missing values, collation and dependen
 Schema-owned tables are supported. This is a C# maintenance API; it adds no SQL statement or
 wire command. SQL [ALTER COLUMN TYPE](../../../../database/sql/language/statements/alter-table.md#alter-column-type)
 also uses the shared copier for conversions, running inline under the table lock. SQL now uses
-format 35 for kept-table tree ownership and per-table joint migration classification; compiled
-schema v11 remains current.
+format 36 for kept-table tree ownership and per-table joint migration classification; compiled
+schema v12 remains current.
 
 Schema application, session DDL and maintenance share fail-fast admission. The operation acquires
 an exclusive lock on the source table **before queueing**; a blocked rewrite does not occupy the

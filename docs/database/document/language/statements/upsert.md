@@ -20,6 +20,9 @@ UPSERT INTO collection [ AS alias ] (KEY output_name [, VALUE output_name]) sele
 
 ## Remarks
 
+A lone parenthesized SELECT is a valid source, for example
+`UPSERT INTO c (KEY k) (SELECT k FROM d)`. Compound UNION sources remain refused with CK00001.
+
 The collection name supplies the implicit destination binding when no alias is declared.
 It names the image in RETURNING. VALUES has no destination row: a subquery that references
 that binding without a local declaration fails planning with CD01036 (no SQLSTATE).

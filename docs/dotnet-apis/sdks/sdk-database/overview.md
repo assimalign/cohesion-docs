@@ -65,7 +65,7 @@ passed to the schema task. `Outputs` are tracked with `FileWrites`.
 
 ## Model and migration limits
 
-SQL compiled artifacts use `cohesion/database-schema/v11`. Earlier artifacts and migration baselines
+SQL compiled artifacts use `cohesion/database-schema/v12`. Earlier artifacts and migration baselines
 are refused before a migration is written; rebuild them from the retained C# declarations.
 
 `Sql` and `KeyValuePair` are the only allowlisted, case-sensitive imports. The latter has a target

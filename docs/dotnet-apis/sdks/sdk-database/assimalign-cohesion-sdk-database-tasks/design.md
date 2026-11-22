@@ -18,8 +18,10 @@ preserved. Invalid schemas do not replace final artifacts.
 
 ## Migration boundary
 
-Runtime and SDK artifacts use `cohesion/database-schema/v11`. Migration generation refuses earlier
-artifacts and baselines before writing outputs; rebuild them from their declarations.
+Runtime and SDK artifacts use `cohesion/database-schema/v12`. Migration generation refuses earlier
+artifacts and baselines before writing outputs or creating their directory; rebuild them from their declarations.
+Index SQL omits ASC NULLS FIRST and DESC NULLS LAST. Explicit ASC NULLS LAST and DESC NULLS FIRST
+remain visible. Runtime and SDK use the same key-order mapping and renderer.
 
 `SqlSchemaMigrationPlanner` compares the newest four-digit baseline with the desired schema. The
 renderer follows planner order and the guarded `dbo` -qualified dialect. New files are written as a

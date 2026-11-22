@@ -32,6 +32,13 @@ public sealed class GraphSchema
     public ValueTask CreateConstraintAsync(GraphConstraintMetadata constraint, CancellationToken cancellationToken = default);
     public ValueTask DropConstraintAsync(string name, CancellationToken cancellationToken = default);
     public ValueTask DropIndexAsync(string name, CancellationToken cancellationToken = default);
+    public ValueTask<GraphType?> GetGraphTypeAsync(CancellationToken cancellationToken = default);
+    public ValueTask SetGraphTypeAsync(GraphType type, CancellationToken cancellationToken = default);
+    public ValueTask AddGraphTypeAsync(GraphType additions, CancellationToken cancellationToken = default);
+    public ValueTask AlterGraphTypeAsync(GraphType alterations, CancellationToken cancellationToken = default);
+    public ValueTask DropGraphTypeAsync(CancellationToken cancellationToken = default);
+    public ValueTask DropGraphTypeAsync(IReadOnlyList<string> nodeTypes, IReadOnlyList<string> edgeTypes,
+        CancellationToken cancellationToken = default);
 }
 ```
 
@@ -76,6 +83,57 @@ work; cursor buffers and retained backfill entries charge memory. CG05004/CG0502
 rolls back the entire operation and releases its memory. Text requests can lower limits with
 GraphQueryLimits, validated inside admission with CG08021.
 
+## Graph type operations
+
+[GraphType](graph-type.md) is an immutable open declaration with node and edge types. Reads use the
+session snapshot. Mutations validate and commit atomically under schema autocommit:
+
+| Member | Behavior |
+| --- | --- |
+| GetGraphTypeAsync | Returns null for no type; a set empty type is non-null with empty lists |
+| SetGraphTypeAsync | Replaces the complete type, including edge declarations |
+| AddGraphTypeAsync | Adds new identifying names; existing names refuse; unmentioned elements survive |
+| AlterGraphTypeAsync | Replaces complete declarations of existing names; new names refuse; unmentioned elements survive |
+| DropGraphTypeAsync() | Removes the type and its rules; dropping an absent type succeeds |
+| DropGraphTypeAsync(nodeTypes, edgeTypes) | Removes existing names; referencing edges must be dropped with their node types; removing the last elements leaves a set empty type |
+
+Empty ADD, ALTER and selective DROP fragments preserve the current state, including absence.
+Edge endpoint names resolve against the complete resulting type. An implied label cannot identify
+any node type (CG03011). Existing members of new or tightened node rules are checked through label
+postings; CG03010 leaves the previous type and data unchanged. Missing implied labels are refused,
+never added. Writes enforce implied labels (CG03012), property types and NOT NULL (CG03003),
+including typed creates, INSERT/CREATE, SET/REMOVE and MERGE's final working copy. Multiple matching
+node types all apply. Additional labels, relationship types and properties remain writable. Edge
+properties and endpoints are stored but not yet enforced. Text ALTER/SHOW CURRENT GRAPH TYPE
+remains refused.
+
+Independent property metadata and named constraints survive every type mutation. They may agree
+with node-type rules; incompatible types use CG03009 in either publication order. New, changed and
+removed rules check ownership on identifying labels, implied labels and relationship types,
+including removed implied labels. A schema-owned definition raises DatabaseObjectLockedException;
+unrelated changes can retain its unchanged declaration. Dropping a declared identifying/implied
+label or relationship type uses CG03003 even without members. Successful type publication discovers
+tokens atomically; type drops retain those tokens and independent rules. Failed publication rolls
+back new discoveries. Snapshot writers to changed selected rules can abort with CG04007.
+
+Null type fragments throw ArgumentNullException before admission. Selective DROP copies names and
+rejects null lists, blank names or repeats with argument exceptions. Absent/duplicate mutation
+names, dangling edge references and identifying/implied overlap use CG03011. All mutations,
+including no-ops, refuse explicit transactions with CG04025 and abort them. Retained metadata,
+bounded cursors and decoded members charge the engine memory/work limits (CG05020/CG05004);
+oversized element records use CG02009. No graph-wide data materialization is required.
+
+With an open schema as in the example below:
+
+```csharp
+await schema.SetGraphTypeAsync(GraphType.Create([
+    GraphNodeType.Create("Person", ["Entity"],
+        [GraphPropertyType.Create("name", DatabaseType.String, required: true)])]));
+Console.WriteLine((await schema.GetGraphTypeAsync())!.NodeTypes[0].IdentifyingLabel); // Person
+await schema.DropGraphTypeAsync(["Person"], []); // set empty type
+await schema.DropGraphTypeAsync();              // absent type
+```
+
 ## Exceptions
 
 FindIndexAsync/FindConstraintAsync and label-scoped GetIndexesAsync reject null names with
@@ -95,8 +153,10 @@ failures leave an explicit transaction usable.
 | CG01002 | Label/type requested for DROP is absent |
 | CG01021 | Named index or constraint requested for DROP is absent |
 | CG03008 | An index or constraint already uses the database-wide name |
-| CG03009 | Duplicate constraint kind or incompatible property type rule |
-| CG03010 | Existing data violates the new constraint; creation rolls back |
+| CG03009 | Duplicate constraint kind or incompatible property type rule, including a node-type conflict |
+| CG03010 | Existing data violates the new constraint or proposed graph type; publication rolls back |
+| CG03011 | Invalid graph-type mutation name/reference or identifying/implied label overlap |
+| CG03012 | Node write omits an implied label required by its node type |
 | CG03003 | Missing owner, unsupported property type, invalid existing data for a property save, or a nonempty definition requested for DROP |
 
 These conditions have no assigned SQLSTATE. Mutating a schema-owned definition or its child
@@ -111,7 +171,7 @@ transaction; schema writes require autocommit. An aborted transaction refuses wo
 Catalog snapshot changes raise DatabaseTransactionAbortedException with structured CG04007.
 Other deterministic identity/owner/index-target errors raise DatabaseException with CG03003,
 and malformed catalog records use CG06006. Unsupported catalog versions use CG06019 at open;
-only v2 records are admitted, with no upgrade reader. Metadata records over 8,092 encoded bytes, including
+only v3 records are admitted, with v2 refused before any write and no upgrade reader. Metadata records over 8,092 encoded bytes, including
 names and owning schema, use CG02009. These engine exceptions retain ordinary unprefixed
 messages and their original cause. Disposal during an admitted operation uses CG09019;
 the direct Open/lifetime guard retains ObjectDisposedException. See [diagnostics](../../../../database/graph/language/diagnostics.md).
@@ -180,6 +240,8 @@ an explicit transaction active.
 - **Examples** — [Source-backed usage](examples/index.md).
 
 ## Sources
+
+- **Graph types and publication** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Graph/src/GraphSchema.GraphTypes.cs`, `tests/GraphTypeTests.cs`, `tests/GraphTypeReviewRegressionTests.cs` and `tests/GraphTypeSecondReviewTests.cs` under the same project.
 
 - **Autocommit, discovery and budgets** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Graph/tests/GraphSchemaDdlTests.cs`, `src/GraphSchema.cs` and `src/GraphSchema.Ddl.cs` in the same project.
 

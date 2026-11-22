@@ -88,16 +88,22 @@ The payload begins at byte 16:
 
 | Offset / order | Encoding | Meaning |
 | --- | --- | --- |
-| 16 | byte | Kind: 1 label, 2 relationship type, 3 property key, 4 named index, 5 named constraint |
-| 17 | byte | Format version, currently 2 for every kind |
-| 18 | 16 bytes | CLR `Guid.ToByteArray()` representation: definition ID for kinds 1/2, parent ID for kinds 3/4/5 |
+| 16 | byte | Kind: 1 label, 2 relationship type, 3 property key, 4 named index, 5 named constraint, 6 current type, 7 node type, 8 edge type |
+| 17 | byte | Format version 3 for every kind |
+| 18 | 16 bytes | CLR `Guid.ToByteArray()` representation: definition ID for kinds 1/2, parent ID for kinds 3/4/5, private current-type GUID for kinds 6/7/8 |
 | 34 | string | Definition name, property key, index name, or constraint name |
 | Following name, kinds 1/2 | byte, string | `DatabaseObjectOwner` value and owning schema |
 | Following name, kind 3 | byte, byte | Shared `DatabaseType` value (255 means unconstrained), required flag (0 or 1) |
 | Following name, kind 4 | string | Indexed scalar property key |
 | Following name, kind 5 | string, byte | Property key and DatabaseType (255 denotes existence) |
 
-Only catalog v2 is admitted. Earlier/future record versions refuse with CG06019 before logical
+Kinds 6/7/8 persist the current-type marker and immutable node/edge declarations. An empty type
+retains the marker; an absent type has none. Membership remains label-derived. Public declarations
+are projected through [GraphSchema](graph-schema.md#graph-type-operations), rather than exposing
+the catalog's internal declaration types. Changed and removed rules publish atomically with token
+discovery; unchanged declarations retain their physical identity and version chain.
+
+Only catalog v3 is admitted. Earlier/future record versions refuse with CG06019 before logical
 recovery scrub, with no legacy reader or upgrade path; recreate the database. The gate uses a
 recovered read-only preflight when replay is needed, before any writes. Clean and crashed refusals
 preserve all files byte for byte. Empty catalogs have no versioned records to refuse. The graph

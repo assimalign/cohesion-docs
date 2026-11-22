@@ -8,13 +8,13 @@ Namespace: `Assimalign.Cohesion.Database.Documents.Language`.
 public sealed class OqlInsertExpression : OqlExpression
 {
     public OqlInsertExpression(string collection, string? alias,
-        IReadOnlyList<(OqlExpression Key, OqlExpression Value)> values, OqlSelectExpression? select,
+        IReadOnlyList<(OqlExpression Key, OqlExpression Value)> values, OqlQueryExpression? select,
         string? keyName, string? valueName, Location? location = null,
         OqlReturningExpression? returning = null);
     public string Collection { get; }
     public string? Alias { get; }
     public IReadOnlyList<(OqlExpression Key, OqlExpression Value)> Values { get; }
-    public OqlSelectExpression? Select { get; }
+    public OqlQueryExpression? Select { get; }
     public string? KeyName { get; }
     public string? ValueName { get; }
     public OqlReturningExpression? Returning { get; }
@@ -22,6 +22,9 @@ public sealed class OqlInsertExpression : OqlExpression
 ```
 
 ## Behavior and exceptions
+
+Select uses [OqlQueryExpression](oql-query-expression.md). A lone parenthesized SELECT is a valid
+source; compound write sources remain refused with CK00001.
 
 Returning optionally retains an [affected-image projection](oql-returning-expression.md).
 INSERT projects stored post-images with new metadata; null retains count-only execution.

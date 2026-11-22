@@ -14,7 +14,7 @@ public sealed class DocumentDatabaseServerOptions : DatabaseServerOptions
 
 ## Behavior and exceptions
 
-Listener is required and transfers its lifecycle to the server. A null Authenticator uses
+Listener may default from the managed model assignment; otherwise it is required and transfers its lifecycle to the server. A null Authenticator uses
 DatabaseAuthenticator.AllowAll. MaxSessions bounds accepted sessions; authentication and idle
 timeouts bound a peer's slot. IdleTimeout accepts Timeout.InfiniteTimeSpan. ShutdownDrainTimeout
 also bounds terminal error/capacity refusal write, flush, output completion and peer-input drain.
@@ -42,6 +42,10 @@ await using var server = DocumentDatabaseServer.Create(engine, options);
 [Server](document-database-server.md) · [Assembly](index.md)
 
 ## Shared TCP composition
+
+When COHESION_GATEWAY is nonempty, a missing listener uses this model's named platform endpoint.
+An explicit listener wins. Two servers of one model need distinct listeners; see the common options
+reference below for assignment names and refusals.
 
 Common members come from [DatabaseServerOptions](../assimalign-cohesion-database/database-server-options.md). [Database.Tcp](../assimalign-cohesion-database-tcp/index.md) supplies Listen(Uri) for this leaf; add `using Assimalign.Cohesion.Database;`. The extension returns the same concrete options type and the server owns the transferred listener.
 

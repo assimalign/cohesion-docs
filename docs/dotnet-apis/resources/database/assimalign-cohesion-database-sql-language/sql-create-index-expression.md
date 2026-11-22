@@ -20,18 +20,18 @@ public sealed class SqlCreateIndexExpression : SqlQueryExpression
 
 public enum SqlIndexKeyOrder
 {
-    AscendingNullsLast = 0,
-    AscendingNullsFirst = 1,
-    DescendingNullsLast = 2,
-    DescendingNullsFirst = 3
+    AscendingNullsFirst = 0,
+    AscendingNullsLast = 1,
+    DescendingNullsFirst = 2,
+    DescendingNullsLast = 3
 }
 ```
 
 ## Behavior and exceptions
 
 The constructor is internal; obtain the node from SqlQueryParser.Parse. KeyOrders contains
-one effective order per column, resolving omitted options to ASC NULLS LAST or DESC NULLS
-FIRST. Predicate is null for an unconditional index. Rendering omits ASC and each direction's
+one effective order per column, resolving omitted options to ASC NULLS FIRST or DESC NULLS
+LAST. Predicate is null for an unconditional index. Rendering omits ASC and each direction's
 default NULL placement. Parse returns diagnostics; request factories reject parser errors
 with DatabaseParseException. PRIMARY KEY/UNIQUE constraint-list options report CS00003.
 Engine execution validates predicates and metadata as described by [CREATE INDEX](../../../../database/sql/language/statements/create-index.md).
@@ -46,7 +46,7 @@ var statement = (SqlQueryStatement)new SqlQueryParser().Parse(
 var index = (SqlCreateIndexExpression)statement.SqlExpression;
 Console.WriteLine(index.KeyOrders[1]); // DescendingNullsFirst
 Console.WriteLine(SqlExpressionRenderer.Render(index));
-// CREATE UNIQUE INDEX ix ON t (a, b DESC) WHERE a > 0
+// CREATE UNIQUE INDEX ix ON t (a NULLS LAST, b DESC NULLS FIRST) WHERE a > 0
 ```
 
 ## Related reference
