@@ -63,7 +63,13 @@ Multiple array keys, UNIQUE array indexes or IncludeMissing with a leading array
 DocumentCatalogException/CD03025. An encoded definition above 8,092 bytes uses CD03026 before
 posting extraction or physical tree creation. Neither has an assigned SQLSTATE. Unsupported
 typed WHEN constants and oversized predicate trees retain [ArgumentException](document-index-predicate.md).
-Index definition/registration v1/v2 are refused before recovery writes with CD06105; v3 is required.
+Index definition/registration v1/v2/v3 are refused before recovery writes with CD06105; v4 is required.
+
+Build workspace now shares the engine StatementMemoryBudget and can refuse CD05018; a standalone
+catalog defaults to 256 MiB. Increase the grant or use that standalone build. Durable 64-posting
+chunks precede one definition publication; failures abandon the owner. See
+[validation order and measured witnesses](../../../../database/document/language/statements/create-index.md#build-memory-and-validation).
+DROP retains the tree for old snapshots then reclaims only its owner in 64-page durable batches.
 
 ## Example
 

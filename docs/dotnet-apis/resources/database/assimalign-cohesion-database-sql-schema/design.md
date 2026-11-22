@@ -10,7 +10,7 @@ Code-first table/constraint/index/domain provisioning remains pinned to dbo. The
 target-namespace setting. SQL database creation seeds dbo and DROP SCHEMA dbo is CS03031.
 [CREATE SCHEMA](../../../../database/sql/language/statements/create-schema.md) creates a SQL
 namespace independently of a compiled schema's ownership identity; it does not redirect provisioning.
-Storage format 37 retains namespaces as record kind 15, introduced in format 21; compiled schema artifacts remain version 12.
+Storage format 39 retains namespaces as record kind 15, introduced in format 21; compiled schema artifacts remain version 12.
 
 Declared scripts cannot DROP SCHEMA CASCADE over typed objects: admission reports CS03205
 (no assigned SQLSTATE) before opening/writing. Declare those changes in the typed schema.
@@ -65,9 +65,8 @@ uses the engine's [joint migration executor](../assimalign-cohesion-database-sql
 Every apply uses that executor, including non-TYPE, inline and empty-table plans. Preparation
 failure leaves the old schema online with CS03402; unconfirmed publication reports CS03403.
 The engine classifies each table: metadata-only changes keep its heap without rewriting rows;
-new indexes build only their trees. A heap-owned DROP INDEX without a same-name replacement keeps
-the heap and leaves its pages allocated until heap retirement. A same-name heap-owned replacement
-requires a rewrite; separately owned trees can be replaced while keeping the heap.
+new indexes build only their trees. Every index has its own owner, so drops and same-name
+replacements keep the heap when its layout permits and reclaim only the old tree.
 
 Every table still publishes in one commit. See [kept-table preparation](../assimalign-cohesion-database-sql/design.md#joint-tables-that-keep-storage).
 
@@ -79,10 +78,20 @@ existing destructive policy. See the [complete conversion table](../../../../dat
 
 Every other conversion, including every domain conversion, requires `AllowDestructiveChanges()`.
 Even a schema-declared domain can use application casts the planner cannot inspect. The engine
-reports a planner refusal as `CS03105` before any step runs. A successful migration followed by
-an older application declaration is an ordinary reverse migration with the same gate; INT to
-BIGINT does not authorize a later BIGINT to INT. This changes no serialized shape: compiled
-schema v12 remains current.
+reports policy refusals as `CS03105`. Applied history orders declarations by FirstAppliedGeneration:
+earlier declarations are rollbacks, later ones roll forward under the new-schema opt-in rules.
+A rollback applies only Safe steps that re-create no dropped object and validate no existing
+data. Build holds the entire unsafe rollback with CS03405 at the online stored schema; explicit
+apply refuses CS03105 regardless of the old opt-in. A never-seen destructive declaration without
+opt-in holds Build with CS03105. A dropped non-unique, non-partial index can be rebuilt only when
+every encoded key is provably at most 1,024 B; the budgeted build can still fail CS03402.
+See [the complete runtime classification](../assimalign-cohesion-database-sql/design.md#applied-schema-history-and-rollback).
+This changes no serialized shape: compiled schema v12 remains current.
+
+Compiled DefaultSql remains literal-only. A non-literal such as COALESCE(NULL::INT,1.5) carries
+CS03105 on imperative apply, Build and script generation. Build phase 3 leads its message with
+CS03101 but its structured diagnostic is CS03105. SQL-authored expression defaults retain their
+separate executable contract.
 
 ## Constraints and provisioning
 
@@ -141,7 +150,7 @@ defaults to NoAction and always serializes in v9. All five enum actions are vali
 CHECK requires NoAction. Invalid values fail validation as InvalidDocument at onUpdate. OnDelete
 keeps its Restrict/Cascade restriction. Changing OnUpdate changes identity and plans drop/add.
 The retained References builder supplies NoAction; runtime and SDK share v12 and refuse earlier
-artifacts, applied markers and pending targets before comparison. Catalog format 37 retains the
+artifacts, applied markers and pending targets before comparison. Catalog format 39 retains the
 action through provisioning, reconciliation and reopen. All five update actions execute.
 
 ## Directed index orders
@@ -182,7 +191,7 @@ render exact signed total seconds plus `seconds`, replacing CLR day-dot-clock te
 the canonical document and hash. The renderer preserves every tick, including TimeSpan.MinValue.
 Earlier artifacts, applied markers and pending targets fail with SqlSchemaValidationException,
 InvalidDocument at `schema.format`, before hash comparison. Rebuild them and follow the
-[catalog export/recreate procedure](../../../../database/sql/index.md#sql-format-37-and-schema-v12).
+[catalog export/recreate procedure](../../../../database/sql/index.md#sql-format-39-and-schema-v12).
 
 For example, the typed-default tests check `table.Default(row => row.Value, TimeSpan.FromTicks(1))`
 against `table.DefaultSql(row => row.Value, "'0.0000001 seconds'")`: their v12 documents and hashes
@@ -195,7 +204,7 @@ Compiled domain declarations named serial, bigserial or smallserial fail validat
 SqlSchemaValidationErrorCode.UnsupportedType and an IDENTITY suggestion. Native SqlType.CreateDomain
 throws ArgumentException; SQL CREATE DOMAIN reports CK00001, including quoted names.
 
-The integration branch uses SQL row-storage format 37 and compiled schema version 12.
+The integration branch uses SQL row-storage format 39 and compiled schema version 12.
 Format 17 introduced the insert-default/frozen-missing-value split (table extension 6); format 18
 separately changes quoting for newly executable function names in persisted canonical SQL.
 The formats preserve resolved shared type identity/modifiers across contextual multi-word and
@@ -214,8 +223,9 @@ direction and NULL placement in mandatory index extension 3 and retained TYPE de
 Format 33 fenced SQL/JSON names and ordinary-call quoting. Format 34 introduced joint typed
 migration intent semantics. Format 35 introduced separate physical owners for kept-table index trees and durable per-table
 classification. Format 36 changed effective index orders and defaults to ASC NULLS FIRST,
-matching ORDER BY. Current format 37 requires joint publication for every deferred job and fences
-per-step intents; format 36 and earlier are refused before recovery writes.
+matching ORDER BY. Format 37 required joint publication for every deferred job and fenced per-step intents.
+Format 38 introduced applied-schema history and never shipped alone. Current format 39 adds
+per-index owners; formats 37, 38 and all earlier formats refuse CS06041 before any write.
 Every earlier format is refused at open; there is no
 upgrade path. Compiled schema format remains version 12.
 

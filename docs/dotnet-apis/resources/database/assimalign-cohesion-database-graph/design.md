@@ -1331,6 +1331,24 @@ counts; a corrupt page they read still emits PageChecksumFailed (Error). See
 [shared format preflight](../assimalign-cohesion-database-storage/design.md#read-only-recovered-format-preflight).
 Evidence: this model project's `tests/RefusedOpenTests.cs` and `tests/FormatProbeFixTests.cs`.
 
+## Shared index build lifecycle
+
+Exact and text builds commit at most 64 entries per durable chunk, retaining the writer
+reservation and logical creator through one final definition publication. Graph session builds
+keep their existing work/memory preflight before root allocation; direct GraphStore builds use
+caller accounting with no fixed cap. Failed roots/chunks retire as orphans below the safe horizon.
+Each index owns its pages independently. DROP retains old snapshots, then frees exactly that
+owner with at most 64 queued candidates and 64 owner pages per pass. Passes yield to due/pending checkpoints and
+admission pauses. Open discovers owners from Storage's recovered directory, avoiding a second
+allocated-page scan; unknown owners are checksum-verified before receiving a retirement receipt.
+Catalog 4, record 5 and B-tree 3 are unchanged.
+
+IndexBuildBegan/IndexBuildEnded (16/17) carry database and physical objectId; end adds succeeded.
+Each begun build ends once on publication or failure/cancellation/abandonment. PagesReclaimed
+(18) reports only nonempty committed batches with database, objectId and pages (at most 64).
+All are Informational; build events use Info opcode without Start/Stop activity semantics.
+No indexed values are emitted. See [shared lifecycle events](../assimalign-cohesion-database-indexing/design.md#build-and-reclamation-events).
+
 ## Sources
 
 - **Text indexes and format v4** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Graph/docs/DESIGN.md`, `src/Storage/GraphStore.TextIndexes.cs`, `tests/GraphTextIndexTests.cs` and each model's `tests/FormatOrderIntegrationTests.cs`.

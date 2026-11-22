@@ -50,7 +50,7 @@ Equality and hashing include ordered key values (including WHEN), flags and all 
 fields. Construction writes no storage; the catalog build checks the 8,092-byte definition limit
 with CD03026 before posting extraction or tree creation.
 
-Every persisted index uses **v3** definition/registration records. V1/v2 are refused at open before
+Every persisted index uses **v4** definition/registration records. V1/v2/v3 are refused at open before
 recovery writes with CD06105 and a recreate remedy; there is no upgrade path. See [Design](catalog-design.md).
 
 ## Example

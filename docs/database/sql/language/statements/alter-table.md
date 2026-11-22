@@ -124,10 +124,9 @@ worker; empty-table work runs synchronously. `RunMigrationsInline`, any declared
 explicit `ApplySchemaAsync` also run the joint migration synchronously.
 
 Classification is per table. Index additions and constraint-only changes can keep unchanged
-physical storage and retained trees, building only new indexes. A heap-owned DROP INDEX without
-a same-name replacement keeps the heap and leaves its pages allocated until heap retirement.
-A same-name heap-owned replacement requires a rewrite; separately owned trees can be replaced
-while keeping the heap.
+physical storage and retained trees, building only new indexes. Every index has its own physical
+owner; drops and same-name replacements keep the heap when the remaining layout permits and
+reclaim exactly the old tree after its last readable snapshot.
 The complete migration still publishes in one commit. See
 [kept-table preparation](../../../../dotnet-apis/resources/database/assimalign-cohesion-database-sql/design.md#joint-tables-that-keep-storage).
 
@@ -161,8 +160,9 @@ unchanged default and nullability metadata, its lossless whitelist is:
 
 Every other conversion needs `schema.AllowDestructiveChanges()`, including narrowing, rounding
 and every domain conversion. Application-defined casts are outside the planner's proof, even
-for schema-declared domains. Without opt-in, Build/apply refuses with `CS03105` before anything
-runs. Opt-in permits an attempt; assignment conversion and constraints must still succeed.
+for schema-declared domains. Without opt-in, a never-seen destructive declaration holds Build
+at the stored schema with `CS03105`; explicit apply refuses before anything runs. A forward
+opt-in permits an attempt; assignment conversion and constraints must still succeed.
 Metadata-only changes retain their existing destructive-change policy.
 
 For example, changing an existing `Code` column from VARCHAR(8) to VARCHAR(4) requires opt-in:
@@ -186,9 +186,12 @@ schema can Build normally; a later Build declaring the new target can try again.
 only a Build declaring the same pending target resumes it. Plain open or an old/different/no-target
 Build discards that pending attempt and opens the old schema.
 
-After a **successful** publication, rolling the application back plans a reverse migration.
-For example, INT to BIGINT is lossless, but returning to INT requires destructive opt-in even
-when current values fit. Data lost by an opted-in conversion is not restored by a later rollback.
+After a **successful** publication, applied history identifies an older first-applied declaration
+as a rollback. It may apply only Safe steps that re-create no dropped object and validate no
+existing data. Returning from BIGINT to INT holds Build with CS03405 even with the old opt-in;
+explicit apply refuses CS03105. No Safe prefix runs. The stored schema stays online, Degraded.
+Data lost by an opted-in forward conversion is not restored by rollback. See
+[applied history](../../index.md#applied-history-and-application-rollback).
 An unconfirmed publication (`CS03403`) has an unknown old/new outcome; reopen/recovery decides
 the schema. See [migration health and recovery](../../index.md#typed-migration-health-and-recovery)
 and [migration diagnostics](../diagnostics.md#typed-schema-migrations).
@@ -299,11 +302,11 @@ To reclaim dropped ordinals, use the C# maintenance operation
 [SqlDatabase.RewriteTableAsync](../../../../dotnet-apis/resources/database/assimalign-cohesion-database-sql/sql-database.md).
 It copies live rows into a fresh dense layout, rebuilds indexes and publishes atomically. Old
 read-only snapshots retain the original layout until they end; writers bound before publication
-abort retryably with CS04006. This adds no ALTER syntax and keeps SQL format 37.
+abort retryably with CS04006. This adds no ALTER syntax and keeps SQL format 39.
 
 Table and dependent-definition changes publish atomically. DML waiting behind a changed definition
 must retry; after a table rename it reports the old table missing. SELECT planning retries binding
-when catalog publication races it. SQL storage format 37 is current: format 17 introduced this
+when catalog publication races it. SQL storage format 39 is current: format 17 introduced this
 insert-default/frozen-missing-value split with table extension 6; format 18 separately changes
 canonical function-name quoting. Compiled schema version is 12. Older SQL formats are refused.
 
@@ -469,8 +472,9 @@ direction and NULL placement in mandatory index extension 3 and retained TYPE de
 Format 33 fenced SQL/JSON names and ordinary-call quoting. Format 34 introduced joint typed
 migration intent semantics. Format 35 introduced separate physical owners for kept-table index trees and durable per-table
 classification. Format 36 changed effective index orders and defaults to ASC NULLS FIRST,
-matching ORDER BY. Current format 37 requires joint publication for every deferred job and fences
-per-step intents; format 36 and earlier are refused before recovery writes.
+matching ORDER BY. Format 37 required joint publication for every deferred job and fenced per-step intents.
+Format 38 introduced applied-schema history and never shipped alone. Current format 39 adds
+per-index owners; formats 37, 38 and all earlier formats refuse CS06041 before any write.
 Every earlier format is refused at open; there is no
 upgrade path. Compiled schema format remains version 12.
 

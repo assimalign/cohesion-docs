@@ -174,6 +174,21 @@ The public static `CreateBuilder(name)` on each model engine returns its sealed 
 deferred standalone composition. Its `Options`, `AddDatabase`, `AddServer`, and `AddWorker` compose
 the engine. Configuration and service reads remain in the hosting callback.
 
+## Held declarations
+
+Held SQL Build remains online with Degraded health. Provisioning.Detail contains both hashes
+and every refused step; health includes it in its description and
+engine.N.provisioning.M.detail beside failureCode. CS03405 identifies an unsafe rollback;
+CS03105 identifies a never-seen destructive declaration without opt-in. No step or declared
+script runs. Verify remains strict with CS03103.
+
+HealthDegraded (16) and HealthRestored (17) append failureCode and detail. Both event and health
+detail are capped at 4,096 UTF-16 code units including ellipsis, without splitting surrogate
+pairs. Restoration carries the prior observed code/detail. A fresh process observer emits no
+restoration for another process's condition. Reopen, rewrite and refused explicit apply retain
+the hold while the stored hash is unchanged; redeploying the stored or successfully applied
+newer declaration clears it. See [rollback](../assimalign-cohesion-database-sql/design.md#applied-schema-history-and-rollback).
+
 ## Platform endpoints and HTTP health
 
 When COHESION_GATEWAY is nonempty, a model server without a listener consumes its named endpoint:

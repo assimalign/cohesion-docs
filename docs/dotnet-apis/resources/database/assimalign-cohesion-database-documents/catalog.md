@@ -32,7 +32,7 @@ rejects write conflicts and stale index definitions, and enforces schema ownersh
 the catalog.
 
 `CreateIndexAsync` builds a scalar-path or typed DISTINCT array index immediately. UNIQUE applies
-only to scalar indexes. All index records are v3; v1/v2 are refused with CD06105 before recovery
+only to scalar indexes. All index records are v4; v1/v2/v3 are refused with CD06105 before recovery
 writes, with a recreate remedy and no upgrade. `SaveDocumentAsync` and
 `DeleteDocumentAsync` maintain every visible index alongside metadata writes; queries do not rebuild
 indexes. The Documents engine reaches index creation and deletion through planned OQL `CREATE INDEX`

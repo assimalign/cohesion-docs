@@ -133,7 +133,7 @@ stamps. The disk layout and storage format remain unchanged.
 
 `StorageFileHeader.CurrentFormatVersion` is 4. Older and newer storage formats are refused with
 `StorageFormatException` / CK06001 before reading the journal; there is no upgrade or legacy
-reader. This kernel version is separate from SQL data/catalog format 37 and Graph record format 5.
+reader. This kernel version is separate from SQL data/catalog format 39 and Graph record format 5.
 
 The changed public members are:
 
@@ -819,6 +819,16 @@ candidates after reopen or rollback therefore needs only O(1) write pre-images/j
 for the fitting target. No eager full-page scan, persisted map or page/file format change is added.
 
 StorageCompactionTests, StorageRecordFreeBytesTests and model decode-location tests exercise compaction, rollback/recovery, stale selections and confirmed malformed records.
+
+## Index-owner discovery
+
+Storage rebuilds its resident index-owner directory during the verified open scan. Model open
+then uses bounded [GetIndexOwners](storage.md#getownerindexpagecount-and-getindexowners) snapshots
+instead of reading all allocated pages again. GetOwnerIndexPageCount is constant-time and
+allocation-free; GetOwnerIndexPages remains. Releases appear at commit. Owner retirement checks
+directory emptiness after durable batches; temp runs are separate files and never enter or
+change this directory. Model index builds now use 64-entry brackets, bounding their journal-size
+trigger overshoot to the admitted chunk; general statement journal bounds remain separate work.
 
 ## Sources
 

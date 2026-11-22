@@ -29,6 +29,15 @@ This package parses the Documents engine's executable OQL surface into typed sta
 - **[OqlUpdateExpression](oql-update-expression.md)** — Partial updates, removals and filtering.
 - **[OqlUpdateAssignment](oql-update-assignment.md)** — SET path and pre-update value.
 - **[OqlDeleteExpression](oql-delete-expression.md)** — Target, alias and optional predicate.
+- **[OqlMergeExpression](oql-merge-expression.md)** — MERGE parsing, canonical rendering and planning boundary.
+- **[OqlMergeSource](oql-merge-source.md)** — Collection, query or expression source.
+- **[OqlMergeUpdateAction](oql-merge-update-action.md)** — SET/UNSET snapshots and optional filter.
+- **[OqlMergeDeleteAction](oql-merge-delete-action.md)** — Optional matched DELETE predicate.
+- **[OqlMergeInsertAction](oql-merge-insert-action.md)** — Key/value expressions and optional filter.
+- **[OqlWindowExpression](oql-window-expression.md)** — OVER call and name/specification.
+- **[OqlWindowSpecification](oql-window-specification.md)** — Partition/order keys and copied reference.
+- **[OqlWindowDefinition](oql-window-definition.md)** — Query-local declaration.
+- **[OqlWindowFunctionKind](oql-window-function-kind.md)** — Eight ranking/navigation identities.
 - **[OqlMetaExpression](oql-meta-expression.md)** — AST members and execution contract.
 - **[OqlObjectExpression](oql-object-expression.md)** — AST members and execution contract.
 - **[OqlArrayExpression](oql-array-expression.md)** — Ordered constructor and MISSING elements.
@@ -46,7 +55,7 @@ This package parses the Documents engine's executable OQL surface into typed sta
 - **[OqlCaseExpression](oql-case-expression.md)** — AST members and execution contract.
 - **[OqlMissingExpression](oql-missing-expression.md)** — AST members and execution contract.
 - **[OqlLiteralExpression](oql-literal-expression.md)** — AST members and execution contract.
-- **[OqlExplainExpression](oql-explain-expression.md)** — SELECT/INSERT/UPDATE/DELETE wrapper.
+- **[OqlExplainExpression](oql-explain-expression.md)** — Data statement/MERGE plan wrapper.
 - **[OqlUnnestExpression](oql-unnest-expression.md)** — Ordered INNER/LEFT array binding.
 - **[OqlQuantifiedExpression](oql-quantified-expression.md)** — Scoped ANY/SOME/EVERY predicate.
 

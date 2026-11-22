@@ -641,6 +641,22 @@ preflight before recovery or any other write. Clean and crashed file sets remain
 When both model metadata and B-tree stamps are old, the entry-space marker precedes B-tree roots, so the
 single refusal is CV06107. See [combined refusal order](../../../../database/error-codes.md#combined-format-refusals).
 
+## Primary index owner and cleanup
+
+Entry-space format 3 gives the primary tree its own physical owner, distinct from logical
+key-space/entry owner 1. Earlier markers, including 2, refuse CV06107 before writes on clean
+or crashed files. Recreate the database; there is no upgrade reader. Every open validates the
+primary registration and root owner before attachment or orphan cleanup. Owner discovery uses
+Storage.GetIndexOwners batches; cleanup frees only unregistered owners in at most 64-page
+durable brackets, yielding to size/interval checkpoint admission and cancellation. This model
+has only empty primary bootstrap, with no DROP INDEX or populated backfill surface.
+
+IndexBuildBegan/IndexBuildEnded (13/14) carry database, physical objectId and succeeded on end.
+Bootstrap ends once with its success/failure status. PagesReclaimed (15) reports database,
+objectId and pages only for nonempty committed batches (at most 64). All are Informational;
+build events have Info opcode, not Start/Stop activity semantics, and emit no indexed values.
+See [shared lifecycle events](../assimalign-cohesion-database-indexing/design.md#build-and-reclamation-events).
+
 ## Sources
 
 - **Lane isolation evidence** — `cohesion/resources/Database/Assimalign.Cohesion.Database.KeyValuePair/tests/KeyValueWorkerResilienceTests.cs` and `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/tests/MaintenanceCapacityTests.cs`.

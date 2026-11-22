@@ -25,6 +25,9 @@ public static class OqlClauses
     public const string Union = "UNION";
     public const string Intersect = "INTERSECT";
     public const string Except = "EXCEPT";
+    public const string Merge = "MERGE";
+    public const string Over = "OVER";
+    public const string Window = "WINDOW";
     // Other query, expression and DDL clause constants are unchanged.
 }
 ```
@@ -32,7 +35,7 @@ public static class OqlClauses
 ## Behavior and exceptions
 
 These transaction constants are accepted by OqlLanguageProfile.Instance. START maps to Begin;
-there is no separate Start constant. Profile support describes grammar admission, not transport
+there is no separate Start constant. Profile support describes executable capability, not transport
 support. Wire controls require negotiated transaction-status (CD07002 when absent). Reading constants throws
 no exceptions.
 
@@ -51,6 +54,10 @@ They produce OqlJoinExpression bindings; general predicates remain CK00001.
 
 Union, Intersect and Except are admitted in every query position, including their ALL forms,
 and produce [OqlSetOperationExpression](oql-set-operation-expression.md).
+
+Over and Window are supported for the eight ranking/navigation functions. Merge is a stable
+name but Supports(OqlClauses.Merge) is false: its AST parses, binds and explains, while execution
+refuses CD05022 until MERGE execution is available. See [MERGE](oql-merge-expression.md) and [windows](oql-window-expression.md).
 
 ## Example
 

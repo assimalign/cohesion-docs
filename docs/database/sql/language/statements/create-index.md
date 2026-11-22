@@ -68,8 +68,8 @@ canonicalize signed zeros together and place all NaNs below negative infinity; s
 values keep their IEEE representation. Floating seek eligibility remains conservative.
 
 [INDEXES metadata](../system-views/cohesion-schema.md) exposes nullable DIRECTION and
-NULL_PLACEMENT per key. Catalog format 37 and compiled schema v12 refuse earlier formats;
-follow the [export and rebuild procedure](../../index.md#sql-format-37-and-schema-v12).
+NULL_PLACEMENT per key. Catalog format 39 and compiled schema v12 refuse earlier formats;
+follow the [export and rebuild procedure](../../index.md#sql-format-39-and-schema-v12).
 Invalid key-order widths/values or directed primary-key metadata use `CS03085` (42P17).
 Malformed stored vectors use CS06059; unsupported extensions use CS06060; an older SQL
 record-space format uses CS06041.
@@ -107,7 +107,7 @@ and DROP INDEX work, but every write to that table fails with `CS01009` (42883),
 empty input. Restoring the required immutable definition or dropping the index restores writes.
 
 Catalog metadata and [INFORMATION_SCHEMA.INDEXES](../system-views/information-schema.md)
-expose canonical predicate text. SQL catalog format 37 and compiled schema v12 persist it and
+expose canonical predicate text. SQL catalog format 39 and compiled schema v12 persist it and
 refuse earlier formats. Invalid predicate/dependency metadata uses `CS03084` (42P17); a
 programmatically supplied primary-key predicate uses `CS03082` (42P16).
 
@@ -140,6 +140,23 @@ permits it. Partial uniqueness never establishes unconditional DISTINCT or join 
 [EXPLAIN](explain.md) reports `partial_predicate` and `implied_by` for selected partial indexes.
 
 ### Building over existing data
+
+Every index has a separate physical page owner. Builds commit at most 64 retained source rows
+per durable bracket, keeping the table lock, creator and snapshot pins across all chunks, then
+publish the definition once. Failure abandons the unpublished owner for safe reclamation.
+
+Build workspace is newly charged in this batch: 6,544 B per 64-entry chunk before its first
+row, plus each retained row. CREATE [UNIQUE] INDEX and UNIQUE/PRIMARY KEY constraints refuse
+CS05067 directly. A schema-apply migration or rollback rebuild reports CS03402 with CS05067
+as its cause. One INT row refuses at grants 4,096–6,927 B; two INT rows refuse at 4,096 B.
+At 262,144 B, a chunk of 64 (INT, 4,000-character TEXT) rows needs 555,408 B and refuses.
+These builds previously completed at those grants. Increase StatementMemoryBudget to build them.
+
+Owner reservation releases the catalog monitor and waits up to session/engine LockTimeout per
+refusal, then reports CK04014; default 0 has no limit. Other session catalog mutations retain
+immediate refusal. The ordinary build's first data-allocation refusal is still immediate;
+later roots and chunk retries wait outside the apply gate, bounded by StatementTimeout and
+cancellation. Checkpoints can run between chunks.
 
 The build holds the table's Exclusive lock through construction, validation and publication;
 concurrent writers wait. It includes stored historical versions so older snapshots can use the

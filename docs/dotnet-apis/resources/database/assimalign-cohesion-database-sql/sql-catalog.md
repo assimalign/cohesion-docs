@@ -43,6 +43,15 @@ Console.WriteLine(catalog.Namespaces.Any(s => s.Name == "sales")); // False
 This follows SqlCatalogNamespaceTests with an open catalog. Low-level open does not seed dbo;
 SQL database creation does. See [SqlCatalogNamespace](sql-catalog-namespace.md).
 
+## Physical index publication
+
+Every index publication needs a prepared, distinct physical owner in the live tree directory.
+An owner equal to the heap, absent from that directory or with an unprepared pending intent
+refuses CS05060 before catalog persistence. A dropped registration cannot be republished.
+A standalone public catalog has no live tree directory, so CreateIndexAsync publication
+refuses CS05060. Prepared provisioning, KeepOwner, TRUNCATE and
+rewrite owners remain valid. See [owner lifetimes](design.md#per-index-page-owners-and-builds).
+
 ## Index key orders
 
 [SqlCatalogIndex](sql-catalog-index.md) adds an optional keyOrders constructor argument and a

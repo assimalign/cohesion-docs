@@ -30,6 +30,11 @@ Ordered DISTINCT at an eligible root SELECT or CTAS source can spill its sorting
 retaining the first sorted representative. Its seen set still must fit StatementMemoryBudget.
 See [spill eligibility and lazy delivery](../../performance.md#root-sort-spilling).
 
+Unordered DISTINCT over an eligible root streamed scan/system view can also spill its hash
+state. It retains the first complete representative and first-seen order. Join-output DISTINCT
+and aggregate DISTINCT retain their existing memory refusal. See
+[hash eligibility](../../performance.md#hash-aggregation-and-distinct-spilling).
+
 ## Examples
 
 These examples use the [conformance fixture](../statements/select.md#a-create-the-conformance-fixture).

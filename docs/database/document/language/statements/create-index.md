@@ -63,7 +63,7 @@ COHESION_SCHEMA.INDEXES exposes INCLUDE_MISSING as a Boolean. PATH and PATHS[0] 
 ` INCLUDE MISSING` to the leading scalar key; other PATHS entries retain their key rendering.
 For an index on `(v INCLUDE MISSING)`, PATH is `v INCLUDE MISSING`, PATHS is
 `["v INCLUDE MISSING"]`, and INCLUDE_MISSING is true. The rendered list can be reused in DDL.
-This uses the existing v3 flag and does not change the format. See
+This uses the existing v4 flag and does not change the format. See
 [ordered execution and EXPLAIN](explain.md#index-ordering-eligibility): eligible scalar indexes
 supply forward/reverse order, elide sorting and permit early paging with fixed projection types.
 
@@ -119,15 +119,45 @@ predicate remains correct but has no fetch bound: the unfiltered price index in 
 Proven scalar [index order](../clauses/order-by.md#index-order-and-paging) also permits early paging.
 Projections needing type inference retain materialization.
 
-All indexes use Documents.Catalog v3 definition and physical-registration records. V1/v2 indexes are
+All indexes use Documents.Catalog v4 definition and physical-registration records. V1/v2/v3 indexes are
 refused at open before recovery writes, with found/supported versions and a recreate remedy.
 Recreate the database with this engine; there is no upgrade path or legacy reader.
+
+## Build memory and validation
+
+Builds use durable chunks of at most 64 postings and publish the definition once, retaining the
+logical transaction and writer reservation throughout. Every tree has its own physical owner;
+a failed/cancelled build abandons that owner for safe reclamation. Workspace is newly charged
+against StatementMemoryBudget (CD05018): existing-name references use 24 + 8 × name count bytes,
+plus bounded source/posting chunks, one document's JSON/extracted keys and actual encoded sizes.
+UNIQUE validation walks adjacent completed-tree keys without a collection-wide set.
+
+Increase StatementMemoryBudget after a build refusal, or use a standalone DocumentCatalog build,
+whose default grant is 256 MiB. These are new build refusals, not fixed document-count limits:
+
+| Witness | Outcome |
+| --- | --- |
+| 64 KiB; one DISTINCT ARRAY document with 336 integer elements | Succeeds; 337 first refuses CD05018 |
+| Default 64 MiB; one document with 1,400,000 zeros in an unindexed array | CD05018 from cumulative pooled DOM growth, content and live build state |
+| Default 64 MiB; one 20 MiB ASCII name in variants; WHEN name = 'x' or != 'x' | Fits without decoding the name; ordered comparisons reserve decoded string space and refuse CD05018 |
+| 16 KiB and 128 small documents; 64 MiB and 250,000 small documents or one 10,000-key document | Builds complete |
+
+Extraction validates every key before duplicate checking, so a non-scalar UNIQUE component
+(CD02021) or oversized formed key (CD02026) anywhere precedes CD03020. Within a document the
+first invalid accessed value in navigation order wins. Invalid UTF-8/unpaired-surrogate key or
+WHEN string operands throw InvalidOperationException, including later/oversized components.
+Invalid raw property names are admitted by a build; later PUT/DELETE reject them. Accessed raw
+numbers that cannot round-trip exactly as Decimal refuse CK06003; unaccessed paths/duplicates
+are not validated. An oversized scalar combined with an empty/filtered array forms no key,
+so no CD02026; a later non-scalar UNIQUE component still uses CD02021 first. Transient WHEN
+scratch charges its per-document high-water mark, not the sum of repeated comparisons.
 
 ## Diagnostics
 
 | Code | Meaning and trigger | SQLSTATE |
 | --- | --- | --- |
 | `CD03024` | Existing index name without IF NOT EXISTS | — |
+| `CD05018` | Charged index-build workspace exceeds the statement memory budget | — |
 | `CD03026` | Encoded index definition exceeds 8,092 bytes; before posting extraction/tree creation | — |
 | `CD02026` | Composite encoded key exceeds 1,024 bytes during build or mutation | — |
 | `CD03020` | Duplicate valued scalar UNIQUE key during a write or build; names index and collection without key data | 23505 |

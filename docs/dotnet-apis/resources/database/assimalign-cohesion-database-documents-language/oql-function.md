@@ -1,6 +1,6 @@
 # OqlFunction
 
-Immutable metadata for one executable OQL scalar, aggregate or META function.
+Immutable metadata for an executable OQL scalar, aggregate, window or META function.
 
 Namespace: `Assimalign.Cohesion.Database.Documents.Language`.
 
@@ -14,6 +14,7 @@ public sealed class OqlFunction
     public int MaximumArguments { get; }
     public DatabaseType ResultType { get; }
     public bool IsAggregate { get; }
+    public OqlWindowFunctionKind WindowKind { get; }
     public bool AcceptsArity(int count);
     public bool AcceptsArgument(int index, JsonValueKind kind);
 }
@@ -29,6 +30,11 @@ AcceptsArity includes COUNT's star as one argument. AcceptsArgument checks a kno
 NULL/MISSING propagation belongs to the evaluator. A negative index throws ArgumentOutOfRangeException.
 It does not validate arity; variadic positions repeat the last declared kind. The planner rejects
 incompatible literals with CD05001; wrong-kind stored inputs produce NULL.
+
+WindowKind identifies ROW_NUMBER, RANK, DENSE_RANK, PERCENT_RANK, CUME_DIST, NTILE, LAG or
+LEAD; scalar/ordinary aggregate calls return None. Window calls require OVER. Ranking and
+NTILE results are Int64, distributions Decimal, navigation argument-dependent (ResultType Null).
+See [OqlWindowFunctionKind](oql-window-function-kind.md).
 
 ## Example
 

@@ -298,7 +298,7 @@ values, reversed operands, and conjunctive bounds. Bounded snapshot-visible prob
 then a range on the next path, then UNIQUE, then ordinal index name. A non-leading-only bound scans. The executor reapplies the full predicate to candidates, preserving mixed-shape
 semantics. See the [catalog design](catalog-design.md) for
 composite key collation, NULL/MISSING rules, visibility filtering and restart recovery. Index
-records use v3; v1/v2 indexes are refused with CD06105 before recovery writes, with a recreate remedy and no upgrade.
+records use v4; v1/v2/v3 indexes are refused with CD06105 before recovery writes, with a recreate remedy and no upgrade.
 UNIQUE keys containing NULL/MISSING do not conflict. Duplicate valued scalar keys use
 DocumentConstraintViolationException/CD03020 (23505); array/object components use CD02021.
 Direct path counts outside 1..32 use CD03022. Constraints are immediate per row; failed explicit
@@ -309,7 +309,7 @@ still refuses DROP. See [CREATE INDEX](../../../../database/document/language/st
 ## Typed array index postings
 
 OQL now admits [INCLUDE MISSING](../../../../database/document/language/statements/create-index.md#include-missing)
-on the leading scalar key, using the existing v3 catalog flag. Catalog PATH/PATHS[0] render the
+on the leading scalar key, using the existing v4 catalog flag. Catalog PATH/PATHS[0] render the
 suffix, and INCLUDE_MISSING exposes its Boolean value. [EXPLAIN ordering eligibility](../../../../database/document/language/statements/explain.md#index-ordering-eligibility)
 reports conservative per-index proofs, direction and fallback reasons, including bounded complex-tag
 probes. Eligible scalar indexes now supply forward/reverse execution order and report
@@ -903,6 +903,44 @@ Current B-tree pages use format 3. Format-2 trees refuse CK06101 through recover
 preflight before recovery or any other write. Clean and crashed file sets remain unchanged.
 When both model metadata and B-tree stamps are old, catalog kind/version headers precede B-tree roots, so the
 single refusal is CD06105. See [combined refusal order](../../../../database/error-codes.md#combined-format-refusals).
+
+## MERGE planning and ranking windows
+
+MERGE binds its lookup and key-equality ANSI forms against snapshot-visible catalog metadata.
+EXPLAIN describes source, KeyLookup/KeyJoin, ordered actions/filters and RETURNING without
+callbacks, probes or document reads. Execution refuses one located CD05022 before creating
+its nested context. Writes, counts, duplicate-write rules and RETURNING images arrive with MERGE execution.
+Supports("MERGE") remains false. CD01039/CD01040 cover invalid direct shapes and binding scope.
+See [conservative grammar/scopes](../../../../database/document/language/statements/index.md#merge-planning).
+
+Window evaluation executes eight ranking/navigation functions over complete partitions after grouping/HAVING,
+before projection, DISTINCT, final ordering and paging. Equal specifications share sort/key work.
+Window rows, bindings, sort indexes, payloads, navigation and output charge StatementMemoryBudget
+(CD05018, no spill); expression/partition/peer/sort work shares StatementWorkBudget (CD05020).
+Adding OVER selects nested execution for the whole statement, including scan/projection work.
+Reservations release on success/error/cancellation. EXPLAIN adds WindowAggregate with keys and
+sort-sharing groups. Frames, aggregate OVER and value functions are deferred. See
+[window defaults, scope and reserved names](../../../../database/document/language/statements/select.md#windows).
+
+## Index builds and reclamation
+
+Index format 4 gives every physical generation a separate page owner and signed-root retirement
+receipts. DROP waits for the last readable snapshot, then reclaims exactly its owner in durable
+batches of at most 64 pages. Open discovers orphan owners through Storage's resident directory
+rather than scanning every page again. Clean and abruptly stopped version-3 indexes refuse
+CD06105 before writes; recreate those databases.
+
+Builds commit at most 64 postings per bracket and publish once. Workspace now charges
+StatementMemoryBudget and can refuse CD05018; a raw standalone DocumentCatalog defaults to
+256 MiB. Use a larger engine grant or that standalone build. See
+[validation order and witnesses](../../../../database/document/language/statements/create-index.md#build-memory-and-validation).
+Graph and Documents' receipt path yields to checkpoints and admission pauses.
+
+IndexBuildBegan/IndexBuildEnded (15/16) carry database and physical objectId; end adds succeeded.
+Every begun build ends once on publication, failure, cancellation or abandonment. PagesReclaimed
+(17) reports only nonempty committed batches, with database, objectId and pages (at most 64).
+These Informational build events use Info opcode; payloads contain no indexed values. See
+[shared lifecycle events](../assimalign-cohesion-database-indexing/design.md#build-and-reclamation-events).
 
 ## Sources
 

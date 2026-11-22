@@ -36,7 +36,7 @@ and is preserved through SET/DROP DEFAULT, renames and restart. Reading old rows
 insert default. Precision tightening and VARBINARY narrowing validate visible values, including
 visible missing tails. Historical numeric/binary literals bind independently of current bounds;
 an unused historical literal does not prevent tightening. New defaults and assignments must fit
-the declaration. Character-width assignment retains trimming/padding rules. Table extension 6 introduced this split in format 17. Current format 37 uses extension 8, which adds ON UPDATE metadata and also
+the declaration. Character-width assignment retains trimming/padding rules. Table extension 6 introduced this split in format 17. Current format 39 uses extension 8, which adds ON UPDATE metadata and also
 persists the TYPE default-assignment flag. Rewriting TYPE materializes missing tails in the new
 owner; old descriptions retain their original missing literals for old snapshots.
 
@@ -79,8 +79,9 @@ direction and NULL placement in mandatory index extension 3 and retained TYPE de
 Format 33 fenced SQL/JSON names and ordinary-call quoting. Format 34 introduced joint typed
 migration intent semantics. Format 35 introduced separate physical owners for kept-table index trees and durable per-table
 classification. Format 36 changed effective index orders and defaults to ASC NULLS FIRST,
-matching ORDER BY. Current format 37 requires joint publication for every deferred job and fences
-per-step intents; format 36 and earlier are refused before recovery writes.
+matching ORDER BY. Format 37 required joint publication for every deferred job and fenced per-step intents.
+Format 38 introduced applied-schema history and never shipped alone. Current format 39 adds
+per-index owners; formats 37, 38 and all earlier formats refuse CS06041 before any write.
 Every earlier format is refused at open; there is no
 upgrade path. Compiled schema format remains version 12.
 

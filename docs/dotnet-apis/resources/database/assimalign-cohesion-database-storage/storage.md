@@ -15,6 +15,9 @@ public abstract class Storage : IAsyncDisposable, IDisposable
     public bool HasActiveTransactions { get; }
     public long JournalBytesSinceCheckpoint { get; }
     public IReadOnlyList<PageId> GetOwnerIndexPages(ulong ownerId);
+    public int GetOwnerIndexPageCount(ulong ownerId);
+    public IReadOnlyList<(ulong OwnerId, PageId Page)> GetIndexOwners(
+        ulong afterOwner, int maximumOwners = 64);
     public StorageTransaction BeginTransaction();
     public StorageTransaction BeginTransaction(string bracketClass, long owner = 0);
     public StorageTransaction BeginTransaction(long sequence);
@@ -60,7 +63,20 @@ Returns a point-in-time snapshot of the owner's index pages in ascending page or
 unregistered trees; empty when it owns none. Later allocations/releases do not change the result.
 Released pages leave the directory on transaction commit. Open rebuilds the directory from
 recovered page headers, including pages of trees no longer registered. Joint retirement admission
-uses this to count separate tree pages without charging stranded pages of a kept heap.
+uses the separate tree directory to identify physical index pages.
+
+## GetOwnerIndexPageCount and GetIndexOwners
+
+GetOwnerIndexPageCount returns the owner's allocated index-page count in constant time without
+allocating or reading pages. Releases become visible at storage-transaction commit. A short
+freeing batch alone does not prove an owner empty; retirement checks all relevant directories.
+
+GetIndexOwners returns at most maximumOwners nonzero owners greater than afterOwner, ordered
+by owner id, with each owner's lowest allocated index page. Zero starts enumeration. A
+nonpositive maximumOwners throws ArgumentOutOfRangeException. The bounded snapshot comes from
+the resident directory rebuilt during Storage open; it performs no buffer-pool page reads.
+Each call snapshots independently, so concurrent changes may affect later batches. Models
+discover orphan owners before admitting sessions. GetOwnerIndexPages remains available.
 
 ## Example
 

@@ -99,7 +99,10 @@ plain bytes fill the grant first, refusal reports CS05067, including where the w
 ledger would later refuse with CS05079 or CS05094. With no plain bytes live, those grants retain
 their specific diagnostic. Reservations unwind on success, error and cancellation.
 
-Eligible root ORDER BY and ordered DISTINCT, including CTAS source roots, spill at CS05067.
+Eligible root ORDER BY and ordered DISTINCT, including CTAS source roots, and eligible plain
+hash aggregation/DISTINCT and INNER/LEFT/RIGHT/FULL hash joins spill at CS05067. Hash joins
+require plain column keys and at least 256 KiB; computed keys still refuse CS05067. All share
+one statement temp quota and grant. See [hash limits](../../../../database/sql/performance.md#hash-join-spilling).
 Other shapes and retained results still need a sufficient grant; an unordered CTAS refuses
 where the same source with an eligible ORDER BY spills. A session allows eight live spilled
 results. Dispose them after enumeration or cancellation.
@@ -130,8 +133,11 @@ shared with window-frame recomputation and is independent of the configured byte
 
 These three options configure the disposable-storage substrate. They exist only on the SQL
 engine options on this branch. Eligible root ORDER BY and ordered DISTINCT, including CTAS
-source roots, use it when their memory reservation would refuse. Excluded shapes retain
-memory refusals; see [eligibility and capacity](../../../../database/sql/performance.md#root-sort-spilling).
+source roots, use it when their memory reservation would refuse. Eligible plain hash
+aggregation/DISTINCT, hash joins and normalized join buffers share that temporary statement
+quota. Excluded shapes retain memory refusals; see
+[sort eligibility](../../../../database/sql/performance.md#root-sort-spilling) and
+[hash join capacity](../../../../database/sql/performance.md#hash-join-spilling).
 
 | Member | Default and validation |
 | --- | --- |

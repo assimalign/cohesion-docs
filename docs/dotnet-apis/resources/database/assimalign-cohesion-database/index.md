@@ -18,12 +18,16 @@ Protocol, Security), so one reference to the root delivers the whole base surfac
 child-owned vocabulary the contracts speak (`TransactionId` and `TransactionState` from
 `Database.Transactions`, `ProtocolVersion` from `Database.Protocol`).
 
-Database instances expose a nullable immutable `Provisioning` observation for model-owned deferred work: operation/object, step position, row progress and failure code. Hosting consumes it through the root. Application Build accepts a caller cancellation token, handed to engine factories through their application context (49a).
+Database instances expose a nullable immutable `Provisioning` observation for model-owned work:
+operation/object, step position, row progress, failure code and full model-supplied detail.
+Hosting consumes it through the root, including online held declarations. Application Build
+accepts a caller cancellation token, handed to engine factories through their application context.
 
 ## Reference pages
 
 - **[DatabaseEngine](database-engine.md)** — Protected journal admission composition.
 - **[DatabaseInstance](database-instance.md)** — Live journal admission observation.
+- **[DatabaseProvisioningProgress](database-provisioning-progress.md)** — Immutable progress, failure code and held-schema detail.
 
 - **[DatabaseTransaction](database-transaction.md)** — Protected kernel binding, savepoint observations and isolation replacement.
 - **[DatabaseException](database-exception.md)** — Public contract and usage.

@@ -48,6 +48,22 @@ an unsupported condition reports CS05070 before reading inputs. For example, on 
 `EXPLAIN SELECT * FROM a FULL JOIN b USING (id)` describes FullHashJoin without executing it.
 ANALYZE's actual_rows counts candidate pairs, excluding the separately emitted unmatched rows.
 
+### Hash spill fields
+
+Under ANALYZE, hash_budget reports each hash build's executed permission as spill_on_refusal
+or no_spill, including an unbuilt step. Plain EXPLAIN reports configured permission as
+spill_on_refusal_if_eligible. Non-hash steps keep no_spill. The new hash_status is fitting or
+spilled; a spilled JoinPlan reads "bounded hash" rather than "bounded in-memory hash".
+Zero-candidate hash actuals remain NULL.
+
+Spills report spilled_bytes (largest physical snapshot), spill_peak_bytes (owner high-water
+mark), spill_runs and spill_merge_passes. With separate downstream sort metrics, hash byte/run/
+merge fields use a hash_ prefix. Hash aggregation adds hash_spill_batches and hash_spill_passes.
+Joins add hash_join_probe_chunk_reads for decoded probing cache misses, excluding build and
+unmatched work; joins do not increment aggregation batches/passes. Probe reads and run/merge
+counts can vary with the process hash seed. Rows, calls, candidate/record counters and first
+evaluation errors retain fitting semantics. See [hash spill limits](../../performance.md#hash-join-spilling).
+
 ### Join-order search
 
 Join detail uses these exact field forms (angle-bracket values are placeholders):

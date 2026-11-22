@@ -13,10 +13,14 @@ public sealed class OqlExplainExpression : OqlExpression
 
 ## Behavior and exceptions
 
-Parser-created wrapper around SELECT, INSERT, UPSERT, UPDATE or DELETE. It has no public constructor. Statement retains the
+Parser-created wrapper around SELECT, INSERT, UPSERT, UPDATE, DELETE or MERGE. It has no public constructor. Statement retains the
 wrapped AST; planning validates it and returns DatabasePlanDescription without data execution. DDL,
 nested EXPLAIN and ANALYZE report CK00001. Parsing returns diagnostics; executing a malformed
 request throws DatabaseParseException before planning.
+
+MERGE describes source, key access, ordered actions/filters and RETURNING without document
+reads, probes or callbacks. Actual MERGE execution remains CD05022. SELECT windows add
+WindowAggregate with keys/sort-sharing groups; see [EXPLAIN](../../../../database/document/language/statements/explain.md).
 
 ## Example
 

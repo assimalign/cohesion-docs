@@ -46,8 +46,11 @@ Unadorned string literals accept these Boolean inputs, case-insensitively:
 | 'true', 't', 'yes', 'y', 'on', '1' | 'false', 'f', 'no', 'n', 'off', '0' |
 
 Other strings fail CS02003. Text columns, text parameters and explicit TEXT casts retain
-their types and receive no literal coercion. Every CASE result and COALESCE alternative used
-in a Boolean position must qualify, even an unreachable alternative. Boolean short-circuiting
+their types and receive no literal coercion. CASE/COALESCE first resolves a common result type,
+including unreachable alternatives. All-unknown string/NULL alternatives resolve to TEXT and
+fail CS02003 in a Boolean position; a declared Boolean admits valid unknown input strings,
+invalid input uses CS02022, and incompatible declared alternatives use CS02080. See
+[common types](../expressions/case.md#common-types). Boolean short-circuiting
 still skips later runtime evaluation once the result is decided; it does not skip type validation.
 Only TRUE selects a row or searched CASE arm. CHECK instead accepts TRUE or UNKNOWN.
 

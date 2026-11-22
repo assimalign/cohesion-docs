@@ -160,7 +160,7 @@ UNKNOWN. CS03038 (23514) instead means a valid Boolean check evaluated to FALSE.
 ## ON UPDATE declarations
 
 CREATE TABLE column REFERENCES/table constraints and ALTER TABLE ADD CONSTRAINT/ADD COLUMN
-accept all five update actions. Catalog format 37 and compiled schema v12 persist the action;
+accept all five update actions. Catalog format 39 and compiled schema v12 persist the action;
 [REFERENTIAL_CONSTRAINTS.UPDATE_RULE](system-views/information-schema.md) reports it, including
 through persisted views. The [compiled constraint API](../../../dotnet-apis/resources/database/assimalign-cohesion-database-sql-schema/compiled-schema-constraint.md)
 exposes OnUpdate. Typed References declarations default it to NoAction.
@@ -363,6 +363,10 @@ UPDATE reports CS03039 (23503) because final key 1 is absent. SELECT still retur
 ## Cascade lock retries
 
 Cascade preparation can back off when a required lock is refused: it releases new grants to the retry mark, waits and rebuilds the statement's referential preparation. Earlier transaction grants remain protected. This is an internal retry; a hard-deadlock victim still rolls back and retries the transaction. Soft queue-order cycles can be repaired before selecting a victim. See [locking behavior](../../../dotnet-apis/resources/database/assimalign-cohesion-database-transactions/design.md#cascade-backoff-and-queue-repair).
+
+Index-backed UNIQUE/PRIMARY KEY builds charge their workspace and refuse CS05067 when a chunk
+does not fit the statement memory budget. Schema-apply rebuilds report CS03402 with that cause.
+Use a larger StatementMemoryBudget; see [build charges and examples](statements/create-index.md#building-over-existing-data).
 
 ## Sources
 

@@ -249,6 +249,12 @@ The client materializes the complete result. One connection executes one command
 
 [Statements](index.md) · [Language (SQL)](../index.md)
 
+Eligible root plain hash aggregation and scan/system-view unordered DISTINCT also spill fixed
+states. Root INNER/LEFT/RIGHT/FULL hash joins spill only plain column keys; a computed key
+(CASE, COALESCE or arithmetic) still refuses CS05067 at its memory boundary. See
+[hash aggregation](../../performance.md#hash-aggregation-and-distinct-spilling) and
+[join eligibility](../../performance.md#hash-join-spilling).
+
 ## Sources
 
 - **Bounded selection and evaluation order** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/tests/SqlBoundedExecutionTests.cs`, `SqlBoundedSelectionRegressionTests.cs` and `SqlLanguageConformanceTests.cs` in the same directory.

@@ -200,13 +200,13 @@ CS01015 and asks for an alias. Provenance follows derived/CTE, compound and view
 both star forms, including FROM-less correlated inputs. An authored alias or column-alias list
 clears it. A stored table column literally named column1 is valid.
 
-Format 37 cannot distinguish an older frozen star's same-name AS alias from an authored
+Current format 39 cannot distinguish an older frozen star's same-name AS alias from an authored
 re-alias. That stored shape conservatively requires a fresh alias; even an authored same-name
 output in a mixed view can retain this ambiguity. An older explicit view list matching a
 generated name is also ambiguous: `CREATE VIEW legacy(column1) AS SELECT CAST(1 AS BIGINT)`
 stored only the body and catalog name. NATURAL conservatively refuses it with CS01015. Wrap
 the view in a derived query with an explicit column list, or recreate it; new views preserve
-the list in the stored body. Wire-visible columnN names and SQL format 37 are unchanged.
+the list in the stored body. Wire-visible columnN names and SQL format 39 are unchanged.
 
 ## Qualified wildcards
 
@@ -243,7 +243,7 @@ NATURAL LEFT JOIN b ORDER BY x DESC NULLS LAST` sorts by merged x, unlike Postgr
 | `CK00001` | LATERAL, direct NATURAL mutation sources, qualified RETURNING/row-valued stars, or non-NATURAL joins missing ON/USING |
 | `CS05069` | Direct RIGHT, FULL or unaliased parenthesized source in UPDATE FROM / DELETE USING; refused before reads/writes, no SQLSTATE |
 | `CS05070` | FULL condition lacks a safe mandatory hash equality or complete ON evaluation is not proven non-throwing; before either input is read, no SQLSTATE |
-| `CS05067` | Concurrently retained hash builds exceed StatementMemoryBudget; SQLSTATE 53200 |
+| `CS05067` | Ineligible or oversized hash build, decoded record/cache or minimum working set exceeds StatementMemoryBudget; eligible plain-column root joins spill; SQLSTATE 53200 |
 | `CS00003` | Malformed join/USING list, both ON and USING, or CROSS with either condition |
 
 The source assigns no SQLSTATE to the other join diagnostics in this table.
@@ -388,7 +388,16 @@ including nested builds. Cancellation, timeout, refusal and success release all 
 EXPLAIN reports FullHashJoin and `unmatched=both` in JoinStep detail; ANALYZE counts candidate
 pairs, excluding separately emitted unmatched rows.
 
-SqlDatabaseEngineOptions.StatementMemoryBudget is a positive byte budget for concurrently retained hash builds in one statement, including nested queries. Reservations account for retained rows, table/array storage and overlapping arrays during growth; all exits release them. Exhaustion reports CS05067 (SQLSTATE 53200) with an unprefixed diagnostic message. There is no partitioning or spill. [CTAS](../statements/create-table.md#create-table-as) also charges retained source results and copy buffers; joined UPDATE FROM, DELETE USING and MERGE also charge retained targets, sources, associations,
+SqlDatabaseEngineOptions.StatementMemoryBudget covers concurrently retained hash builds, including
+nested queries, rows, arrays and growth overlap. Eligible root INNER/LEFT/RIGHT/FULL builds spill
+to an indexed temporary build at their original CS05067 boundary; skewed keys complete. Only
+plain column keys spill, including mixed numerics (1 matches 1.0). Computed CASE, COALESCE and
+arithmetic keys still refuse CS05067 when over budget. The minimum grant is 256 KiB; an
+incompressible build over about two grants can exhaust the default four-grant temp quota with
+CK05002. Random probes can read much more than the build writes. See
+[eligibility, quotas and lifetime](../../performance.md#hash-join-spilling).
+[CTAS](../statements/create-table.md#create-table-as) also charges retained source results and
+copy buffers; joined UPDATE FROM, DELETE USING and MERGE charge retained targets, sources, associations,
 selected writes and cascade state, refusing CS05067 before any write. Plain SELECT also charges
 loop inners, normalized children, staged matches and its materialized result. Hash builds still
 charge each wide-cell reference; other SELECT buffers deduplicate wide payloads per owner.

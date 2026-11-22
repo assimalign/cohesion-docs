@@ -640,6 +640,16 @@ commit. Direct APIs throw ObjectDisposedException for disposal; SQL wire executi
 CS04005 with Ready `E` and retains the session. Graph keeps CG09019. Offline propagation runs
 outside the root monitor because it may wait on storage latches or an in-flight flush.
 
+## Held SQL provisioning
+
+The root carries model-owned [DatabaseProvisioningProgress](database-provisioning-progress.md),
+including optional Detail. SQL atomically retains applied history with the current schema marker.
+An unsafe rollback holds Build online at the stored schema, Degraded with CS03405; explicit
+apply refuses CS03105 even with the old destructive opt-in. The observation keeps both hashes
+and all refused steps in full. Hosting bounds event and health detail to 4,096 UTF-16 code units,
+including ellipsis, without splitting surrogate pairs. See
+[the SQL policy](../assimalign-cohesion-database-sql/design.md#applied-schema-history-and-rollback).
+
 ## Sources
 
 - **Named admission and protected seam** — `cohesion/resources/Database/Assimalign.Cohesion.Database/src/DatabaseSession.cs`, `src/DatabaseTransaction.cs` and `tests/SavepointSeamTests.cs` beneath the same project.

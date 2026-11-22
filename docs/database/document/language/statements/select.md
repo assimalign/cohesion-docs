@@ -12,6 +12,7 @@ FROM { collection_name [ [ AS ] iteration_variable ]
 [ WHERE predicate ]
 [ GROUP BY expression [ [ AS ] alias ] [ , ...n ] [ GROUP AS group_name ] ]
 [ HAVING predicate ]
+[ WINDOW name AS ( window_specification ) [ , ...n ] ]
 [ ORDER BY expression [ ASC | DESC ] [ , ...n ] ]
 [ LIMIT count [ OFFSET count ] | OFFSET count [ LIMIT count ] ]
 [ ; ]
@@ -32,6 +33,7 @@ FROM { collection_name [ [ AS ] iteration_variable ]
 | `GROUP BY` | Supported | Optional grouping expressions |
 | [GROUP AS and group-term aliases](../clauses/group-by.md#group-as-and-aliases) | Supported | Named keys and post-group arrays of input binding wrappers |
 | `HAVING` | Supported | Optional group predicate |
+| [OVER and WINDOW](#windows) | Supported subset | Eight ranking/navigation functions; complete partitions before projection |
 | `ORDER BY` | Supported | Optional ordering expressions |
 | [LIMIT/OFFSET](../clauses/limit-offset.md) | Supported | Nonnegative Int64 integer literals or parameters; either clause order |
 | `ALL` / `DISTINCT` | Supported | ALL is the default; DISTINCT removes duplicate projected values |
@@ -60,7 +62,8 @@ A top-level MISSING becomes NULL before DISTINCT, ordering by that projection, a
 counting, in process, over InMemory and over TCP. Each source row still contributes one row before
 deduplication. Named projections retain their MISSING cells.
 
-Unless LIMIT is zero, evaluation proceeds through UNNEST expansion, WHERE, GROUP BY/HAVING, projection, DISTINCT, ORDER BY, then [LIMIT/OFFSET](../clauses/limit-offset.md). DISTINCT
+Unless LIMIT is zero, evaluation proceeds through UNNEST expansion, WHERE, GROUP BY/HAVING,
+windows, projection, DISTINCT, ORDER BY, then [LIMIT/OFFSET](../clauses/limit-offset.md). DISTINCT
 compares complete projected rows using structural equality: numeric 2 and 2.0 compare equal,
 arrays compare by ordered elements, and objects by ordinal keys and their values independently of
 member order. It retains the first representative. Named MISSING and NULL remain distinct;
@@ -105,6 +108,84 @@ constructs an alias-keyed object; top-level qualified stars such as b.* return a
 ungrouped joined projections. Collections supply implicit aliases when omitted, and inferred
 UNNEST names are valid too. META(alias) retains each stored source's own identity. See the linked page for unmatched
 MISSING values, NEST arrays, paging and the bounded lookup cache.
+
+## Windows
+
+OQL implements ROW_NUMBER, RANK, DENSE_RANK, PERCENT_RANK, CUME_DIST, NTILE, LAG
+and LEAD with OVER. Use OVER (PARTITION BY ... ORDER BY ...), OVER name or a parenthesized
+copy OVER (name ...). WINDOW declarations follow GROUP BY/GROUP AS/HAVING and precede final
+ORDER BY/LIMIT/OFFSET. LETTING remains CK00001.
+
+Names are ordinal and case-sensitive. Definitions can copy only earlier definitions; unknown,
+self/forward references use CD01042. Empty/duplicate names use CD01041. A copy cannot supply
+PARTITION BY, even when the base has none, or replace an existing ORDER BY (CD01043).
+Window keys/arguments do not see projection aliases, even in final ORDER BY. Independent
+subqueries, including a MERGE source, own their own window scope.
+
+Only SELECT projections and SELECT ORDER BY admit windows at their query level. WHERE, GROUP
+BY, HAVING, aggregate arguments, SATISFIES/comprehension bodies, DML actions/values and RETURNING
+use CD01044, as does a window-only call without OVER. A compound's result-only ORDER BY also
+refuses CD01044; wrap it in SELECT. A window in another window's arguments or keys, including
+named keys, uses CD01045. Group expressions and ordinary aggregate results can supply inputs.
+
+Partition equality matches GROUP BY: MISSING and NULL are distinct, numerics compare by value,
+strings use ordinal collation, arrays/objects use existing structural order. ORDER BY defaults
+to ASC, NULLS FIRST for ASC and NULLS LAST for DESC. Equal keys form peers; without ordering
+the partition is one peer group. Peer and unordered navigation/ROW_NUMBER order is unspecified;
+execution uses stable stage-input order. Final ORDER BY controls result order independently.
+
+| Function | Result and defaults |
+| --- | --- |
+| ROW_NUMBER() | One-based Int64 row number |
+| RANK(), DENSE_RANK() | One-based Int64; RANK leaves peer gaps, DENSE_RANK counts peer groups |
+| PERCENT_RANK() | Decimal (rank−1)/(partition rows−1), zero for a singleton |
+| CUME_DIST() | Decimal last-peer position / partition rows |
+| NTILE(buckets) | Int64 bucket; larger buckets first, trailing buckets empty when buckets exceed rows |
+| LAG(value [, offset [, default]]), LEAD(...) | Offset 1, fallback NULL; respect both NULL and MISSING; no SQL common-type coercion over JSON values |
+
+NTILE accepts a positive Int64 integer literal; navigation offsets are nonnegative Int64 integer
+literals, optionally unary plus. Zero reads the current row. Parameters, noninteger, NULL/MISSING,
+negative and row-dependent counts/offsets retain CK00001, even on empty input. LAG/LEAD evaluate
+value only at selected target rows; out-of-partition targets never evaluate value and use the
+current row's explicit default. Constant offsets visit each target at most once per call.
+An unaliased window projection uses the lowercase function name.
+
+Every partition sees complete input; paging/index-order shortcuts cannot truncate it. LIMIT 0
+still validates eagerly and skips execution. Equal specifications share sort/key evaluation;
+independent specifications evaluate independently. Rows, results, indexes, keys and navigation
+values charge StatementMemoryBudget (CD05018), with no spill. Work, including comparisons,
+shares StatementWorkBudget (CD05020). Adding OVER selects nested execution for the entire
+statement, so scan predicates/projections also consume work. Reservations release on every exit.
+EXPLAIN includes WindowAggregate, partition/order keys and sort-sharing groups without input reads.
+
+### OVER names and reservations
+
+After an ordinary call's closing parenthesis, OVER starts a window before `(` or a name token
+that cannot start a clause after an implicit alias; otherwise base implicit-alias rules apply.
+After any of the twelve window-only function names below, OVER is always the keyword. Invalid
+or missing targets use CD00002, asking for a name/specification and quoted clause-word names.
+After OVER, UNNEST, NEST, JOIN, LEFT, INNER, UNION, INTERSECT, EXCEPT, RETURNING, LETTING and
+WINDOW must be quoted, as must reserved clause words such as ORDER. In a parenthesized copy,
+quote rows, range, groups, exclude and partition, for example OVER ("rows" ORDER BY x).
+WINDOW name AS begins a declaration, including a function-name token as name. Window words
+remain usable as fields/collections/aliases in window-free statements.
+
+DocumentFunctionCollection.Add now refuses all twelve names with ArgumentException for function,
+before engine build: ROW_NUMBER, RANK, DENSE_RANK, PERCENT_RANK, CUME_DIST, NTILE, LAG, LEAD,
+FIRST_VALUE, LAST_VALUE, NTH_VALUE and RATIO_TO_REPORT. Earlier releases accepted these registrations.
+
+Frames (ROWS/RANGE/GROUPS/EXCLUDE), aggregate OVER, FIRST_VALUE/LAST_VALUE/NTH_VALUE,
+RATIO_TO_REPORT and RESPECT/IGNORE NULLS are not implemented yet and refuse CK00001.
+No implicit frame is evaluated. A scalar such as LOWER(x) OVER () also retains CK00001.
+
+```sql
+SELECT x.n, ROW_NUMBER() OVER w AS rn, LAG(x.n) OVER w AS previous
+FROM [{n:2}, {n:1}] AS x
+WINDOW w AS (ORDER BY x.n)
+ORDER BY x.n;
+```
+
+The ordered rows have rn 1/2; previous is NULL/1.
 
 ## Set operations
 
@@ -264,6 +345,7 @@ EXPLAIN can read index metadata for costing but executes no document statement. 
 
 ## Sources
 
+- **Ranking/navigation windows** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Documents.Language/docs/DIALECT.md`, `tests/OqlWindowParserTests.cs` in that project, and `cohesion/resources/Database/Assimalign.Cohesion.Database.Documents/tests/DocumentWindowTests.cs` at `2dd935103`.
 - **Compound multiset/query positions** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Documents/tests/DocumentSetOperationTests.cs`, `DocumentCompoundRegressionTests.cs` and `cohesion/resources/Database/Assimalign.Cohesion.Database.Documents.Language/docs/DIALECT.md`.
 - **Compounds, headers and limits** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Documents/tests/DocumentSetOperationTests.cs` and `DocumentCompoundIntegrationTests.cs` in the same directory.
 - **Compound grammar and IN wrappers** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Documents.Language/tests/OqlSetOperationParserTests.cs`.

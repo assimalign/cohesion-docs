@@ -29,7 +29,7 @@ allocation, constraints, defaults, frozen missing values, collation and dependen
 Schema-owned tables are supported. This is a C# maintenance API; it adds no SQL statement or
 wire command. SQL [ALTER COLUMN TYPE](../../../../database/sql/language/statements/alter-table.md#alter-column-type)
 also uses the shared copier for conversions, running inline under the table lock. SQL now uses
-format 37 for joint publication of every deferred migration, retaining kept-table tree ownership
+format 39 for joint publication of every deferred migration, retaining kept-table tree ownership
 and per-table classification introduced in format 35; compiled
 schema v12 remains current.
 
@@ -122,6 +122,15 @@ fires. Retry explicitly; a rolled-back application's Build opens normally. Uncon
 uses `CS03403` and recovery decides the schema. See [joint migration behavior](design.md#joint-migrations),
 [conversion safety](../../../../database/sql/language/statements/alter-table.md#conversion-safety-and-application-rollback)
 and [space/cleanup admission](storage-design.md#joint-migration-space-admission).
+
+## ApplySchemaAsync and earlier declarations
+
+Imperative schema apply consults the applied history. An earlier FirstAppliedGeneration follows
+the rollback rule: only Safe steps that re-create no dropped object and validate no existing
+data can run. One refused step throws CS03105 with every refused step, even with destructive
+opt-in, before any change. An explicit refusal preserves a prior held declaration's progress.
+A later first-applied declaration rolls forward under its own opt-in rules. See
+[history and held Build](design.md#applied-schema-history-and-rollback).
 
 ## Related reference
 

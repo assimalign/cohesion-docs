@@ -56,6 +56,12 @@ Extrema use the shared value comparator and effective string collation. Grouped 
 `CASE`/`COALESCE` alternatives use a common numeric type; incompatible nonnumeric alternatives
 are planning errors. Ordering can use aggregates, output aliases, or ordinals.
 
+Eligible root plain hash grouping spills fixed-size native states under the existing memory
+grant, preserving results, calls, counters and first errors. Text/CHAR and binary MIN/MAX,
+STRING_AGG, ARRAY_AGG, DISTINCT/ordered, statistical and application accumulators retain their
+existing refusal/ownership, as do unproved SUM/AVG bounds and the other
+[hash spill exclusions](../../performance.md#hash-aggregation-and-distinct-spilling).
+
 ## Repeated aggregate calls
 
 In plain GROUP BY and grouping sets, duplicate calls with a volatile argument, FILTER condition

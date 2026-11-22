@@ -57,16 +57,24 @@ rather than being rounded by the parser.
 | `CD01032` | Direct ordering AST has an invalid null-placement enum | — |
 | `CD01037` | ORDER BY on an all-RAW/VALUE compound has no named result members | — |
 | `CD01038` | Compound ORDER BY uses an unbound result member, META or star | — |
-| `CD05018` | Accounted SELECT/group staging, ordered candidate buckets/keys/identities, wrappers/arrays, aggregates, projection/order storage, DML pending buffers or RETURNING exceeds StatementMemoryBudget; pending-buffer exhaustion precedes writes, no partial result | — |
+| `CD01039` | Direct MERGE AST has an invalid source, form or action shape | — |
+| `CD01040` | MERGE references the unavailable ON KEY target, an unnamed AST root or invalid metadata receiver | — |
+| `CD01041` | Empty or duplicate WINDOW name | — |
+| `CD01042` | Unknown, self or forward window reference | — |
+| `CD01043` | Invalid copied partition/order clause or direct OVER name/specification shape | — |
+| `CD01044` | Window in an invalid position or window-only function without OVER | — |
+| `CD01045` | Window nested in another window's arguments or keys | — |
+| `CD05018` | Retained SELECT/group/window keys/navigation/results, ordered candidates, wrappers, aggregates, projection/order/compound state, DML pending buffers, RETURNING or index-build workspace exceeds StatementMemoryBudget; pending-buffer exhaustion precedes writes | — |
 | `CD05019` | Serialized RETURNING value exceeds 256 levels, including a named wrapper; inside the transaction | — |
 | `CD05021` | Planning, EXPLAIN or evaluation needs more execution stack than the thread has left; statement fails and the session stays open, including over TCP | — |
+| `CD05022` | MERGE execution is not available yet; EXPLAIN remains available | — |
 | `CD02016` | Invalid UPDATE target, root replacement, UNSET ending in an index, incompatible traversal, missing array or out-of-range index | — |
 | `CD01017` | Duplicate or prefix-overlapping UPDATE targets after alias normalization, including SET/UNSET overlap | — |
 | `CD02018` | Patched UPDATE JSON is invalid or exceeds storage depth 128 | — |
 | `CD02019` | Scalar argument outside its domain: negative SQRT, invalid POWER domain, or fractional ROUND/TRUNC scale | — |
 | `CD03020` | Duplicate valued scalar UNIQUE key during a write/build | 23505 |
 | `CD02021` | Array/object UNIQUE key component | — |
-| `CD01023` | Direct SELECT AST repeats a FROM/JOIN/NEST/UNNEST name, or SELECT/DML supplies an empty binding name | — |
+| `CD01023` | Direct SELECT/MERGE AST repeats a binding name, or SELECT/DML supplies an empty binding name | — |
 | `CD03022` | Index path count outside 1..32 in a direct AST/catalog call | — |
 | `CD03024` | CREATE INDEX finds an existing name without IF NOT EXISTS | — |
 | `CD03025` | Index has multiple array keys, is a UNIQUE array index, or includes MISSING with a leading array key | — |
@@ -117,7 +125,7 @@ continuing. In autocommit the next statement can run. No SQLSTATE is assigned.
 The typed [array index API](../../../dotnet-apis/resources/database/assimalign-cohesion-database-documents/document-index-key.md)
 uses CD03025/CD03026 as DocumentCatalogException conditions. Unsupported typed WHEN constants,
 including Single/Double, or predicates above 32 levels/128 nodes use uncoded ArgumentException.
-OQL DISTINCT ARRAY DDL executes; ALL ARRAY remains CK00001. V3 index records are required; v1/v2 are
+OQL DISTINCT ARRAY DDL executes; ALL ARRAY remains CK00001. V4 index records are required; v1/v2/v3 are
 refused before recovery writes with CD06105 and a recreate remedy. No SQLSTATE is assigned.
 
 OQL array DDL adds located CD01028 (projection/WHEN path outside its variable), CD02027
@@ -287,7 +295,7 @@ Generated star wrappers count toward CD05015's projection depth.
 
 | Code | Meaning and trigger | SQLSTATE |
 | --- | --- | --- |
-| CD05020 | Shared expression-evaluation budget exhausted across subqueries and expression sources, including cache hits; statement writes roll back | — |
+| CD05020 | Shared expression/lookup/set-operation/window work budget exhausted across subqueries, expression sources, key joins and compounds, including cache hits and window comparisons; statement writes roll back | — |
 
 ## OQL key joins and NEST
 
