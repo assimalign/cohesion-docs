@@ -1,6 +1,6 @@
 # Amqp
 
-Advanced Message Queuing Protocol (AMQP) wire handling and connection bindings.
+Advanced Message Queuing Protocol (AMQP) 1.0: the model applications program against and the protocol engine that runs it over Cohesion carriers.
 
 [Libraries](../index.md)
 
@@ -8,8 +8,8 @@ Advanced Message Queuing Protocol (AMQP) wire handling and connection bindings.
 
 | Package | Responsibility | Reference |
 |---|---|---|
-| `Assimalign.Cohesion.Amqp` | Reserves the Advanced Message Queuing Protocol (AMQP) session and messaging layer. | [Overview](assimalign-cohesion-amqp/index.md) |
-| `Assimalign.Cohesion.Amqp.Connections` | Negotiates AMQP connections and encodes protocol frames and messages over Cohesion carriers. | [Overview](assimalign-cohesion-amqp-connections/index.md) |
+| `Assimalign.Cohesion.Amqp` | The AMQP 1.0 model: connection, session, link and delivery contracts, messages, delivery states, termini, values, SASL mechanisms and transactions. | [Overview](assimalign-cohesion-amqp/index.md) |
+| `Assimalign.Cohesion.Amqp.Connections` | The AMQP 1.0 protocol engine: establishes connections over Cohesion carriers and runs their sessions, links and deliveries. | [Overview](assimalign-cohesion-amqp-connections/index.md) |
 
 ## Dependencies and delivery
 
@@ -18,12 +18,14 @@ release or completeness guarantee.
 
 | Assembly | Declared dependencies |
 |---|---|
-| `Assimalign.Cohesion.Amqp` | No explicit Cohesion or package reference in the project file |
-| `Assimalign.Cohesion.Amqp.Connections` | `Assimalign.Cohesion.Core` (CohesionProjectReference), `Assimalign.Cohesion.Connections` (CohesionProjectReference) |
+| `Assimalign.Cohesion.Amqp` | `Assimalign.Cohesion.Core` (CohesionProjectReference), `Assimalign.Cohesion.Connections` (CohesionProjectReference) |
+| `Assimalign.Cohesion.Amqp.Connections` | `Assimalign.Cohesion.Core` (CohesionProjectReference), `Assimalign.Cohesion.Connections` (CohesionProjectReference), `Assimalign.Cohesion.Amqp` (CohesionProjectReference) |
 
 ## Sources
 
 - **Source** — `cohesion/libraries/README.md`.
+
+- **Source** — `cohesion/libraries/Amqp/README.md`.
 
 - **Source** — `cohesion/README.md`.
 
@@ -34,6 +36,10 @@ release or completeness guarantee.
 - **Source** — `cohesion/libraries/Amqp/Assimalign.Cohesion.Amqp/src/Assimalign.Cohesion.Amqp.csproj`.
 
 - **Source** — `cohesion/libraries/Amqp/Assimalign.Cohesion.Amqp/src`.
+
+- **Source** — `cohesion/libraries/Amqp/Assimalign.Cohesion.Amqp/docs/OVERVIEW.md`.
+
+- **Source** — `cohesion/libraries/Amqp/Assimalign.Cohesion.Amqp/docs/DESIGN.md`.
 
 - **Source** — `cohesion/libraries/Amqp/Assimalign.Cohesion.Amqp.Connections/src/Assimalign.Cohesion.Amqp.Connections.csproj`.
 

@@ -1,119 +1,539 @@
-# Example: Amqp Codec and Transport Capability Tests
+# Example: behavioral tests
 
-Exercise Amqp Codec and Transport Capability behavior using the original repository tests.
+Complete test listings that show the `Assimalign.Cohesion.Amqp.Connections` API in use.
 
 [Examples](index.md) · [Assembly overview](../index.md)
 
 ## Test-project context
 
-This is the complete `AmqpCodecTests.cs` listing from the package test project. Keep it in that
-project when running it: the project supplies its package references, generated sources, and any
-shared fixtures. The using block below makes the test-framework import explicit where the original
-project supplies it globally.
+Each listing is a complete file from the package test project. Keep it in that project when running it: the project supplies its package references and the test doubles the listings use, which are not shipped APIs.
 
-## Code
+## End-to-end connection tests
 
-```csharp
-using System.Collections.Generic;
-using System;
-using Shouldly;
-using Xunit;
-
-namespace Assimalign.Cohesion.Amqp.Connections.Tests;
-
-public class AmqpCodecTests
-{
-    [Fact(DisplayName = "Cohesion Test [Amqp.Connections] - FrameCodec: Should round-trip a transfer frame with an encoded AMQP message payload")]
-    public void FrameCodec_OnTransferFrame_ShouldRoundTripTransferPayload()
-    {
-        // Arrange
-        AmqpMessage message = new()
-        {
-            Subject = "orders.created",
-            ApplicationProperties = new Dictionary<string, object?>
-            {
-                ["tenant"] = "blue",
-                ["attempt"] = (uint) 2
-            },
-            DataSections = new ReadOnlyMemory<byte>[]
-            {
-                new ReadOnlyMemory<byte>(new byte[] { 0x10, 0x20, 0x30 })
-            }
-        };
-
-        byte[] payload = AmqpMessageCodec.Encode(message);
-        AmqpFrame frame = new(
-            3,
-            new AmqpTransferPerformative
-            {
-                Handle = 12,
-                DeliveryId = 4,
-                DeliveryTag = new byte[] { 0x01, 0x02, 0x03 },
-                MessageFormat = 0
-            },
-            payload);
-
-        // Act
-        byte[] encodedFrame = AmqpFrameCodec.Encode(frame);
-        AmqpFrame decodedFrame = AmqpFrameCodec.Decode(encodedFrame);
-        AmqpMessage decodedMessage = AmqpMessageCodec.Decode(decodedFrame.Payload.Span);
-
-        // Assert
-        decodedFrame.Channel.ShouldBe((ushort) 3);
-        AmqpTransferPerformative transfer = decodedFrame.Performative.ShouldBeOfType<AmqpTransferPerformative>();
-        transfer.Handle.ShouldBe((uint) 12);
-        transfer.DeliveryId.ShouldBe((uint) 4);
-        transfer.DeliveryTag.ShouldBe(new byte[] { 0x01, 0x02, 0x03 });
-        decodedMessage.Subject.ShouldBe("orders.created");
-        decodedMessage.ApplicationProperties!["tenant"].ShouldBe("blue");
-        decodedMessage.ApplicationProperties["attempt"].ShouldBe((uint) 2);
-        decodedMessage.DataSections![0].ToArray().ShouldBe(new byte[] { 0x10, 0x20, 0x30 });
-    }
-
-    [Fact(DisplayName = "Cohesion Test [Amqp.Connections] - FrameCodec: Should round-trip SASL mechanism negotiation frames")]
-    public void FrameCodec_OnSaslFrame_ShouldRoundTripMechanisms()
-    {
-        // Arrange
-        AmqpFrame frame = new(
-            0,
-            new AmqpSaslMechanismsPerformative
-            {
-                SaslServerMechanisms = new[] { (AmqpSymbol) "ANONYMOUS", (AmqpSymbol) "PLAIN" }
-            });
-
-        // Act
-        byte[] encodedFrame = AmqpFrameCodec.Encode(frame, AmqpFrameType.Sasl);
-        AmqpFrame decodedFrame = AmqpFrameCodec.Decode(encodedFrame, AmqpFrameType.Sasl);
-
-        // Assert
-        AmqpSaslMechanismsPerformative mechanisms = decodedFrame.Performative.ShouldBeOfType<AmqpSaslMechanismsPerformative>();
-        mechanisms.SaslServerMechanisms.Count.ShouldBe(2);
-        mechanisms.SaslServerMechanisms[0].ShouldBe((AmqpSymbol) "ANONYMOUS");
-        mechanisms.SaslServerMechanisms[1].ShouldBe((AmqpSymbol) "PLAIN");
-    }
-}
-```
-
-## Walkthrough
-
-- **Covered behavior** — FrameCodec: Should round-trip a transfer frame with an encoded AMQP message payload.
-- **Covered behavior** — FrameCodec: Should round-trip SASL mechanism negotiation frames.
-
-The assertions define the expected result or failure boundary. Test-only doubles supply controlled
-inputs; they are not additional shipped APIs.
-
-## Transport capability tests
-
-This is the complete `AmqpTransportCapabilityTests.cs` listing from the package test project. Keep it in that
-project when running it: the project supplies its package references, generated sources, and any
-shared fixtures. The using block below makes the test-framework import explicit where the original
-project supplies it globally.
+This is the complete `AmqpConnectionTests.cs` listing from the package test project. It drives the engine end to end over in-memory carriers: establishment with the negotiated limits, sessions, sends and receives with their outcomes and settlement, split messages, credit and drains, refused links, detaching, ending and closing, and idle timeouts.
 
 ### Code
 
 ```csharp
 using System;
-using System.Net;
+using System.Threading;
+using System.Threading.Tasks;
+
+using Shouldly;
+
+using Xunit;
+
+using Assimalign.Cohesion.Amqp;
+using Assimalign.Cohesion.Connections;
+
+namespace Assimalign.Cohesion.Amqp.Connections.Tests;
+
+public class AmqpConnectionTests
+{
+    private static readonly TimeSpan _testTimeout = TimeSpan.FromSeconds(10);
+
+    [Fact(DisplayName = "Cohesion Test [Amqp.Connections] - ConnectAsync: Should open both ends with the negotiated limits")]
+    public async Task ConnectAsync_OnListener_ShouldOpenBothEndsWithNegotiatedLimits()
+    {
+        // Arrange
+        using CancellationTokenSource timeout = new(_testTimeout);
+        AmqpConnectionListenerOptions listenerOptions = new()
+        {
+            ContainerId = "server",
+            MaxFrameSize = 4096,
+            ChannelMax = 7,
+            IdleTimeout = TimeSpan.FromSeconds(30)
+        };
+        AmqpConnectionFactoryOptions factoryOptions = new()
+        {
+            ContainerId = "client",
+            MaxFrameSize = 8192,
+            ChannelMax = 15,
+            IdleTimeout = TimeSpan.Zero
+        };
+
+        // Act
+        await using AmqpTestHost host = await AmqpTestHost.StartAsync(listenerOptions, factoryOptions, timeout.Token);
+
+        // Assert
+        host.Client.State.ShouldBe(ConnectionState.Open);
+        host.Server.State.ShouldBe(ConnectionState.Open);
+        host.Client.ContainerId.ShouldBe("client");
+        host.Client.RemoteContainerId.ShouldBe("server");
+        host.Server.RemoteContainerId.ShouldBe("client");
+        host.Server.RemoteHostName.ShouldBe("amqp.test");
+        host.Client.MaxFrameSize.ShouldBe(4096u);
+        host.Server.MaxFrameSize.ShouldBe(4096u);
+        host.Client.ChannelMax.ShouldBe((ushort)7);
+        host.Server.ChannelMax.ShouldBe((ushort)7);
+        host.Client.RemoteIdleTimeout.ShouldBe(TimeSpan.FromSeconds(15));
+        host.Server.RemoteIdleTimeout.ShouldBe(TimeSpan.Zero);
+        host.Listener.Connections.ShouldContain(host.Server);
+    }
+
+    [Fact(DisplayName = "Cohesion Test [Amqp.Connections] - BeginSessionAsync: Should begin the session on both ends")]
+    public async Task BeginSessionAsync_OnOpenConnection_ShouldBeginSessionOnBothEnds()
+    {
+        // Arrange
+        using CancellationTokenSource timeout = new(_testTimeout);
+        await using AmqpTestHost host = await AmqpTestHost.StartAsync(cancellationToken: timeout.Token);
+        AmqpSessionOptions options = new()
+        {
+            Properties = new System.Collections.Generic.Dictionary<AmqpSymbol, object?> { [new AmqpSymbol("tenant")] = "blue" }
+        };
+
+        // Act
+        (IAmqpSession client, IAmqpSession server) = await host.BeginSessionAsync(options, timeout.Token);
+
+        // Assert
+        client.Connection.ShouldBeSameAs(host.Client);
+        server.Connection.ShouldBeSameAs(host.Server);
+        server.RemoteProperties.ShouldNotBeNull();
+        server.RemoteProperties![new AmqpSymbol("tenant")].ShouldBe("blue");
+        client.SessionEnded.IsCancellationRequested.ShouldBeFalse();
+    }
+
+    [Fact(DisplayName = "Cohesion Test [Amqp.Connections] - SendAsync: Should complete with the outcome the receiver settled with")]
+    public async Task SendAsync_OnAcceptedDelivery_ShouldCompleteWithAcceptedOutcome()
+    {
+        // Arrange
+        using CancellationTokenSource timeout = new(_testTimeout);
+        await using AmqpTestHost host = await AmqpTestHost.StartAsync(cancellationToken: timeout.Token);
+        (IAmqpSession clientSession, IAmqpSession serverSession) = await host.BeginSessionAsync(cancellationToken: timeout.Token);
+        (IAmqpSender sender, IAmqpReceiver receiver) = await AmqpTestHost.AttachAsync(clientSession, serverSession, cancellationToken: timeout.Token);
+        AmqpMessage message = new()
+        {
+            Properties = new AmqpProperties { MessageId = "m-1", Subject = "greeting" },
+            Body = new AmqpValueBody("hello")
+        };
+
+        // Act
+        Task<AmqpDeliveryState?> send = sender.SendAsync(message, cancellationToken: timeout.Token).AsTask();
+        IAmqpDelivery delivery = await receiver.ReceiveAsync(timeout.Token);
+        AmqpMessage received = delivery.GetMessage();
+        await delivery.AcceptAsync(timeout.Token);
+        AmqpDeliveryState? outcome = await send;
+
+        // Assert
+        received.Properties!.MessageId.ShouldBe("m-1");
+        received.Properties.Subject.ShouldBe("greeting");
+        received.Body.ShouldBeOfType<AmqpValueBody>().Value.ShouldBe("hello");
+        outcome.ShouldBeOfType<AmqpAccepted>();
+        delivery.IsSettled.ShouldBeTrue();
+        receiver.Target.ShouldBeOfType<AmqpTarget>().Address.ShouldBe("queue");
+        receiver.Source!.Address.ShouldBe("client");
+    }
+
+    [Theory(DisplayName = "Cohesion Test [Amqp.Connections] - SendAsync: Should complete with the receiver's terminal outcome")]
+    [InlineData("rejected")]
+    [InlineData("released")]
+    [InlineData("modified")]
+    public async Task SendAsync_OnTerminalOutcome_ShouldCompleteWithThatOutcome(string kind)
+    {
+        // Arrange
+        using CancellationTokenSource timeout = new(_testTimeout);
+        await using AmqpTestHost host = await AmqpTestHost.StartAsync(cancellationToken: timeout.Token);
+        (IAmqpSession clientSession, IAmqpSession serverSession) = await host.BeginSessionAsync(cancellationToken: timeout.Token);
+        (IAmqpSender sender, IAmqpReceiver receiver) = await AmqpTestHost.AttachAsync(clientSession, serverSession, cancellationToken: timeout.Token);
+
+        // Act
+        Task<AmqpDeliveryState?> send = sender.SendAsync(new byte[] { 1, 2, 3 }, cancellationToken: timeout.Token).AsTask();
+        IAmqpDelivery delivery = await receiver.ReceiveAsync(timeout.Token);
+
+        switch (kind)
+        {
+            case "rejected":
+                await delivery.RejectAsync(new AmqpError(AmqpErrorCondition.NotAllowed, "no"), timeout.Token);
+                break;
+            case "released":
+                await delivery.ReleaseAsync(timeout.Token);
+                break;
+            default:
+                await delivery.ModifyAsync(deliveryFailed: true, undeliverableHere: true, cancellationToken: timeout.Token);
+                break;
+        }
+
+        AmqpDeliveryState? outcome = await send;
+
+        // Assert
+        switch (kind)
+        {
+            case "rejected":
+                outcome.ShouldBeOfType<AmqpRejected>().Error!.Condition.ShouldBe(AmqpErrorCondition.NotAllowed);
+                break;
+            case "released":
+                outcome.ShouldBeOfType<AmqpReleased>();
+                break;
+            default:
+                AmqpModified modified = outcome.ShouldBeOfType<AmqpModified>();
+                modified.DeliveryFailed.ShouldBeTrue();
+                modified.UndeliverableHere.ShouldBeTrue();
+                break;
+        }
+    }
+
+    [Fact(DisplayName = "Cohesion Test [Amqp.Connections] - SendAsync: Should refuse a message the codec refuses without sending anything")]
+    public async Task SendAsync_WithUnencodableMessage_ShouldThrowWithoutSending()
+    {
+        // Arrange
+        using CancellationTokenSource timeout = new(_testTimeout);
+        await using AmqpTestHost host = await AmqpTestHost.StartAsync(cancellationToken: timeout.Token);
+        (IAmqpSession clientSession, IAmqpSession serverSession) = await host.BeginSessionAsync(cancellationToken: timeout.Token);
+        (IAmqpSender sender, IAmqpReceiver receiver) = await AmqpTestHost.AttachAsync(clientSession, serverSession, cancellationToken: timeout.Token);
+        await sender.WaitForCreditAsync(timeout.Token);
+        uint credit = sender.Credit;
+        AmqpMessage refused = new()
+        {
+            ApplicationProperties = new System.Collections.Generic.Dictionary<string, object?> { ["tags"] = new[] { "a", "b" } },
+            Body = new AmqpValueBody("refused")
+        };
+
+        // Act
+        await Should.ThrowAsync<ArgumentException>(async () => await sender.SendAsync(refused, cancellationToken: timeout.Token));
+        uint creditAfterRefusal = sender.Credit;
+        Task<AmqpDeliveryState?> send = sender.SendAsync(new AmqpMessage { Body = new AmqpValueBody("sent") }, cancellationToken: timeout.Token).AsTask();
+        IAmqpDelivery delivery = await receiver.ReceiveAsync(timeout.Token);
+        AmqpMessage received = delivery.GetMessage();
+        await delivery.AcceptAsync(timeout.Token);
+        await send;
+
+        // Assert
+        creditAfterRefusal.ShouldBe(credit);
+        received.Body.ShouldBeOfType<AmqpValueBody>().Value.ShouldBe("sent");
+        host.Client.State.ShouldBe(ConnectionState.Open);
+    }
+
+    [Fact(DisplayName = "Cohesion Test [Amqp.Connections] - SendAsync: Should complete at once on a link that sends settled")]
+    public async Task SendAsync_OnSettledLink_ShouldCompleteWithoutOutcome()
+    {
+        // Arrange
+        using CancellationTokenSource timeout = new(_testTimeout);
+        await using AmqpTestHost host = await AmqpTestHost.StartAsync(cancellationToken: timeout.Token);
+        (IAmqpSession clientSession, IAmqpSession serverSession) = await host.BeginSessionAsync(cancellationToken: timeout.Token);
+        AmqpSenderOptions options = new()
+        {
+            Name = "settled",
+            Target = new AmqpTarget { Address = "queue" },
+            SenderSettleMode = AmqpSenderSettleMode.Settled
+        };
+        (IAmqpSender sender, IAmqpReceiver receiver) = await AmqpTestHost.AttachAsync(clientSession, serverSession, options, cancellationToken: timeout.Token);
+
+        // Act
+        AmqpDeliveryState? outcome = await sender.SendAsync(new byte[] { 42 }, cancellationToken: timeout.Token);
+        IAmqpDelivery delivery = await receiver.ReceiveAsync(timeout.Token);
+
+        // Assert
+        outcome.ShouldBeNull();
+        delivery.IsSettled.ShouldBeTrue();
+        delivery.Payload.ToArray().ShouldBe(new byte[] { 42 });
+        receiver.SenderSettleMode.ShouldBe(AmqpSenderSettleMode.Settled);
+    }
+
+    [Fact(DisplayName = "Cohesion Test [Amqp.Connections] - SendAsync: Should split a large message into frames the receiver reassembles")]
+    public async Task SendAsync_OnMessageLargerThanFrame_ShouldReassembleDelivery()
+    {
+        // Arrange
+        using CancellationTokenSource timeout = new(_testTimeout);
+        await using AmqpTestHost host = await AmqpTestHost.StartAsync(
+            new AmqpConnectionListenerOptions { MaxFrameSize = 512 },
+            new AmqpConnectionFactoryOptions { MaxFrameSize = 512 },
+            timeout.Token);
+        (IAmqpSession clientSession, IAmqpSession serverSession) = await host.BeginSessionAsync(cancellationToken: timeout.Token);
+        (IAmqpSender sender, IAmqpReceiver receiver) = await AmqpTestHost.AttachAsync(clientSession, serverSession, cancellationToken: timeout.Token);
+        byte[] payload = new byte[100_000];
+        new Random(7).NextBytes(payload);
+
+        // Act
+        Task<AmqpDeliveryState?> send = sender.SendAsync(payload, cancellationToken: timeout.Token).AsTask();
+        IAmqpDelivery delivery = await receiver.ReceiveAsync(timeout.Token);
+        await delivery.AcceptAsync(timeout.Token);
+        AmqpDeliveryState? outcome = await send;
+
+        // Assert
+        delivery.Payload.ToArray().ShouldBe(payload);
+        outcome.ShouldBeOfType<AmqpAccepted>();
+    }
+
+    [Fact(DisplayName = "Cohesion Test [Amqp.Connections] - SendAsync: Should deliver many messages in order")]
+    public async Task SendAsync_OnManyMessages_ShouldDeliverInOrder()
+    {
+        // Arrange
+        using CancellationTokenSource timeout = new(_testTimeout);
+        await using AmqpTestHost host = await AmqpTestHost.StartAsync(cancellationToken: timeout.Token);
+        (IAmqpSession clientSession, IAmqpSession serverSession) = await host.BeginSessionAsync(
+            new AmqpSessionOptions { IncomingWindow = 8 },
+            timeout.Token);
+        (IAmqpSender sender, IAmqpReceiver receiver) = await AmqpTestHost.AttachAsync(
+            clientSession,
+            serverSession,
+            receiverOptions: new AmqpReceiverOptions { Prefetch = 5 },
+            cancellationToken: timeout.Token);
+        const int count = 500;
+
+        // Act
+        Task sending = Task.Run(async () =>
+        {
+            for (int index = 0; index < count; index++)
+            {
+                await sender.SendAsync(BitConverter.GetBytes(index), new AmqpDeliveryOptions { Settled = true }, timeout.Token);
+            }
+        });
+
+        int[] received = new int[count];
+
+        for (int index = 0; index < count; index++)
+        {
+            IAmqpDelivery delivery = await receiver.ReceiveAsync(timeout.Token);
+            received[index] = BitConverter.ToInt32(delivery.Payload.Span);
+        }
+
+        await sending;
+
+        // Assert
+        for (int index = 0; index < count; index++)
+        {
+            received[index].ShouldBe(index);
+        }
+    }
+
+    [Fact(DisplayName = "Cohesion Test [Amqp.Connections] - ReceiveAsync: Should wait for credit the application grants on a link without prefetch")]
+    public async Task ReceiveAsync_WithoutPrefetch_ShouldDeliverOnlyGrantedCredit()
+    {
+        // Arrange
+        using CancellationTokenSource timeout = new(_testTimeout);
+        await using AmqpTestHost host = await AmqpTestHost.StartAsync(cancellationToken: timeout.Token);
+        (IAmqpSession clientSession, IAmqpSession serverSession) = await host.BeginSessionAsync(cancellationToken: timeout.Token);
+        (IAmqpSender sender, IAmqpReceiver receiver) = await AmqpTestHost.AttachAsync(
+            clientSession,
+            serverSession,
+            receiverOptions: new AmqpReceiverOptions { Prefetch = 0 },
+            cancellationToken: timeout.Token);
+
+        // Act
+        Task<AmqpDeliveryState?> first = sender.SendAsync(new byte[] { 1 }, new AmqpDeliveryOptions { Settled = true }, timeout.Token).AsTask();
+        await Task.Delay(100, timeout.Token);
+        bool sentWithoutCredit = first.IsCompleted;
+        receiver.AddCredit(1);
+        await first;
+        IAmqpDelivery delivery = await receiver.ReceiveAsync(timeout.Token);
+
+        // Assert
+        sentWithoutCredit.ShouldBeFalse();
+        delivery.Payload.ToArray().ShouldBe(new byte[] { 1 });
+        receiver.Credit.ShouldBe(0u);
+    }
+
+    [Fact(DisplayName = "Cohesion Test [Amqp.Connections] - DrainAsync: Should end with no credit when the sender has nothing to send")]
+    public async Task DrainAsync_OnIdleSender_ShouldReturnCredit()
+    {
+        // Arrange
+        using CancellationTokenSource timeout = new(_testTimeout);
+        await using AmqpTestHost host = await AmqpTestHost.StartAsync(cancellationToken: timeout.Token);
+        (IAmqpSession clientSession, IAmqpSession serverSession) = await host.BeginSessionAsync(cancellationToken: timeout.Token);
+        (IAmqpSender sender, IAmqpReceiver receiver) = await AmqpTestHost.AttachAsync(
+            clientSession,
+            serverSession,
+            receiverOptions: new AmqpReceiverOptions { Prefetch = 0 },
+            cancellationToken: timeout.Token);
+        receiver.AddCredit(10);
+        await sender.WaitForCreditAsync(timeout.Token);
+
+        // Act
+        await receiver.DrainAsync(timeout.Token);
+
+        // Assert
+        receiver.Credit.ShouldBe(0u);
+        sender.Credit.ShouldBe(0u);
+    }
+
+    [Fact(DisplayName = "Cohesion Test [Amqp.Connections] - AcceptAsync: Should wait for the sender to settle on a link that settles second")]
+    public async Task AcceptAsync_OnReceiverSettleModeSecond_ShouldCompleteWhenSenderSettles()
+    {
+        // Arrange
+        using CancellationTokenSource timeout = new(_testTimeout);
+        await using AmqpTestHost host = await AmqpTestHost.StartAsync(cancellationToken: timeout.Token);
+        (IAmqpSession clientSession, IAmqpSession serverSession) = await host.BeginSessionAsync(cancellationToken: timeout.Token);
+        AmqpSenderOptions senderOptions = new()
+        {
+            Name = "second",
+            Target = new AmqpTarget { Address = "queue" },
+            ReceiverSettleMode = AmqpReceiverSettleMode.Second
+        };
+        (IAmqpSender sender, IAmqpReceiver receiver) = await AmqpTestHost.AttachAsync(
+            clientSession,
+            serverSession,
+            senderOptions,
+            new AmqpReceiverOptions { ReceiverSettleMode = AmqpReceiverSettleMode.Second },
+            timeout.Token);
+
+        // Act
+        Task<AmqpDeliveryState?> send = sender.SendAsync(new byte[] { 9 }, cancellationToken: timeout.Token).AsTask();
+        IAmqpDelivery delivery = await receiver.ReceiveAsync(timeout.Token);
+        await delivery.AcceptAsync(timeout.Token);
+        AmqpDeliveryState? outcome = await send;
+
+        // Assert
+        sender.ReceiverSettleMode.ShouldBe(AmqpReceiverSettleMode.Second);
+        outcome.ShouldBeOfType<AmqpAccepted>();
+        delivery.IsSettled.ShouldBeTrue();
+    }
+
+    [Fact(DisplayName = "Cohesion Test [Amqp.Connections] - RejectAsync: Should refuse the link the peer attached")]
+    public async Task RejectAsync_OnLinkRequest_ShouldFailAttachWithError()
+    {
+        // Arrange
+        using CancellationTokenSource timeout = new(_testTimeout);
+        await using AmqpTestHost host = await AmqpTestHost.StartAsync(cancellationToken: timeout.Token);
+        (IAmqpSession clientSession, IAmqpSession serverSession) = await host.BeginSessionAsync(cancellationToken: timeout.Token);
+        Task<IAmqpSender> attach = clientSession.AttachSenderAsync(
+            new AmqpSenderOptions { Target = new AmqpTarget { Address = "missing" } },
+            timeout.Token).AsTask();
+
+        // Act
+        IAmqpLinkRequest request = await serverSession.AcceptLinkAsync(timeout.Token);
+        await request.RejectAsync(new AmqpError(AmqpErrorCondition.NotFound, "no such node"), timeout.Token);
+        AmqpException exception = await Should.ThrowAsync<AmqpException>(attach);
+
+        // Assert
+        request.Role.ShouldBe(AmqpRole.Receiver);
+        request.Target.ShouldBeOfType<AmqpTarget>().Address.ShouldBe("missing");
+        exception.ErrorCode.ShouldBe(AmqpErrorCode.LinkDetached);
+        exception.Error!.Condition.ShouldBe(AmqpErrorCondition.NotFound);
+    }
+
+    [Fact(DisplayName = "Cohesion Test [Amqp.Connections] - AcceptReceiverAsync: Should refuse to accept a request in the wrong role")]
+    public async Task AcceptSenderAsync_OnPeerSender_ShouldThrowInvalidOperationException()
+    {
+        // Arrange
+        using CancellationTokenSource timeout = new(_testTimeout);
+        await using AmqpTestHost host = await AmqpTestHost.StartAsync(cancellationToken: timeout.Token);
+        (IAmqpSession clientSession, IAmqpSession serverSession) = await host.BeginSessionAsync(cancellationToken: timeout.Token);
+        _ = clientSession.AttachSenderAsync(new AmqpSenderOptions { Target = new AmqpTarget() }, timeout.Token).AsTask();
+        IAmqpLinkRequest request = await serverSession.AcceptLinkAsync(timeout.Token);
+
+        // Act
+        InvalidOperationException exception = Should.Throw<InvalidOperationException>(
+            () => request.AcceptSenderAsync(cancellationToken: timeout.Token));
+
+        // Assert
+        exception.ShouldNotBeNull();
+        IAmqpReceiver receiver = await request.AcceptReceiverAsync(cancellationToken: timeout.Token);
+        receiver.Role.ShouldBe(AmqpRole.Receiver);
+    }
+
+    [Fact(DisplayName = "Cohesion Test [Amqp.Connections] - DetachAsync: Should detach the link on both ends and fail its unsettled deliveries")]
+    public async Task CloseAsync_OnReceiver_ShouldDetachSenderAndFailUnsettledDelivery()
+    {
+        // Arrange
+        using CancellationTokenSource timeout = new(_testTimeout);
+        await using AmqpTestHost host = await AmqpTestHost.StartAsync(cancellationToken: timeout.Token);
+        (IAmqpSession clientSession, IAmqpSession serverSession) = await host.BeginSessionAsync(cancellationToken: timeout.Token);
+        (IAmqpSender sender, IAmqpReceiver receiver) = await AmqpTestHost.AttachAsync(clientSession, serverSession, cancellationToken: timeout.Token);
+        Task<AmqpDeliveryState?> send = sender.SendAsync(new byte[] { 5 }, cancellationToken: timeout.Token).AsTask();
+        await receiver.ReceiveAsync(timeout.Token);
+
+        // Act
+        await receiver.CloseAsync(new AmqpError(AmqpErrorCondition.ResourceDeleted, "gone"), timeout.Token);
+        AmqpException exception = await Should.ThrowAsync<AmqpException>(send);
+
+        // Assert
+        exception.ErrorCode.ShouldBe(AmqpErrorCode.LinkDetached);
+        exception.Error!.Condition.ShouldBe(AmqpErrorCondition.ResourceDeleted);
+        sender.LinkDetached.IsCancellationRequested.ShouldBeTrue();
+        receiver.LinkDetached.IsCancellationRequested.ShouldBeTrue();
+    }
+
+    [Fact(DisplayName = "Cohesion Test [Amqp.Connections] - EndAsync: Should end the session on both ends and detach its links")]
+    public async Task EndAsync_OnSession_ShouldEndPeerSessionAndDetachLinks()
+    {
+        // Arrange
+        using CancellationTokenSource timeout = new(_testTimeout);
+        await using AmqpTestHost host = await AmqpTestHost.StartAsync(cancellationToken: timeout.Token);
+        (IAmqpSession clientSession, IAmqpSession serverSession) = await host.BeginSessionAsync(cancellationToken: timeout.Token);
+        (IAmqpSender sender, IAmqpReceiver receiver) = await AmqpTestHost.AttachAsync(clientSession, serverSession, cancellationToken: timeout.Token);
+
+        // Act
+        await clientSession.EndAsync(cancellationToken: timeout.Token);
+        AmqpException exception = await Should.ThrowAsync<AmqpException>(receiver.ReceiveAsync(timeout.Token).AsTask());
+
+        // Assert
+        clientSession.SessionEnded.IsCancellationRequested.ShouldBeTrue();
+        serverSession.SessionEnded.IsCancellationRequested.ShouldBeTrue();
+        sender.LinkDetached.IsCancellationRequested.ShouldBeTrue();
+        receiver.LinkDetached.IsCancellationRequested.ShouldBeTrue();
+        exception.ErrorCode.ShouldBe(AmqpErrorCode.LinkDetached);
+    }
+
+    [Fact(DisplayName = "Cohesion Test [Amqp.Connections] - CloseAsync: Should close both ends and report the error to the peer")]
+    public async Task CloseAsync_WithError_ShouldCloseBothEnds()
+    {
+        // Arrange
+        using CancellationTokenSource timeout = new(_testTimeout);
+        await using AmqpTestHost host = await AmqpTestHost.StartAsync(cancellationToken: timeout.Token);
+        (IAmqpSession clientSession, IAmqpSession serverSession) = await host.BeginSessionAsync(cancellationToken: timeout.Token);
+
+        // Act
+        await host.Server.CloseAsync(new AmqpError(AmqpErrorCondition.ConnectionForced, "maintenance"), timeout.Token);
+        AmqpException exception = await Should.ThrowAsync<AmqpException>(host.Client.BeginSessionAsync(cancellationToken: timeout.Token).AsTask());
+
+        // Assert
+        host.Server.State.ShouldBe(ConnectionState.Closed);
+        host.Client.ConnectionClosed.IsCancellationRequested.ShouldBeTrue();
+        clientSession.SessionEnded.IsCancellationRequested.ShouldBeTrue();
+        serverSession.SessionEnded.IsCancellationRequested.ShouldBeTrue();
+        exception.ErrorCode.ShouldBe(AmqpErrorCode.ConnectionClosed);
+        exception.Error!.Condition.ShouldBe(AmqpErrorCondition.ConnectionForced);
+    }
+
+    [Fact(DisplayName = "Cohesion Test [Amqp.Connections] - IdleTimeout: Should keep an idle connection open with empty frames")]
+    public async Task IdleTimeout_OnIdleConnection_ShouldKeepConnectionOpen()
+    {
+        // Arrange
+        using CancellationTokenSource timeout = new(_testTimeout);
+        AmqpConnectionListenerOptions listenerOptions = new() { IdleTimeout = TimeSpan.FromMilliseconds(200) };
+        AmqpConnectionFactoryOptions factoryOptions = new() { IdleTimeout = TimeSpan.FromMilliseconds(200) };
+        await using AmqpTestHost host = await AmqpTestHost.StartAsync(listenerOptions, factoryOptions, timeout.Token);
+
+        // Act
+        await Task.Delay(1000, timeout.Token);
+
+        // Assert
+        host.Client.State.ShouldBe(ConnectionState.Open);
+        host.Server.State.ShouldBe(ConnectionState.Open);
+    }
+}
+```
+
+### Walkthrough
+
+- **Covered behavior** — ConnectAsync: Should open both ends with the negotiated limits.
+- **Covered behavior** — BeginSessionAsync: Should begin the session on both ends.
+- **Covered behavior** — SendAsync: Should complete with the outcome the receiver settled with.
+- **Covered behavior** — SendAsync: Should complete with the receiver's terminal outcome.
+- **Covered behavior** — SendAsync: Should refuse a message the codec refuses without sending anything.
+- **Covered behavior** — SendAsync: Should complete at once on a link that sends settled.
+- **Covered behavior** — SendAsync: Should split a large message into frames the receiver reassembles.
+- **Covered behavior** — SendAsync: Should deliver many messages in order.
+- **Covered behavior** — ReceiveAsync: Should wait for credit the application grants on a link without prefetch.
+- **Covered behavior** — DrainAsync: Should end with no credit when the sender has nothing to send.
+- **Covered behavior** — AcceptAsync: Should wait for the sender to settle on a link that settles second.
+- **Covered behavior** — RejectAsync: Should refuse the link the peer attached.
+- **Covered behavior** — AcceptReceiverAsync: Should refuse to accept a request in the wrong role.
+- **Covered behavior** — DetachAsync: Should detach the link on both ends and fail its unsettled deliveries.
+- **Covered behavior** — EndAsync: Should end the session on both ends and detach its links.
+- **Covered behavior** — CloseAsync: Should close both ends and report the error to the peer.
+- **Covered behavior** — IdleTimeout: Should keep an idle connection open with empty frames.
+
+The assertions define the expected result or failure boundary.
+
+## Carrier capability tests
+
+This is the complete `AmqpCarrierCapabilityTests.cs` listing from the package test project. It covers the capability gate `AmqpConnectionListener.Create` and `AmqpConnectionFactory.Create` apply to their carrier: a reliable, ordered byte stream, single-stream or multiplexed.
+
+### Code
+
+```csharp
+using System;
 using System.Threading.Tasks;
 
 using Shouldly;
@@ -124,154 +544,154 @@ using Assimalign.Cohesion.Connections;
 
 namespace Assimalign.Cohesion.Amqp.Connections.Tests;
 
-public class AmqpTransportCapabilityTests
+public class AmqpCarrierCapabilityTests
 {
-    private static readonly EndPoint _testEndPoint = new IPEndPoint(IPAddress.Loopback, 5672);
-
-    [Fact(DisplayName = "Cohesion Test [Amqp.Connections] - Constructor: Should reject a datagram carrier listener")]
-    public async Task Constructor_OnDatagramCarrierListener_ShouldThrowArgumentException()
+    [Fact(DisplayName = "Cohesion Test [Amqp.Connections] - Create: Should reject a datagram carrier listener")]
+    public void Create_OnDatagramCarrierListener_ShouldThrowArgumentException()
     {
         // Arrange
-        await using TestConnectionListener listener = new(
-            TestConnection.DefaultCapabilities with { Delivery = ConnectionDelivery.Datagram });
+        TestConnectionListener listener = new(TestConnection.DefaultCapabilities with { Delivery = ConnectionDelivery.Datagram });
 
         // Act
-        ArgumentException exception = Should.Throw<ArgumentException>(() => new AmqpServerTransport(listener));
+        ArgumentException exception = Should.Throw<ArgumentException>(() => AmqpConnectionListener.Create(listener));
+
+        // Assert
+        exception.ParamName.ShouldBe("listener");
+        listener.IsDisposed.ShouldBeFalse();
+    }
+
+    [Fact(DisplayName = "Cohesion Test [Amqp.Connections] - Create: Should reject an unreliable carrier listener")]
+    public void Create_OnUnreliableCarrierListener_ShouldThrowArgumentException()
+    {
+        // Arrange
+        TestConnectionListener listener = new(TestConnection.DefaultCapabilities with { IsReliable = false });
+
+        // Act
+        ArgumentException exception = Should.Throw<ArgumentException>(() => AmqpConnectionListener.Create(listener));
 
         // Assert
         exception.ParamName.ShouldBe("listener");
     }
 
-    [Fact(DisplayName = "Cohesion Test [Amqp.Connections] - Constructor: Should reject an unreliable carrier listener")]
-    public async Task Constructor_OnUnreliableCarrierListener_ShouldThrowArgumentException()
+    [Fact(DisplayName = "Cohesion Test [Amqp.Connections] - Create: Should reject an unordered multiplexed carrier listener")]
+    public void Create_OnUnorderedMultiplexedCarrierListener_ShouldThrowArgumentException()
     {
         // Arrange
-        await using TestConnectionListener listener = new(
-            TestConnection.DefaultCapabilities with { IsReliable = false });
-
-        // Act + Assert
-        Should.Throw<ArgumentException>(() => new AmqpServerTransport(listener));
-    }
-
-    [Fact(DisplayName = "Cohesion Test [Amqp.Connections] - Constructor: Should reject an unordered multiplexed carrier listener")]
-    public async Task Constructor_OnUnorderedMultiplexedCarrierListener_ShouldThrowArgumentException()
-    {
-        // Arrange
-        await using TestMultiplexedConnectionListener listener = new(
-            TestMultiplexedConnection.DefaultCapabilities with { IsOrdered = false });
-
-        // Act + Assert
-        Should.Throw<ArgumentException>(() => new AmqpServerTransport(listener));
-    }
-
-    [Fact(DisplayName = "Cohesion Test [Amqp.Connections] - Constructor: Should accept reliable ordered stream carrier listeners")]
-    public async Task Constructor_OnReliableOrderedStreamListeners_ShouldConstructServerTransport()
-    {
-        // Arrange
-        await using TestConnectionListener listener = new();
-        await using TestMultiplexedConnectionListener multiplexedListener = new();
+        TestMultiplexedConnectionListener listener = new(TestMultiplexedConnection.DefaultCapabilities with { IsOrdered = false });
 
         // Act
-        await using AmqpServerTransport singleStreamTransport = new(listener);
-        await using AmqpServerTransport multiplexedTransport = new(multiplexedListener);
+        ArgumentException exception = Should.Throw<ArgumentException>(() => AmqpConnectionListener.Create(listener));
 
         // Assert
-        singleStreamTransport.Connections.ShouldBeEmpty();
-        multiplexedTransport.Connections.ShouldBeEmpty();
+        exception.ParamName.ShouldBe("listener");
     }
 
-    [Fact(DisplayName = "Cohesion Test [Amqp.Connections] - Constructor: Should reject a null carrier listener")]
-    public void Constructor_OnNullListener_ShouldThrowArgumentNullException()
-    {
-        // Act + Assert
-        Should.Throw<ArgumentNullException>(() => new AmqpServerTransport((IDuplexConnectionListener)null!));
-        Should.Throw<ArgumentNullException>(() => new AmqpServerTransport((IMultiplexedConnectionListener)null!));
-    }
-
-    [Fact(DisplayName = "Cohesion Test [Amqp.Connections] - Constructor: Should reject a datagram carrier factory")]
-    public void Constructor_OnDatagramCarrierFactory_ShouldThrowArgumentException()
+    [Fact(DisplayName = "Cohesion Test [Amqp.Connections] - Create: Should accept reliable, ordered stream carrier listeners of either kind")]
+    public async Task Create_OnReliableOrderedStreamListeners_ShouldCreateListener()
     {
         // Arrange
-        TestConnectionFactory factory = new(
-            TestConnection.DefaultCapabilities with { Delivery = ConnectionDelivery.Datagram });
+        TestConnectionListener listener = new();
+        TestMultiplexedConnectionListener multiplexedListener = new();
 
         // Act
-        ArgumentException exception = Should.Throw<ArgumentException>(() => new AmqpClientTransport(factory, _testEndPoint));
+        await using AmqpConnectionListener amqp = AmqpConnectionListener.Create(listener);
+        await using AmqpConnectionListener multiplexedAmqp = AmqpConnectionListener.Create(multiplexedListener);
+
+        // Assert
+        amqp.Connections.ShouldBeEmpty();
+        multiplexedAmqp.Connections.ShouldBeEmpty();
+    }
+
+    [Fact(DisplayName = "Cohesion Test [Amqp.Connections] - Create: Should reject a null carrier listener")]
+    public void Create_OnNullListener_ShouldThrowArgumentNullException()
+    {
+        // Act + Assert
+        Should.Throw<ArgumentNullException>(() => AmqpConnectionListener.Create((IDuplexConnectionListener)null!)).ParamName.ShouldBe("listener");
+        Should.Throw<ArgumentNullException>(() => AmqpConnectionListener.Create((IMultiplexedConnectionListener)null!)).ParamName.ShouldBe("listener");
+    }
+
+    [Fact(DisplayName = "Cohesion Test [Amqp.Connections] - Create: Should reject a datagram carrier factory")]
+    public void Create_OnDatagramCarrierFactory_ShouldThrowArgumentException()
+    {
+        // Arrange
+        TestConnectionFactory factory = new(TestConnection.DefaultCapabilities with { Delivery = ConnectionDelivery.Datagram });
+
+        // Act
+        ArgumentException exception = Should.Throw<ArgumentException>(() => AmqpConnectionFactory.Create(factory));
 
         // Assert
         exception.ParamName.ShouldBe("factory");
     }
 
-    [Fact(DisplayName = "Cohesion Test [Amqp.Connections] - Constructor: Should reject an unreliable multiplexed carrier factory")]
-    public void Constructor_OnUnreliableMultiplexedCarrierFactory_ShouldThrowArgumentException()
+    [Fact(DisplayName = "Cohesion Test [Amqp.Connections] - Create: Should reject an unreliable multiplexed carrier factory")]
+    public void Create_OnUnreliableMultiplexedCarrierFactory_ShouldThrowArgumentException()
     {
         // Arrange
-        TestMultiplexedConnectionFactory factory = new(
-            TestMultiplexedConnection.DefaultCapabilities with { IsReliable = false });
+        TestMultiplexedConnectionFactory factory = new(TestMultiplexedConnection.DefaultCapabilities with { IsReliable = false });
 
-        // Act + Assert
-        Should.Throw<ArgumentException>(() => new AmqpClientTransport(factory, _testEndPoint));
+        // Act
+        ArgumentException exception = Should.Throw<ArgumentException>(() => AmqpConnectionFactory.Create(factory));
+
+        // Assert
+        exception.ParamName.ShouldBe("factory");
     }
 
-    [Fact(DisplayName = "Cohesion Test [Amqp.Connections] - Constructor: Should reject an unordered carrier factory")]
-    public void Constructor_OnUnorderedCarrierFactory_ShouldThrowArgumentException()
+    [Fact(DisplayName = "Cohesion Test [Amqp.Connections] - Create: Should reject an unordered carrier factory")]
+    public void Create_OnUnorderedCarrierFactory_ShouldThrowArgumentException()
     {
         // Arrange
-        TestConnectionFactory factory = new(
-            TestConnection.DefaultCapabilities with { IsOrdered = false });
+        TestConnectionFactory factory = new(TestConnection.DefaultCapabilities with { IsOrdered = false });
 
-        // Act + Assert
-        Should.Throw<ArgumentException>(() => new AmqpClientTransport(factory, _testEndPoint));
+        // Act
+        ArgumentException exception = Should.Throw<ArgumentException>(() => AmqpConnectionFactory.Create(factory));
+
+        // Assert
+        exception.ParamName.ShouldBe("factory");
     }
 
-    [Fact(DisplayName = "Cohesion Test [Amqp.Connections] - Constructor: Should accept reliable ordered stream carrier factories")]
-    public async Task Constructor_OnReliableOrderedStreamFactories_ShouldConstructClientTransport()
+    [Fact(DisplayName = "Cohesion Test [Amqp.Connections] - Create: Should accept reliable, ordered stream carrier factories of either kind")]
+    public void Create_OnReliableOrderedStreamFactories_ShouldCreateFactory()
     {
         // Arrange
         TestConnectionFactory factory = new();
         TestMultiplexedConnectionFactory multiplexedFactory = new();
 
         // Act
-        await using AmqpClientTransport singleStreamTransport = new(factory, _testEndPoint);
-        await using AmqpClientTransport multiplexedTransport = new(multiplexedFactory, _testEndPoint);
+        AmqpConnectionFactory amqp = AmqpConnectionFactory.Create(factory);
+        AmqpConnectionFactory multiplexedAmqp = AmqpConnectionFactory.Create(multiplexedFactory);
 
         // Assert
-        singleStreamTransport.EndPoint.ShouldBeSameAs(_testEndPoint);
-        multiplexedTransport.EndPoint.ShouldBeSameAs(_testEndPoint);
+        amqp.Capabilities.IsReliable.ShouldBeTrue();
+        multiplexedAmqp.Capabilities.IsOrdered.ShouldBeTrue();
     }
 
-    [Fact(DisplayName = "Cohesion Test [Amqp.Connections] - Constructor: Should reject null carrier factory arguments")]
-    public void Constructor_OnNullFactoryArguments_ShouldThrowArgumentNullException()
+    [Fact(DisplayName = "Cohesion Test [Amqp.Connections] - Create: Should reject a null carrier factory")]
+    public void Create_OnNullFactory_ShouldThrowArgumentNullException()
     {
-        // Arrange
-        TestConnectionFactory factory = new();
-
         // Act + Assert
-        Should.Throw<ArgumentNullException>(() => new AmqpClientTransport((IDuplexConnectionFactory)null!, _testEndPoint));
-        Should.Throw<ArgumentNullException>(() => new AmqpClientTransport((IMultiplexedConnectionFactory)null!, _testEndPoint));
-        Should.Throw<ArgumentNullException>(() => new AmqpClientTransport(factory, null!));
+        Should.Throw<ArgumentNullException>(() => AmqpConnectionFactory.Create((IDuplexConnectionFactory)null!)).ParamName.ShouldBe("factory");
+        Should.Throw<ArgumentNullException>(() => AmqpConnectionFactory.Create((IMultiplexedConnectionFactory)null!)).ParamName.ShouldBe("factory");
     }
 }
 ```
 
 ### Walkthrough
 
-- **Covered behavior** — Constructor: Should reject a datagram carrier listener.
-- **Covered behavior** — Constructor: Should reject an unreliable carrier listener.
-- **Covered behavior** — Constructor: Should reject an unordered multiplexed carrier listener.
-- **Covered behavior** — Constructor: Should accept reliable ordered stream carrier listeners.
-- **Covered behavior** — Constructor: Should reject a null carrier listener.
-- **Covered behavior** — Constructor: Should reject a datagram carrier factory.
-- **Covered behavior** — Constructor: Should reject an unreliable multiplexed carrier factory.
-- **Covered behavior** — Constructor: Should reject an unordered carrier factory.
-- **Covered behavior** — Constructor: Should accept reliable ordered stream carrier factories.
-- **Covered behavior** — Constructor: Should reject null carrier factory arguments.
+- **Covered behavior** — Create: Should reject a datagram carrier listener.
+- **Covered behavior** — Create: Should reject an unreliable carrier listener.
+- **Covered behavior** — Create: Should reject an unordered multiplexed carrier listener.
+- **Covered behavior** — Create: Should accept reliable, ordered stream carrier listeners of either kind.
+- **Covered behavior** — Create: Should reject a null carrier listener.
+- **Covered behavior** — Create: Should reject a datagram carrier factory.
+- **Covered behavior** — Create: Should reject an unreliable multiplexed carrier factory.
+- **Covered behavior** — Create: Should reject an unordered carrier factory.
+- **Covered behavior** — Create: Should accept reliable, ordered stream carrier factories of either kind.
+- **Covered behavior** — Create: Should reject a null carrier factory.
 
-The assertions define the expected result or failure boundary. Test-only doubles supply controlled
-inputs; they are not additional shipped APIs.
+The assertions define the expected result or failure boundary.
 
 ## Sources
 
-- **Source** — `cohesion/libraries/Amqp/Assimalign.Cohesion.Amqp.Connections/tests/AmqpCodecTests.cs`.
-- **Source** — `cohesion/libraries/Amqp/Assimalign.Cohesion.Amqp.Connections/tests/AmqpTransportCapabilityTests.cs`.
+- **Source** — `cohesion/libraries/Amqp/Assimalign.Cohesion.Amqp.Connections/tests/AmqpConnectionTests.cs`.
+- **Source** — `cohesion/libraries/Amqp/Assimalign.Cohesion.Amqp.Connections/tests/AmqpCarrierCapabilityTests.cs`.
 - **Source** — `cohesion/libraries/Amqp/Assimalign.Cohesion.Amqp.Connections/tests/Assimalign.Cohesion.Amqp.Connections.Tests.csproj`.
