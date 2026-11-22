@@ -34,7 +34,8 @@ Code is the stable identity, separate from the unprefixed message. There is no p
 
 Unavailable I/O retains its cause as InnerException. Failed-reader retries perform no I/O and
 emit no further damage event/counter. These temporary failures do not fence durable storage
-offline. No query operator uses the substrate yet.
+offline. Eligible SQL root sorts now surface these codes as located statement/delivery errors,
+including CTAS source sorts; an explicit transaction remains active.
 
 ## Related reference
 

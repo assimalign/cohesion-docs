@@ -108,13 +108,36 @@ These are page/byte measurements without pruning, rather than a throughput guara
 Denser ascending loads leave less room for updates. Adding one new reference for every key after
 that load ends with 1,944 leaves for random updates or 2,500 for ascending updates, compared with
 1,667 under the former policy. This additional splitting is the accepted space/headroom trade-off.
-The policy changes neither B-tree page format 2 nor cursor continuation or transactional rollback.
+The split-policy change retained page format 2 at its introduction. Current pages use format 3
+for leaf payloads; cursor continuation and transactional rollback retain their existing rules.
+
+## Page format 3
+
+BTreeIndexManager requires page format **3**. Format 2 is historical: it introduced key, entry
+reference and writer ordering. Format 3 adds optional leaf payloads without changing that order.
+A leaf entry is `[u16 key length | hasPayload << 15][key][u64 reference][u64 writer][u64 deleter]`
+followed, only when the flag is set, by `[u16 payload length][payload]`. Empty payload adds zero
+bytes. Keys and payloads each have a 1,024-byte maximum. Separators keep only key and required
+identity tiebreakers, never payload. Full-page images and committed deltas already cover it.
+
+The manager checks registered roots before attaching any tree; IndexFormatException / CK06101
+names the index, found and supported formats and the export/drop/recreate remedy. SQL, Documents,
+Graph and KeyValuePair run this through recovered read-only preflight before any write, including
+recovery writes. Clean and crashed format-2 file sets remain byte-identical. There is no upgrade
+reader. Blob has no B-tree format gate. Model formats are independent.
+
+With 16-byte keys, format 2 and format 3 with empty payloads both hold 183 entries per leaf;
+1,024-byte keys hold seven. A maximum key and payload plus directory slot use 2,078 bytes, so
+three fit in 8,064 usable bytes. Payload-aware splitting chooses fitting nonempty halves.
+See [insert and physical replacement](b-tree-index.md#leaf-payloads) and
+[combined refusal order](../../../../database/error-codes.md#combined-format-refusals).
 
 ## Transactional binding
 
 `IIndex` mutations take an `ITransactionContext` — index entries are stamped and become visible
-under the same MVCC rules as the data they reference. There is no "non-transactional index write"
-surface; recovery replays index changes from the same WAL as data changes. Unique enforcement
+under the same MVCC rules as the data they reference. Physical writer-zero payload replacement
+is unversioned but still belongs to a storage transaction; rollback restores its bytes. Recovery
+replays index changes from the same WAL as data changes. Unique enforcement
 happens at insert against the *visible* state (a unique violation with an in-flight competing writer
 resolves through the lock manager, not the index).
 
@@ -231,6 +254,8 @@ Unique inserts take their key lock and tree write latch, prune eligible entries 
 The #1393 decision records the existing physical index-page rollback as status quo. It adds no statement stamps, index format change or new visibility model. BTreePruneTests, BTreeUniqueDescentTests and DatabaseIndexPruneTests cover horizon equality, held snapshots, continuation, cancellation and unique-descent work.
 
 ## Sources
+
+- **Leaf payloads and format 3** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Indexing/docs/DESIGN.md`, `tests/BTreePayloadCrashTests.cs` and each model's `tests/FormatOrderIntegrationTests.cs`.
 
 - **Split policy and measured shapes** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Indexing/src/BTreeIndex.cs` and `tests/BTreeShapeTests.cs` in the same project.
 - **Primary source** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Indexing/docs/DESIGN.md`.

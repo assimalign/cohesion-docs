@@ -117,15 +117,17 @@ also rewrites, including changing an unbounded string to bounded VARCHAR and nar
 stored values already fit. Precision-only and other length-facet changes keep the existing
 validation path unless another operation in the migration requires TYPE.
 
-A migration containing any TYPE rewrite prepares its **entire target unpublished**, including
+Every schema migration prepares its **entire target unpublished**, including
 other table, column, index, constraint and default changes. One catalog commit publishes the
 complete target and applied-schema marker. Build queues populated-table work on the provisioning
 worker; empty-table work runs synchronously. `RunMigrationsInline`, any declared script, and an
 explicit `ApplySchemaAsync` also run the joint migration synchronously.
 
 Classification is per table. Index additions and constraint-only changes can keep unchanged
-physical storage and retained trees, building only new indexes. Dropping or replacing a pre-existing
-heap-owned index forces a rewrite; separately owned trees can be replaced while keeping the heap.
+physical storage and retained trees, building only new indexes. A heap-owned DROP INDEX without
+a same-name replacement keeps the heap and leaves its pages allocated until heap retirement.
+A same-name heap-owned replacement requires a rewrite; separately owned trees can be replaced
+while keeping the heap.
 The complete migration still publishes in one commit. See
 [kept-table preparation](../../../../dotnet-apis/resources/database/assimalign-cohesion-database-sql/design.md#joint-tables-that-keep-storage).
 
@@ -136,10 +138,12 @@ Definition DDL is refused database-wide from Build through queue time and worker
 CREATE TABLE, CTAS, CREATE VIEW, CREATE SEQUENCE and table rename cannot claim a reserved new
 table name (`CS03404`).
 
-Every deferred migration publishes jointly, including non-TYPE plans. Non-TYPE inline application
-retains per-step commits, compensation and CS03104. A changed
-default without any TYPE rewrite is still refused with `CS03105` before changes or intent save.
+Every deferred and inline migration publishes jointly, including non-TYPE plans. SET/DROP DEFAULT
+requires destructive opt-in (`CS03105` without it) and keeps the heap without rewriting rows.
 A joint migration includes all declared final defaults, even on columns whose type is unchanged.
+`ApplySchemaAsync` blocks plain readers and writers on touched tables through the entire job
+and cleanup. Unrelated reads and writes continue; unrelated session DDL refuses while apply
+admission is held.
 
 #### Conversion safety and application rollback
 

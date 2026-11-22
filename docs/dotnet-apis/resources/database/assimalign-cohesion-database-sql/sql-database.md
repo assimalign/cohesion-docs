@@ -105,12 +105,17 @@ old indexed reads and reclamation without changing query results.
 
 ## Schema application
 
-Explicit `ApplySchemaAsync` runs synchronously. If any column change requires a TYPE rewrite,
-the whole typed migration prepares unpublished and publishes in one catalog commit. Build instead
-defers populated-table work unless `RunMigrationsInline` or any declared script forces it inline.
-Every VARCHAR narrowing and CHAR width change takes this path. Every deferred migration also
-publishes jointly, including non-TYPE plans. Non-TYPE inline application keeps per-step commits,
-compensation and CS03104; a default change without TYPE still refuses with `CS03105`.
+Explicit `ApplySchemaAsync` runs synchronously. Every schema apply prepares unpublished and
+publishes its complete target and marker in one catalog commit. Build defers populated-table work
+unless `RunMigrationsInline` or any declared script forces it inline; empty-table Build uses the
+same executor. SET/DROP DEFAULT requires destructive opt-in (`CS03105` without it).
+
+Plain readers, writers and session DDL naming touched tables wait before binding or snapshot
+capture through the whole job and cleanup. This includes inline scans/builds. Unrelated reads
+and writes continue; unrelated session DDL refuses with DatabaseObjectLockedException while apply
+admission is held. Engine LockTimeout bounds reservation; zero has no timeout. Imperative
+cancellation/timeout clears Provisioning; deferred failures remain sticky until successful
+apply, skip or Verify.
 
 Preparation failure (`CS03402`) leaves the old schema online unless an independent storage latch
 fires. Retry explicitly; a rolled-back application's Build opens normally. Unconfirmed publication

@@ -20,6 +20,13 @@ apply even to conditional no-ops: CG04025 aborts an explicit transaction.
 An absent unguarded drop uses CG01021; invalid limits use CG08021 and exhausted work/memory
 budgets use CG05004/CG05020. These have no assigned SQLSTATE. See [Diagnostics](../diagnostics.md).
 
+A drop retires and eventually frees a tree of either kind. Old snapshots keep dropped trees
+until their pins release. A Snapshot writer also maintains a dropped exact or text tree still
+visible to its snapshot, preserving own-write reads. A pinned exact tree still enforces its
+1,016-byte encoded-key prefix limit (CG02009). Maintenance writes a durable retirement receipt,
+frees at most 64 owner pages per pass, then deletes the receipt after the final batch. Reopen
+resumes pending reclamation.
+
 ## Example
 
 Execute separately in a fresh database:

@@ -39,7 +39,7 @@ combine named and declared rules; GraphSchema.GetPropertyKeysAsync deliberately 
 metadata only. Use [GraphSchema](graph-schema.md) for creation with existing-data validation and
 coordinated physical index removal.
 
-All catalog record kinds use v3. Earlier/future versions refuse with CG06019, with no legacy
+All catalog record kinds use v4. Earlier/future versions refuse with CG06019, with no legacy
 reader. See [catalog format](catalog-design.md#on-disk-format).
 
 Reads use a snapshot; writes join the supplied transaction without committing it. Changing a

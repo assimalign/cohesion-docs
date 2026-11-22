@@ -57,7 +57,7 @@ SQLSTATE mappings are documented code mappings, not separate wire fields.
 
 StorageTempException exposes Code separately from its unprefixed message. These conditions
 refuse disposable work without taking durable databases offline; they have no assigned SQLSTATE.
-No query operator uses the temporary-space substrate yet.
+Eligible root SQL ORDER BY and ordered DISTINCT use this substrate, including CTAS source roots.
 
 | Code | Meaning and trigger |
 | --- | --- |
@@ -76,7 +76,9 @@ and [SQL configuration](../dotnet-apis/resources/database/assimalign-cohesion-da
 
 CS05067 (53200) covers every retained plain SELECT buffer and materialized result, including
 joins, sorts, grouping, set operations and caches. The default StatementMemoryBudget is 64 MiB;
-large sorts and results refuse until the budget is raised. No query operator spills yet.
+eligible root ORDER BY and ordered DISTINCT, including CTAS source roots, spill where their
+reservation would refuse. Other retained results and excluded operators still need sufficient
+memory. See [spill exclusions and lifetime](sql/performance.md#root-sort-spilling).
 When plain bytes fill the grant first, window/JSON memory refusals also use CS05067. With no
 plain bytes live, their grants retain CS05079 and CS05094. A declared-script CTAS refusal stays
 online, publishes no table and resumes at that statement on a later Build with a larger budget.
@@ -188,7 +190,7 @@ Unresolved predicate registrations use existing CS01009 (42883) for table writes
 | CG03011 | Invalid graph-type mutation name/reference or identifying/implied label overlap | — |
 | CG03012 | Node write omits an implied label required by its node type | — |
 | CG04025 | Schema write inside an explicit transaction, including typed writes and conditional no-ops; aborts the transaction | — |
-| CG06019 | Catalog record version differs from v3; recreate the database, no legacy reader | — |
+| CG06019 | Catalog record version differs from v4; recreate the database, no legacy reader | — |
 
 See [GraphSchema](../dotnet-apis/resources/database/assimalign-cohesion-database-graph/graph-schema.md)
 for the typed surface and [schema DDL](graph/language/statements/create-index.md) for text commands.
@@ -240,11 +242,46 @@ datatype_mismatch). Full-definition default/implicit collation changes retain CS
 Identity, view, CHECK/domain, FK, index, lock and conversion failures retain their existing codes;
 see [SQL diagnostics](sql/language/diagnostics.md#alter-column-type-conditions).
 
+## SQL target list width
+
+CS05097 (54011, too_many_columns) refuses a SELECT or RETURNING target list above 1,664
+syntactic or expanded entries, including nested bodies and view expansion. The diagnostic names
+the limit and attempted count. See [target list limits](sql/language/clauses/join.md#qualified-wildcards).
+
+## Combined format refusals
+
+Current B-tree page format is 3; format-2 trees refuse CK06101 before any write in SQL, Documents,
+Graph and KeyValuePair. Model markers remain separate. If an image is older than both gates,
+clean and abruptly stopped images receive one stable refusal per model on repeated open:
+
+| Model | First refusal | Gate order |
+| --- | --- | --- |
+| SQL | CS06041 | Catalog/data-storage marker, then B-tree roots |
+| KeyValuePair | CV06107 | Entry-space marker, then B-tree roots |
+| Documents | CD06105 | Catalog kind/version headers, then B-tree roots |
+| Graph | CK06101, in its existing message-only carrier | Entity/registration and B-tree roots, then catalog v4 |
+
+Every file, journal, backup and sidecar remains unchanged through refusal and disposal. Blob
+uses no B-tree. Recreate using exported data from the engine that wrote the old image; there
+is no upgrade reader. See [B-tree format](../dotnet-apis/resources/database/assimalign-cohesion-database-indexing/design.md#page-format-3).
+
+## Journal admission
+
+| Code | Meaning and trigger | SQLSTATE |
+| --- | --- | --- |
+| CK04014 | Statement deadline during checkpoint admission, or immediate refusal while retaining metadata/gates | 57014 |
+| CK06006 | Journal admission paused for a pending checkpoint; Degraded health while online | — |
+
+At appended bytes `ceil(J/2)` for J above zero, new write brackets pause even with the size trigger
+off. A non-failing pending checkpoint can pause indefinitely. Persistent checkpoint/write-back
+failures retain the offline window. SQL StatementTimeout defaults to zero; normal waits have no
+default deadline. See [admission policy](../dotnet-apis/resources/database/assimalign-cohesion-database/design.md#journal-admission).
+
 ## SQL typed schema migrations
 
 | Code | Meaning and trigger | SQLSTATE |
 | --- | --- | --- |
-| CS03105 | Typed migration policy/metadata planning refused before steps or intent save, including conversions not proven lossless without destructive opt-in, namespace/dependency refusals and default changes without a TYPE rewrite | — |
+| CS03105 | Typed migration policy/metadata planning refused before steps or intent save, including conversions not proven lossless without destructive opt-in, namespace/dependency refusals and default changes without destructive opt-in | — |
 | CS03402 | Joint preparation, reservation or space admission failed, or an unpublished target/route was discarded; old schema retained online unless an independent storage latch fires; space refusals report needed/available bytes | — |
 | CS03403 | Joint publication commit unconfirmed; recovery decides whether the old or new schema is current | — |
 | CS03404 | Session relation creation or table rename names a relation reserved by a pending joint plan | — |
@@ -252,8 +289,8 @@ see [SQL diagnostics](sql/language/diagnostics.md#alter-column-type-conditions).
 See [typed migration diagnostics](sql/language/diagnostics.md#typed-schema-migrations),
 [conversion safety](sql/language/statements/alter-table.md#conversion-safety-and-application-rollback)
 and [health/recovery](sql/index.md#typed-migration-health-and-recovery). Failed joint preparation
-does not retry automatically. Every deferred migration uses joint publication; non-TYPE inline
-per-step application retains compensation and CS03104. Formats 36 and 35 are refused with CS06041
+does not retry automatically. Every deferred and inline schema apply uses joint publication.
+Formats 36 and 35 are refused with CS06041
 before writes; SQL record-space format 37 is current.
 
 ## SQL MERGE

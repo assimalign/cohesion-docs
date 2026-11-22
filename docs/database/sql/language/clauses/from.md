@@ -31,7 +31,7 @@ including nested queries, CTEs and views. A wildcard still requires a relation. 
 qualification or switch databases through SQL. System relations require the `INFORMATION_SCHEMA`
 or `COHESION_SCHEMA` qualifier.
 
-Each item can contain any number of [INNER, LEFT, RIGHT, FULL or CROSS joins](join.md). Comma-separated
+Each item can contain any number of [INNER, LEFT, RIGHT, FULL, CROSS or NATURAL joins](join.md). Comma-separated
 items produce a Cartesian product. JOIN binds more tightly
 than comma: in `FROM a, b JOIN c ON ...`, ON sees only b and c. It cannot see later inputs.
 An explicit alias hides the base name in SELECT,

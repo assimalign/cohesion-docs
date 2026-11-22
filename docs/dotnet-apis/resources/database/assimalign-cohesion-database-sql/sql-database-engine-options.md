@@ -41,8 +41,15 @@ than a session override. Expiration throws SqlTimeoutException with CS04044 / 55
 
 For a [joint migration](design.md#joint-migrations), including every deferred migration, nonzero engine LockTimeout
 also bounds the touched-table reservation before queueing. A reservation timeout reports
-`CS03402` in both the thrown diagnostic and Provisioning, preserving the lock-manager cause.
+`CS03402`, preserving the lock-manager cause. Imperative cancellation/timeout clears Provisioning;
+deferred failures stay sticky.
 Untouched tables remain usable; definition DDL is refused database-wide while queued/running.
+
+Journal admission pauses new brackets at `ceil(JournalSizeLimit/2)`, even with the size trigger
+off. A SQL deadline during this wait reports CK04014 / 57014. With the default StatementTimeout
+of zero, there is no statement deadline. Session DDL retaining metadata refuses immediately;
+migrations wait outside physical/publication gates and resume prepared work. See the
+[shared policy](../assimalign-cohesion-database/design.md#journal-admission).
 
 ## Example
 
@@ -92,8 +99,10 @@ plain bytes fill the grant first, refusal reports CS05067, including where the w
 ledger would later refuse with CS05079 or CS05094. With no plain bytes live, those grants retain
 their specific diagnostic. Reservations unwind on success, error and cancellation.
 
-Budget exhaustion refuses the statement. Large sorts and materialized results can report CS05067
-(53200); raising StatementMemoryBudget is the way to admit them. Query buffers do not spill yet.
+Eligible root ORDER BY and ordered DISTINCT, including CTAS source roots, spill at CS05067.
+Other shapes and retained results still need a sufficient grant; an unordered CTAS refuses
+where the same source with an eligible ORDER BY spills. A session allows eight live spilled
+results. Dispose them after enumeration or cancellation.
 See [query performance](../../../../database/sql/performance.md#statement-memory).
 
 Every [referential closure](../../../../database/sql/language/constraints.md#referential-closure-memory), including plain ON DELETE CASCADE, charges
@@ -120,8 +129,9 @@ shared with window-frame recomputation and is independent of the configured byte
 ## Temporary space
 
 These three options configure the disposable-storage substrate. They exist only on the SQL
-engine options on this branch. No query operator uses the substrate yet; SQL retains memory
-refusals and raising StatementMemoryBudget remains necessary for large sorts/results.
+engine options on this branch. Eligible root ORDER BY and ordered DISTINCT, including CTAS
+source roots, use it when their memory reservation would refuse. Excluded shapes retain
+memory refusals; see [eligibility and capacity](../../../../database/sql/performance.md#root-sort-spilling).
 
 | Member | Default and validation |
 | --- | --- |

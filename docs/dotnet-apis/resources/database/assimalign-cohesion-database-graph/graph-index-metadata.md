@@ -13,12 +13,15 @@ Assembly: `Assimalign.Cohesion.Database.Graph.dll`. NuGet package: `Assimalign.C
 ## Documented behavior
 
 ```csharp
-public readonly record struct GraphIndexMetadata(Guid LabelId, string Name, string PropertyKey);
+public readonly record struct GraphIndexMetadata(Guid LabelId, string Name, string PropertyKey,
+    bool IsText = false);
 ```
 
 Name shares one database-wide ordinal, case-sensitive namespace with
 [named constraints](graph-constraint-metadata.md). LabelId is the existing label's stable GUID;
-PropertyKey is the indexed scalar property. GraphSchema.CreateIndexAsync refuses an occupied
+PropertyKey is the indexed property. IsText is false for an exact scalar index and true for a
+case-sensitive Unicode trigram text index. The optional constructor argument defaults to false.
+One exact and one text index may coexist for the same label/property. GraphSchema.CreateIndexAsync refuses an occupied
 schema name with DatabaseException/CG03008, including a name used on another label or by a
 constraint. Its database-wide GetIndexesAsync/FindIndexAsync discover indexes;
 DropIndexAsync(name) removes the catalog and physical index or reports CG01021 if absent.

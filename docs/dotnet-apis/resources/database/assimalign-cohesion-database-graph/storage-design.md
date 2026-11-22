@@ -109,7 +109,8 @@ UpdateNodeAsync replaces labels/properties; UpdateRelationshipAsync preserves en
 replaces properties. Both publish even equal values; GQL filters pure no-ops. Creation accepts
 complete records with caller-reserved identities and caller-resolved label GUIDs. Formats 1, 2, 3 and 4 are refused before logical
 recovery scrub with CG06017 and the recreation remedy; there is no upgrade reader. Graph records
-and tree registrations use version 5; catalog and B-tree page formats are unchanged. The low-level
+and tree registrations use version 5. Current catalog records use v4 and B-tree pages use
+format 3, with independent gates. The low-level
 StorageCorruptionException carries the code in its message; the engine retains it alongside
 CK06003 and CG06018 in
 [DatabaseCorruptionException](../assimalign-cohesion-database/database-corruption-exception.md).
@@ -178,8 +179,8 @@ Readers release the directory monitor before taking tree/page latches and take n
 lock. Shared cursors copy bounded cancellable batches and release pages/latches before decoding
 or merging label ranges. See [BTreeCursor](../assimalign-cohesion-database-indexing/b-tree-cursor.md).
 
-Each label/property definition owns a B+Tree whose object ID is its durable definition identity.
-Keys consist of the shared `DatabaseKeyWriter` scalar encoding followed by the node identity as
+Each label/property/kind definition owns a B+Tree whose object ID is its durable definition identity.
+Exact-index keys consist of the shared `DatabaseKeyWriter` scalar encoding followed by the node identity as
 eight unsigned big-endian bytes. The scalar encoding is null, Boolean, ordinal UTF-16 big-endian
 string bytes, or Float64 for every numeric CLR type. The scalar prefix may occupy at most 1016
 bytes, leaving eight bytes within the shared 1024-byte key limit. Missing properties have no entry;
@@ -193,12 +194,20 @@ key. Prefix seeks bound the candidate range by node identities zero and `UInt64.
 identity suffix also makes a heavily repeated property value safe across B+Tree leaf splits.
 
 `Index` creation backfills visible nodes under the database writer lock and preserves source record
-stamps. Every subsequent node create/update/delete maintains all current definitions in its transaction.
-Dropping an index tombstones its logical definition; older snapshots retain the tree and their view.
-This MVP retains dropped physical trees for later reclamation rather than recycling them while
-snapshots may still reference them. An exact seek costs `O(log N + k)` index work for `k`
+stamps. Node create/update/delete maintains current definitions and dropped exact/text trees
+still visible to a Snapshot writer. Dropping tombstones the logical definition; old pins retain
+the tree. Once safe, maintenance commits a negative-root retirement receipt, frees at most 64
+owner pages per pass, then deletes the receipt. Reopen resumes reclamation even after its root
+page has been freed. An exact seek costs `O(log N + k)` index work for `k`
 candidates, including numeric projection collisions and retained versions; ordering its `m` visible
 matches adds `O(m log m)` CPU work.
+
+Text definitions share the physical index record, using revision 1 for text and 0 for exact.
+Keys contain one Unicode trigram and node ID; entry references retain original stored-version
+stamps. Index writes use the existing no-payload B-tree API. Distinct tokens are retained once
+per node version; updates remove old tokens and insert the new version's tokens. A real seek
+reads only the first trigram range, then rechecks the stored value. Short patterns scan.
+See [semantics and costs](../../../../database/graph/language/statements/create-index.md#text-indexes).
 
 ## Atomicity, conflicts and recovery
 

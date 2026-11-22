@@ -18,7 +18,10 @@ public sealed class SqlTimeoutException : DatabaseException
 There is no public constructor. Statement expiration produces one Error diagnostic, CS05043,
 and SqlState 57014 (query_canceled). An individual lock-wait expiration produces CS04044 and
 55P03 (lock_not_available), retaining TransactionLockTimeoutException as its inner cause. Available
-statement spans locate the diagnostic. A later statement deadline does not relabel an earlier
+statement spans locate the diagnostic. A statement deadline during checkpoint admission or
+an immediate refusal while retaining metadata/gates uses CK04014 / 57014, retaining
+TransactionAdmissionCanceledException. StatementTimeout is zero by default, so a normal
+admission wait has no default deadline. A later statement deadline does not relabel an earlier
 lock timeout. Caller cancellation retains OperationCanceledException.
 
 The session and explicit transaction remain usable after the failed statement's effects and new

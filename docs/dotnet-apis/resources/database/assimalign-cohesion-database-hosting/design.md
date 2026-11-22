@@ -264,6 +264,13 @@ Database SDK hosts receive the public Database.Tcp package through App.Database;
 
 The admin endpoint constructs the public sealed HealthChecksBuilder in Assimalign.Cohesion.Web.Health. The standalone HealthChecks.CreateBuilder factory is removed; IHealthChecksBuilder extensions and immutable service snapshots remain. See [builder API](health-checks-builder.md).
 
+## Journal admission health
+
+A database with paused journal admission remains online and reports Degraded with CK06006.
+Health transition events 16/17 carry `JournalAdmissionPaused:CK06006` while paused. A healthy
+pending checkpoint has no finite pause deadline. Persistent operational checkpoint and write-back
+failures retain the existing offline window. See [admission policy](../assimalign-cohesion-database/design.md#journal-admission).
+
 ## Sources
 
 - **Endpoint binding and health** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Hosting/tests/DatabaseHealthEndpointTests.cs`, `DatabasePlatformCollisionTests.cs` and `DatabaseHostingEventSourceTests.PlatformEndpoints.cs` in the same test directory.

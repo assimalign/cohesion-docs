@@ -473,6 +473,25 @@ See [SQL](../../../../database/sql/language/statements/savepoint.md),
 [GQL](../../../../database/graph/language/statements/transactions.md) and
 [Blob transfers](../../../../database/blob/operations.md#host-transactions).
 
+## Journal admission events
+
+`Assimalign.Cohesion.Database.Transactions` emits these Verbose events with the Checkpoints
+keyword. Events are listener-gated and run outside the state monitor. Process-unique episodeId
+pairs pause, failure and resume even when callbacks arrive out of order.
+
+| ID | Event | Payload |
+| --- | --- | --- |
+| 23 | AdmissionPaused | database, reason (CheckpointPending/CheckpointFailure/BracketOpen), bracketClass, owner, journalBytes, journalSizeLimit, episodeId |
+| 24 | AdmissionResumed | database, reason (CheckpointCompleted/Closing/Unconfigured/Disabled), durationMilliseconds, episodeId |
+| 25 | AdmissionWait | database, bracketClass, owner; first wait or non-waiting refusal |
+| 26 | AdmissionPauseFailed | database, reason (CheckpointFailure), episodeId |
+
+Counters update without listeners: `journal-admission-pauses` counts episodes,
+`journal-admission-waits` counts first waits and non-waiting refusals, and
+`journal-admission-pause-milliseconds` includes completed and currently running episode time.
+Hosting emits health transition IDs 16 (degraded) and 17 (restored); the pause reason is
+`JournalAdmissionPaused:CK06006`. See the [shared policy](../assimalign-cohesion-database/design.md#journal-admission).
+
 ## Non-goals
 
 - **No distributed transactions / two-phase commit** — single-node ACID first.
@@ -516,6 +535,8 @@ outside the lock-table monitor. Queues without a detected cycle retain normal FI
 not suppress genuine held-lock deadlocks or change victim selection.
 
 ## Sources
+
+- **Journal admission events and counters** — `cohesion/docs/EVENT_SOURCES.md` and `cohesion/resources/Database/Assimalign.Cohesion.Database.Transactions/docs/DESIGN.md`.
 
 - **Checkpoint scopes** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Transactions/src/TransactionCheckpointInterlock.cs` and `tests/TransactionCoordinatorRecoveryTests.cs`.
 

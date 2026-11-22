@@ -9,6 +9,7 @@ Namespace: `Assimalign.Cohesion.Database.Sql.Language`.
 ```csharp
 public static class SqlClauses
 {
+    public const string Natural = "NATURAL";
     public const string JsonValue = "JSON_VALUE";
     public const string JsonQuery = "JSON_QUERY";
     public const string JsonExists = "JSON_EXISTS";
@@ -16,8 +17,10 @@ public static class SqlClauses
 }
 ```
 
-This excerpt lists the SQL/JSON and COPY constants. Each is a measured contextual clause; the words add
-no lexical reservation. Reading constants and checking Supports throw no exceptions.
+This excerpt includes NATURAL, SQL/JSON and COPY. Natural is enabled for SELECT joins and
+derives USING names; see [NATURAL binding](../../../../database/sql/language/clauses/join.md#natural-joins).
+SQL/JSON and COPY are contextual clauses and add no lexical reservation. Reading constants and
+checking Supports throw no exceptions.
 
 ## Example
 

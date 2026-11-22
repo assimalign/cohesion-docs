@@ -20,12 +20,13 @@ SELECT [ DISTINCT ] [ TOP ( count_expression ) ] <select_list>
 [ ; ]
 
 <select_list> ::= <select_item> [ , ...n ]
-<select_item> ::= * | expression [ [ AS ] column_alias ]
+<select_item> ::= * | [ schema_name . ] table_name . * | expression [ [ AS ] column_alias ]
 <table_source> ::= [ schema_name . ] table_name [ [ AS ] table_alias ]
                  | ( select_statement ) [ AS ] table_alias [ ( column_name [ , ...n ] ) ]
 <join> ::= { [ INNER ] JOIN | LEFT [ OUTER ] JOIN | RIGHT [ OUTER ] JOIN | FULL [ OUTER ] JOIN } <table_source>
            { ON search_condition | USING ( column_name [ , ...n ] ) }
          | CROSS JOIN <table_source>
+         | NATURAL [ INNER | LEFT [ OUTER ] | RIGHT [ OUTER ] | FULL [ OUTER ] ] JOIN <table_source>
 <order_by_item> ::= { expression | column_alias | select_list_ordinal } [ ASC | DESC ]
 ```
 
@@ -96,19 +97,21 @@ limit would return no rows.
 An [ordered index scan](../clauses/order-by.md#index-order) can supply single-table ORDER BY
 and stop after OFFSET + LIMIT qualifying rows. Other ORDER BY paths with a non-DISTINCT limit examine every qualifying input while retaining only
 the best OFFSET + LIMIT rows. Deferred collations and independent volatile outputs use a full sort;
-see [ordering evaluation](../clauses/order-by.md#evaluation-order). The selected output rows still
-materialize before delivery; bounded selection does not provide streaming results.
+see [ordering evaluation](../clauses/order-by.md#evaluation-order). Evaluation completes before delivery; an eligible spilled result decodes lazily.
 
 Every retained SELECT buffer shares StatementMemoryBudget (64 MiB by default), including joins,
-sorts, group state, set operations, caches and the materialized result. Eligible grouping and
-DISTINCT stream their input while retaining their state. Exhaustion refuses with CS05067;
-large sorts and results need a larger budget. Query operators do not spill yet. See
-[statement memory](../../performance.md#statement-memory) for ownership and window/JSON diagnostics.
+sorts, group state, set operations, caches and results. A root ORDER BY or ordered DISTINCT can
+spill when its reservation would refuse CS05067. Delivery of a spilled result is lazy; dispose
+the result even after completing or canceling enumeration. At most eight spilled results may
+remain live per session. See [spill eligibility, capacity and reader lifetime](../../performance.md#root-sort-spilling).
 
 [USING](../clauses/join.md#using-columns) merges names and chooses a common type. Unqualified `*`
 expands visible columns after merging; aliases and ordinals in ORDER BY count those columns.
-Qualified `t.*` remains `CK00001`. The [JOIN examples](../clauses/join.md#examples) cover
+Qualified `t.*` and `schema.table.*` expand that input's own columns with outer-join nullability. The [JOIN examples](../clauses/join.md#examples) cover
 INNER, LEFT, USING, CROSS and comma forms with results.
+
+SELECT and RETURNING lists have at most 1,664 syntactic or expanded targets (CS05097 / 54011).
+See [NATURAL name rules, wildcard aliases and view freezing](../clauses/join.md#natural-joins).
 
 ## Index access
 

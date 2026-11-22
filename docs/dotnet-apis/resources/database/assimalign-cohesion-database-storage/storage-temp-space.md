@@ -34,7 +34,8 @@ normalized when setup succeeds. CreateStatement on a disposed space throws Objec
 
 Dispose closes all statements and releases the directory lease, continuing after cleanup failures;
 failed closes are reported in AggregateException. No journal, recovery, transactions or shared
-buffer pool participates. No query operator uses this substrate yet.
+buffer pool participates. Eligible SQL root ORDER BY and ordered DISTINCT consume it, including
+CTAS source roots.
 
 ## Related reference
 

@@ -76,7 +76,7 @@ for engine admission, maintenance and unresolved registrations.
 ```csharp
 public sealed partial class SqlCatalog
 {
-    public long AllocateIdentity(SqlCatalogTable table);
+    public long AllocateIdentity(SqlCatalogTable table, CancellationToken cancellationToken = default);
 }
 ```
 
@@ -86,6 +86,9 @@ The supplied table must be the currently published description and contain an id
 Under the catalog lock, allocation commits a reservation of up to 32 values before returning any.
 It preserves the table object and DdlGeneration and does not publish script receipts. Allocation
 uses Int128 intermediate arithmetic and the owned sequence's resolved bounds and cycle policy.
+The optional token cancels reservation admission. Ordinary identity/sequence reservation releases
+the catalog monitor while waiting for journal admission, then retakes it and revalidates.
+Cancellation throws OperationCanceledException; closed allocation throws ObjectDisposedException.
 
 Data rollback, failed constraints and restart do not reclaim allocations. Reopening starts after
 the last reserved value, including after clean shutdown, so unused values become gaps. Generated

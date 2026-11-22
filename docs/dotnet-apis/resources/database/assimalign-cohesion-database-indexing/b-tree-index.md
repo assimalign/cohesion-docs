@@ -10,6 +10,7 @@ Namespace: `Assimalign.Cohesion.Database.Indexing`.
 public sealed class BTreeIndex
 {
     public const int MaxKeyLength = 1024;
+    public const int MaxPayloadLength = 1024;
     public bool IsUnique { get; }
     public ValueTask<ulong?> FindLiveEntryAsync(
         TransactionContext transaction, IndexKey key,
@@ -69,6 +70,41 @@ catch (IndexException)
 ```
 
 Commit the writer: a range cursor returns only the 1,024-byte key with entry reference `42`.
+
+## Leaf payloads
+
+```csharp
+public ValueTask InsertAsync(TransactionContext transaction, IndexKey key, ulong entryReference,
+    ReadOnlyMemory<byte> payload, CancellationToken cancellationToken = default);
+public ValueTask InsertVersionAsync(StorageTransaction transaction, IndexKey key, ulong entryReference,
+    TransactionSequence writer, TransactionSequence deleter, ReadOnlyMemory<byte> payload,
+    CancellationToken cancellationToken = default);
+public ValueTask<bool> ReplacePayloadAsync(StorageTransaction transaction, IndexKey key,
+    ulong entryReference, ReadOnlyMemory<byte> payload, CancellationToken cancellationToken = default);
+```
+
+The original no-payload insert overloads remain. Payload is opaque and copied during the call;
+MaxPayloadLength is 1,024 bytes independently of MaxKeyLength. Empty payload adds no entry bytes.
+Order, uniqueness, entry identity and internal separators ignore it. InsertAsync retains unique-key
+checks; the InsertVersionAsync builder still owns uniqueness validation for explicit stamps.
+
+ReplacePayloadAsync targets the newest key/reference mapping in the caller-owned physical bracket.
+It returns false if absent and true for an accepted replacement, including identical bytes. A
+nonzero writer **or deleter** refuses with IndexException: replacement requires a live physical
+entry with zero stamps. Such an entry is unversioned: replacement is visible at latch release,
+a snapshot does not pin the payload, and rolling back the bracket restores it.
+
+An identical replacement still takes the page write lock and can incur a pre-image/WAL; it skips
+MarkDirty when equal. Equal-length replacement overwrites in place. Growth can compact or split,
+keeping the old entry until replacement fits. Cancellation is honored before the page change and
+between splits. A failed split may leave structural changes that misroute seeks until rollback;
+the caller must roll back its physical bracket after failure.
+
+Null transaction throws ArgumentNullException; oversized payload or duplicate insert identity
+throws IndexException. ReplacePayloadAsync also uses IndexException for stamped mappings.
+A competing physical page write lock throws StorageTransactionException even for identical bytes.
+Cancellation throws OperationCanceledException. No new diagnostic identity is allocated. See
+[BTreeCursor.CurrentPayload](b-tree-cursor.md) and [page format 3](design.md#page-format-3).
 
 ## Range cursors
 

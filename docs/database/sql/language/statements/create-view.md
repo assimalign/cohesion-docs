@@ -20,7 +20,9 @@ It follows the ordinary SELECT subset. Parameters are refused. An explicit colum
 output names must be unique.
 
 The catalog stores canonical SQL with bound input qualifiers and expanded stars at every query
-level. Later ADD COLUMN does not change the view's output. Rebinding refuses a changed input
+level. NATURAL stores explicit USING names (or CROSS / outer ON TRUE), and both unqualified
+and qualified stars store expanded columns. Later ADD COLUMN changes neither output columns
+nor rows. An alias on a star is discarded. Rebinding refuses a changed input
 column identity with CS03033. Stored function identities keep later overloads from changing
 a call. Unqualified view names use dbo; tables and views share a relation namespace.
 

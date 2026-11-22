@@ -11,6 +11,7 @@ public sealed class BTreeCursor : IAsyncDisposable
 {
     public IndexKey CurrentKey { get; }
     public ulong CurrentEntryReference { get; }
+    public ReadOnlyMemory<byte> CurrentPayload { get; }
     public ValueTask<bool> MoveNextAsync(CancellationToken cancellationToken = default);
     public ValueTask DisposeAsync();
 }
@@ -36,11 +37,15 @@ targets before applying changes. One reader is supported; concurrent moves/dispo
 Both the opening token and each move's token apply, including buffered reads and waits for a
 writer's latch. Any failed move disposes the cursor and releases its owned state. DisposeAsync
 is idempotent and drops keys, bounds and snapshot references. A previously retained CurrentKey
-owns its bytes and remains valid after later moves or disposal.
+owns its bytes and remains valid after later moves or disposal. CurrentPayload has the same
+position/disposal guards, returns empty memory when absent, and owns bytes that survive moves
+and disposal. Visible payloads are copied at batch time even if the accessor is never read, up
+to 64 KiB per batch plus array overhead, outside statement memory accounting. Payload batch
+arrays are allocated only after a nonempty visible payload.
 
 | Exception | Trigger |
 | --- | --- |
-| InvalidOperationException | CurrentKey or CurrentEntryReference before the first successful move or after exhaustion |
+| InvalidOperationException | CurrentKey, CurrentEntryReference or CurrentPayload before the first successful move or after exhaustion |
 | ObjectDisposedException | Move or current-value access after disposal, including a failed move |
 | OperationCanceledException | Either token is canceled; the cursor is disposed |
 | IndexCorruptionException | A move reaches a damaged index page (CK06102); the cursor is disposed |

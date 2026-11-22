@@ -16,6 +16,7 @@ FROM <table_source> [ <join> ...n ] [ , <table_source> [ <join> ...n ] ...n ]
 <join> ::= { [ INNER ] JOIN | LEFT [ OUTER ] JOIN | RIGHT [ OUTER ] JOIN | FULL [ OUTER ] JOIN } <table_source>
            { ON search_condition | USING ( column_name [ , ...n ] ) }
          | CROSS JOIN <table_source>
+         | NATURAL [ INNER | LEFT [ OUTER ] | RIGHT [ OUTER ] | FULL [ OUTER ] ] JOIN <table_source>
 ```
 
 ## Arguments
@@ -93,7 +94,7 @@ USING order, common types, identical domain identity and modifier rules remain t
 merged keys can feed later joins, including parenthesized FULL subtrees.
 
 [ORDER BY](order-by.md) aliases after `*` and numeric ordinals count the visible merged columns.
-Qualified wildcards such as `t.*` remain excluded.
+[Qualified wildcards](#qualified-wildcards) expand each input's own columns.
 
 ### Join-order search
 
@@ -180,8 +181,57 @@ filter that input early. A preserved-side ON predicate cannot remove its unmatch
 | INNER, LEFT [OUTER] or RIGHT [OUTER] JOIN | Supported (measured) | Exactly one ON or USING per step; any number of steps |
 | FULL [OUTER] JOIN | Supported (measured) | ON/USING must provide a safe mandatory hash equality; complete ON evaluation must be proven non-throwing |
 | CROSS JOIN and comma sources | Supported (measured) | Products; CROSS accepts neither ON nor USING |
-| NATURAL, LATERAL | Recognized, not supported (`CK00001`) | Outside this join subset |
-| Qualified wildcard | Recognized, not supported (`CK00001`) | List qualified columns explicitly |
+| NATURAL | Supported | Derives USING names; no-common FULL retains CS05070 |
+| Qualified SELECT wildcard | Supported | Input columns with outer nullability; see limits below |
+| LATERAL | Recognized, not supported (`CK00001`) | Sibling correlation remains excluded |
+
+## NATURAL joins
+
+NATURAL precedes JOIN, INNER JOIN or LEFT/RIGHT/FULL [OUTER] JOIN and derives USING names
+from the common visible column names, ignoring case, in left-input order. The ordinary USING
+type, collation, output ordering and nullability rules then apply. Repeated common names on
+either input fail CS01015. With no common names, INNER becomes CROSS; LEFT and RIGHT keep
+their outer side through ON TRUE, including null extension when the other side is empty.
+FULL with no common names refuses CS05070. NATURAL CROSS JOIN and explicit ON/USING on a
+NATURAL join are syntax errors (CS00003). LATERAL remains CK00001.
+
+An input with a synthesized display name such as `column1` for an unnamed CAST refuses
+CS01015 and asks for an alias. Provenance follows derived/CTE, compound and view outputs and
+both star forms, including FROM-less correlated inputs. An authored alias or column-alias list
+clears it. A stored table column literally named column1 is valid.
+
+Format 37 cannot distinguish an older frozen star's same-name AS alias from an authored
+re-alias. That stored shape conservatively requires a fresh alias; even an authored same-name
+output in a mixed view can retain this ambiguity. An older explicit view list matching a
+generated name is also ambiguous: `CREATE VIEW legacy(column1) AS SELECT CAST(1 AS BIGINT)`
+stored only the body and catalog name. NATURAL conservatively refuses it with CS01015. Wrap
+the view in a derived query with an explicit column list, or recreate it; new views preserve
+the list in the stored body. Wire-visible columnN names and SQL format 37 are unchanged.
+
+## Qualified wildcards
+
+Standalone SELECT items `t.*` and `schema.table.*` expand that local input's own columns in
+declared order, including physical columns hidden from unqualified * by USING. Outer-extended
+inputs retain NULL values and nullable metadata with their original types. An alias hides both
+the base and schema-qualified names. Unknown/ambiguous qualifiers fail CS01015 before reads.
+Expansion composes with other projections, DISTINCT, ordering, windows, derived/view/system
+inputs and compound operands. An alias on either star form is discarded, including in views
+and ORDER BY.
+
+Grouped wildcards retain CS05017. Row-valued stars such as COUNT(t.*), qualified RETURNING
+stars, direct NATURAL mutation-source joins, and stars used as a relation or scalar expression
+in UPDATE FROM, DELETE USING or MERGE USING remain CK00001. SELECT bodies in those sources
+can project qualified stars; an aliased source join group executes through its derived SELECT.
+
+A SELECT or RETURNING target list has at most **1,664 entries**, both syntactically and after
+expansion. CS05097 (54011) names the limit and attempted count. The parser refuses at entry
+1,665 and discards the partial tree and remaining text. The bound also covers derived/CTE
+bodies, compound operands and view expansion.
+
+CREATE VIEW freezes NATURAL to explicit USING (or CROSS / outer ON TRUE) and expands both
+stars. Later ADD COLUMN changes neither its columns nor its rows, including after reopen.
+Bare ORDER BY names still resolve explicit aliases then source columns: `SELECT b.* FROM a
+NATURAL LEFT JOIN b ORDER BY x DESC NULLS LAST` sorts by merged x, unlike PostgreSQL's b.x.
 
 ## Diagnostics
 
@@ -190,13 +240,15 @@ filter that input early. A preserved-side ON predicate cannot remove its unmatch
 | `CS02003` | Non-Boolean ON condition or logical operand; SQLSTATE 42804 |
 | `CS01015` | Unknown/hidden/out-of-scope qualifier, ambiguous column, missing/repeated/ambiguous USING name, or no common USING type; rejected during planning, including empty inputs |
 | `CS01019` | Duplicate table binding or alias |
-| `CK00001` | Unsupported join/wildcard, or INNER/LEFT/RIGHT/FULL without ON or USING |
+| `CK00001` | LATERAL, direct NATURAL mutation sources, qualified RETURNING/row-valued stars, or non-NATURAL joins missing ON/USING |
 | `CS05069` | Direct RIGHT, FULL or unaliased parenthesized source in UPDATE FROM / DELETE USING; refused before reads/writes, no SQLSTATE |
 | `CS05070` | FULL condition lacks a safe mandatory hash equality or complete ON evaluation is not proven non-throwing; before either input is read, no SQLSTATE |
 | `CS05067` | Concurrently retained hash builds exceed StatementMemoryBudget; SQLSTATE 53200 |
 | `CS00003` | Malformed join/USING list, both ON and USING, or CROSS with either condition |
 
 The source assigns no SQLSTATE to the other join diagnostics in this table.
+
+CS05097 / SQLSTATE 54011 refuses target lists above 1,664 syntactic or expanded entries.
 
 ## Examples
 

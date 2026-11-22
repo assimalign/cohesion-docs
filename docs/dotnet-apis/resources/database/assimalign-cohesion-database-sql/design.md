@@ -309,17 +309,15 @@ double quotes and null characters fail before deployment because the current lex
 those identifier forms. The mapper uses the same retained names, so its quoted DML binds the objects
 deployed by this renderer without another naming convention.
 
-Every deferred migration publishes jointly, whether it contains TYPE or not. Populated-table
-validation and index work can be deferred to the provisioning worker. Non-TYPE empty-table Build,
-`RunMigrationsInline`, any declared script and explicit `ApplySchemaAsync` retain per-step inline
-application: each DDL request self-commits, and failure compensates completed reversible steps
-with the existing `CS03104` wrapper. Irreversible data loss cannot be compensated.
-A default change without a TYPE rewrite remains a `CS03105` refusal before intent save or changes.
+Every schema apply prepares its complete target unpublished and publishes in one catalog commit.
+This covers deferred work, empty-table Build, `RunMigrationsInline`, Build with declared scripts and explicit
+`ApplySchemaAsync`. Preparation failure leaves the old schema online (`CS03402`); an unconfirmed
+publication reports `CS03403`. SET/DROP DEFAULT also publishes jointly, with destructive opt-in
+required (`CS03105` without it).
 
 ### Joint migrations
 
-A compiled-schema apply containing any TYPE rewrite, and every deferred migration, uses one
-joint executor for its entire target. Cheap additions and drops publish in that same catalog
+Every compiled-schema apply uses one joint executor for its entire target. Cheap additions and drops publish in that same catalog
 commit rather than committing before deferred preparation.
 Storage-type, scale or domain identity changes, every VARCHAR narrowing and every CHAR width change
 require TYPE. This includes unbounded-to-bounded VARCHAR and narrowing whose existing values fit.
@@ -327,11 +325,12 @@ Precision-only and other length-facet changes keep the existing validation path 
 operation requires TYPE. Same-name domain changes compare their effective storage facets.
 
 Build binds metadata and checks whether touched owners have stored pages, without decoding rows.
-Populated work is queued; empty-table work runs synchronously. For TYPE-rewrite plans,
-`RunMigrationsInline`, any declared script and explicit `ApplySchemaAsync` use this same joint
-executor inline; non-TYPE inline paths retain per-step application. Before queueing, one
+Populated work is queued; empty-table work runs synchronously. `RunMigrationsInline`, any declared
+script and explicit `ApplySchemaAsync` use this same joint executor inline for every plan.
+Before intent publication, one
 transaction reserves owned sequences and every touched old table in identity order. Nonzero engine
-LockTimeout bounds reservation. Reads and writes on those tables wait through the lock manager;
+LockTimeout bounds reservation; zero waits without a timeout. Plain readers and writers on those
+tables wait before binding or snapshot capture for the entire job, including cleanup;
 the closure includes affected old and final foreign-key neighbors when the FK changes, either
 end rewrites or matching parent unique trees change. Stable neighbors remain available; their
 FK probes wait if they need a reserved table. All plan targets stay reserved through publication.
@@ -374,14 +373,18 @@ See [space admission and offline exceptions](storage-design.md#joint-migration-s
 
 ### Joint tables that keep storage
 
-A joint migration classifies each existing table separately. Additive indexes and CHECK,
-NOT NULL, UNIQUE and foreign-key changes can keep its heap owner and existing index trees.
-Columns must retain their names, order and exact storage types/facets, including native-domain
-bounds; nullability may change. Defaults, primary keys and physical column changes rewrite.
+A joint migration classifies each existing table separately. Nullable append, DROP COLUMN,
+compatible VARCHAR/DECIMAL widening, equivalent built-in type spellings, default changes,
+relaxed nullability and dropped CHECK/FK constraints keep the heap without rewriting rows. SET NOT NULL, DECIMAL/VARBINARY
+tightening, ADD CHECK, required or checked-domain appends and ADD FK keep the heap while validating
+visible values. Only changed columns/domains are coerced or rechecked; unrelated domains and
+unchanged defaults are not revalidated. Additive indexes and supported UNIQUE changes build only
+new trees. Primary-key changes, TYPE changes and other required physical replacements rewrite.
+
 A table that already has a primary key can keep its heap when adding an index. Planning identifies
 the key by its primary-key marker and columns and preserves its generated name across both keep
 and rewrite, including TABLE_CONSTRAINTS, violation messages and ON CONFLICT ON CONSTRAINT.
-New joint tables use the per-step naming rule as well.
+New joint tables use the same generated primary-key naming rule.
 
 Script-declared indexes on typed tables survive joint publication, including unique enforcement,
 alongside ad-hoc indexes. A declaration with the same name wins over a script receipt, including
@@ -390,8 +393,11 @@ column refuses CS03105 before intent save, with CS03056 identifying the blocking
 publication index names refuse CS05060 before the catalog transaction. Retained index registration
 order survives publication/reopen; newly added indexes follow plan order.
 
-Dropping or replacing a pre-existing index whose pages belong to the heap also forces a rewrite.
-A separately owned tree can be dropped or replaced while keeping the heap; its old owner is reclaimed.
+Dropping a heap-owned index without a same-name replacement keeps the heap, including a DROP
+COLUMN with its declared index. No rows are rewritten. Its unregistered pages remain allocated
+until the table's heap retires. A same-name heap-owned index replacement requires a full physical
+replacement. A separately owned tree can be dropped or replaced while keeping the heap; its old
+owner is reclaimed.
 
 Index comparison includes every effective key order: a direction-only or NULL-placement-only
 change replaces the independently owned tree while retaining its heap. Joint rewrites
@@ -429,9 +435,8 @@ persists `Schema` ownership and that name as `OwningSchema` in the object's firs
 internal session may execute `DROP TABLE`, `ALTER TABLE ADD COLUMN`, `ALTER TABLE DROP COLUMN`,
 or `DROP INDEX` against its schema's objects. Normal sessions receive
 `DatabaseObjectLockedException` with the object, compiled schema exposed as `OwningSchema`, and
-refused operation; row DML remains available. Compensation uses the same private session and
-preserves the existing reversible-step policy on non-TYPE inline application. Deferred jobs
-publish jointly and discard unpublished work on preparation failure.
+refused operation; row DML remains available. Schema jobs publish jointly and discard unpublished
+work on preparation failure.
 
 DDL re-reads catalog ownership after acquiring the exclusive object lock. If a table was dropped and
 its name reused while the statement waited, the acquired lock covers the old object id: the
@@ -1479,7 +1484,7 @@ deletable or updatable to fitting replacements. Referential SET actions encode f
 collecting all assignments. Index builds, including schema-provisioned indexes, use the same
 checked key builder and do not publish a failed tree. Every deferred migration discards unpublished
 work and reports CS03402 online, with CS05042 in the underlying cause, subject to independent
-storage latches. Inline per-step application retains compensation and CS03104.
+storage latches. Every inline and deferred apply uses this same joint boundary.
 
 | Code | Meaning and trigger | SQLSTATE |
 | --- | --- | --- |
@@ -1487,7 +1492,7 @@ storage latches. Inline per-step application retains compensation and CS03104.
 | CS05043 | Cooperative statement execution deadline expired; statement rolled back | 57014 |
 | CS04044 | Individual contended lock wait expired | 55P03 |
 | CS05045 | Uncoded result encoding/preparation failure or encoded header/row above 16 MiB | 54000 for size refusals |
-| CS03105 | Typed migration policy/planning refusal before steps or intent save, including unproven conversions without destructive opt-in and default changes without TYPE | — |
+| CS03105 | Typed migration policy/planning refusal before steps or intent save, including unproven conversions and default changes without destructive opt-in | — |
 | CS03402 | Joint preparation, reservation or space admission failed; old schema retained unless an independent storage latch fires | — |
 | CS03403 | Joint publication commit unconfirmed; recovery determines old/new schema | — |
 | CS03404 | Session relation creation or table rename claims a name reserved by a pending joint migration | — |
@@ -1701,7 +1706,7 @@ visibility. It retains format 37 and uses CS04003 inside explicit transactions.
 
 ## Non-goals (current cut)
 
-NATURAL joins, qualified wildcards, `Serializable` isolation (rejected at begin), persisted statistics and hash spill, and
+LATERAL joins, `Serializable` isolation (rejected at begin), persisted statistics and hash spill, and
 index-only result production (a seek always fetches the row). (Row-level MVCC visibility and
 secondary indexes — DDL, write-path maintenance, and planner seek adoption — were non-goals of
 earlier cuts and are now delivered; see "The MVCC integration", "Secondary indexes", and the
@@ -2098,7 +2103,11 @@ retains CS03402. A classification mismatch during planning stops Restarted and c
 Replan. A no-target open emits no provisioning trace or observation. Successful Verify clears a
 declared discard observation. Stop outcomes also include Applied, Verified, Error and Cancelled.
 
-Deferred events describe the complete joint job using Joint/ kinds. Kind, Table and Position
+IDs 18–21 describe the complete joint job for deferred, inline, empty-table and ApplySchemaAsync
+work using Joint/ kinds. A zero-operation reconciliation uses Joint/Schema with one progress
+position. Inline failure ID 15 uses JointMigration and CS03402/CS03403; IDs 15 and 21 report
+the inner cause's exception type. Imperative cancellation/timeout clears Provisioning; deferred
+failures remain sticky, and a rejected handoff keeps the producer's outcome. Kind, Table and Position
 retain the first executable operation through preparation; they do not identify later table work.
 Row counts restart at each table and phase; unknown totals are -1. Constraint-only validation
 reports unknown total while scanning and the exact count at completion, without a counting scan.
@@ -2158,13 +2167,24 @@ policy or replace an unresolved operational fault. Event 36 repeats once per sec
 running lane while disposal waits, measuring elapsed disposal time. Storage stays open until I/O
 returns. These events add no diagnostic code or SQLSTATE. See [lane limits and worker health](../assimalign-cohesion-database/design.md#maintenance-lane-isolation).
 
+## Journal admission
+
+New write brackets pause at half the resolved journal limit, including with the size trigger off.
+Readers continue under ordinary locking rules. Healthy pending pauses remain online indefinitely
+with Degraded/CK06006 health; persistent checkpoint and write-back failures retain the offline
+window. Session DDL retaining metadata refuses immediately with CK04014 (57014); migrations
+release gates, wait with their token and resume the same prepared job. StatementTimeout is zero
+by default, so a waiting statement has no default deadline. See the [shared policy and DDL
+visibility](../assimalign-cohesion-database/design.md#journal-admission).
+
 ## Temporary space
 
 The engine owns an internal StorageTempSpace when a file root or explicit TempDirectory is
 configured. TempDirectory, TempSpaceQuota and StatementTempSpaceQuota are copied from options;
 see [defaults, admission floor and permissions](sql-database-engine-options.md#temporary-space).
 One directory belongs to one spilling engine. Temporary setup/I/O failures use CK05005 without
-taking durable databases offline. This is the substrate only; no query operator uses it yet.
+taking durable databases offline. Eligible root SELECT and CTAS source sorts now consume it.
+See [sort eligibility, physical capacity and lazy lifetime](../../../../database/sql/performance.md#root-sort-spilling).
 
 ## Probe costing and hash builds
 
@@ -2177,8 +2197,8 @@ execution releases its charge. Costs follow retained rows, not collection capaci
 Cells of at least 256 bytes pay payload once per buffer owner by reference identity plus 64 bytes
 per distinct cell; further references pay slots. Smaller cells and hash-build references still
 pay per reference. Separate equal objects each pay. Outputs and keys share a collector map;
-two live buffers each pay for a shared value. Large sorts and results refuse CS05067 until the
-budget is raised; query operators do not spill yet. Plain bytes that fill the grant first also
+two live buffers each pay for a shared value. Eligible root ORDER BY and ordered DISTINCT spill
+where their reservation would refuse CS05067; other retained buffers keep their existing policy. Plain bytes that fill the grant first also
 cause window/JSON memory refusals to use CS05067. Without plain bytes live, those retain CS05079
 and CS05094. INSERT SELECT and DML subquery sources keep their existing policy.
 See [statement memory](../../../../database/sql/performance.md#statement-memory).
@@ -2451,6 +2471,13 @@ then releases it before catalog retirement and durability waits. Holder release 
 work before the next admission; reclamation yields to due or pending checkpoints. See
 [shared admission and attribution](../assimalign-cohesion-database-transactions/design.md#transaction-eventsource)
 and [checkpoint triggering](../assimalign-cohesion-database-storage/design.md#checkpoint-triggering).
+
+## B-tree compatibility
+
+Current B-tree pages use format 3. Format-2 trees refuse CK06101 through recovered read-only
+preflight before recovery or any other write. Clean and crashed file sets remain unchanged.
+When both model metadata and B-tree stamps are old, the catalog/data-storage marker precedes B-tree roots, so the
+single refusal is CS06041. See [combined refusal order](../../../../database/error-codes.md#combined-format-refusals).
 
 ## Sources
 

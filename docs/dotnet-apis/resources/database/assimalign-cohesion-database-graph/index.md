@@ -11,6 +11,8 @@ packages are retired. Wire contracts ship separately in [Graph.Protocol](../assi
 
 ## Reference pages
 
+- **[StoredGraphIndex](stored-graph-index.md)** — Snapshot-visible exact/text index kind.
+
 - **[GraphType](graph-type.md)** — Immutable open database type.
 - **[GraphNodeType](graph-node-type.md)** — Identifying/implied labels and enforced node properties.
 - **[GraphEdgeType](graph-edge-type.md)** — Stored directed edge declarations.

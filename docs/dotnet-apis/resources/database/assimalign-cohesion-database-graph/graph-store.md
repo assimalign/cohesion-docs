@@ -16,6 +16,9 @@ public sealed partial class GraphStore
     public ValueTask<StoredGraphNode> CreateNodeAsync(StoredGraphNode node,
         IReadOnlyDictionary<string, Guid> labelIds, TransactionContext context,
         CancellationToken cancellationToken = default);
+    public ValueTask DeleteNodeAsync(ulong id, bool detach, TransactionContext context,
+        CancellationToken cancellationToken = default);
+    public IReadOnlyList<StoredGraphIndex> GetIndexes(TransactionSnapshot snapshot);
     public IReadOnlyList<StoredGraphNode> GetNodes(string? label, TransactionSnapshot snapshot);
     public ValueTask<StoredGraphRelationship> CreateRelationshipAsync(
         StoredGraphRelationship relationship, Guid typeId, TransactionContext context,
@@ -80,6 +83,24 @@ with CG06017 and the recreation remedy; no upgrade reader exists. Open also vali
 formats. The engine retains CG06017 alongside CK06003 and CG06018 in
 [DatabaseCorruptionException](../assimalign-cohesion-database/database-corruption-exception.md);
 no SQLSTATE is assigned.
+
+## Index kinds and write accounting
+
+GetIndexes returns every visible label/property/kind once.
+[StoredGraphIndex.IsText](stored-graph-index.md) distinguishes exact and text definitions.
+Node create/update/delete maintains text postings and dropped exact/text trees still visible
+to a Snapshot writer. A pinned exact tree still enforces its 1,016-byte prefix limit (CG02009).
+
+Public CreateNodeAsync, UpdateNodeAsync and DeleteNodeAsync retain their optional
+CancellationToken argument. The visit/reserve accounting callbacks used by the engine are
+internal overloads, not public write parameters. Raw GraphStore callers retain caller-owned
+accounting; typed engine node operations start the default statement grant when text indexes
+exist. See [posting costs and capacity](../../../../database/graph/language/statements/create-index.md#write-costs-and-capacity).
+
+EnsureIndexFormat validates physical index-kind revisions (0 exact, 1 text), signed retirement
+receipts and registered roots before scrub. B-tree format 2 refuses CK06101 before any write;
+current pages require format 3. A live recovered definition cannot have a negative-root retirement
+receipt; malformed receipts refuse before recovery writes.
 
 ## Label reads
 

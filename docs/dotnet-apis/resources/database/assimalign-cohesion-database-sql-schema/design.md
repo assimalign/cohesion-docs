@@ -62,12 +62,13 @@ changes compare effective storage facets on every referring column. Every VARCHA
 and CHAR width change requires a TYPE rewrite; precision-only and other length changes keep
 the validation path unless another operation requires TYPE. A plan containing any TYPE rewrite
 uses the engine's [joint migration executor](../assimalign-cohesion-database-sql/design.md#joint-migrations).
-Every deferred migration uses that executor too, including non-TYPE plans. Non-TYPE inline
-application retains per-step commits and compensation with CS03104; deferred preparation failure
-leaves the old schema online with CS03402, and unconfirmed publication reports CS03403.
-The engine classifies each table: index additions and constraint-only changes can keep unchanged
-physical storage, building only new index trees. Dropping/replacing a heap-owned pre-existing
-index forces that table to rewrite; separately owned trees can be replaced while keeping it.
+Every apply uses that executor, including non-TYPE, inline and empty-table plans. Preparation
+failure leaves the old schema online with CS03402; unconfirmed publication reports CS03403.
+The engine classifies each table: metadata-only changes keep its heap without rewriting rows;
+new indexes build only their trees. A heap-owned DROP INDEX without a same-name replacement keeps
+the heap and leaves its pages allocated until heap retirement. A same-name heap-owned replacement
+requires a rewrite; separately owned trees can be replaced while keeping the heap.
+
 Every table still publishes in one commit. See [kept-table preparation](../assimalign-cohesion-database-sql/design.md#joint-tables-that-keep-storage).
 
 The planner's exact whitelist allows integer widening, TINYINT/SMALLINT to REAL/DOUBLE, INT to
@@ -90,8 +91,8 @@ their indexes, then emits `AddConstraint` operations rendered as `ALTER TABLE ..
 This permits references to tables that sort later, self-references, and cycles without temporarily
 disabling enforcement. `Constraint` replacement emits `DropConstraint` before removing dependent
 columns or indexes, then adds the replacement after structural changes. Both constraint operations
-have compensating statements on the non-TYPE inline per-step path. The SQL provisioner includes their definitions
-when comparing or reconstructing the live catalog after a failed apply.
+publish with the complete joint target. The SQL provisioner includes their definitions
+when comparing or reconstructing the live catalog.
 
 The engine validates new CHECK table/schema qualifiers against the constrained table with
 CS01015. Already stored checks and already-applied declared/imperative schema hashes keep

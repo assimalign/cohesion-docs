@@ -6,6 +6,8 @@ The shared ACID substrate for every Cohesion database engine: MVCC visibility sn
 
 ## Reference pages
 
+- **[TransactionAdmissionCanceledException](transaction-admission-canceled-exception.md)** — Canceled pause wait or immediate metadata admission refusal.
+
 - **[TransactionSavepoint](transaction-savepoint.md)** — Opaque owned undo token, released or rolled back through the coordinator.
 - **[TransactionLockTimeoutException](transaction-lock-timeout-exception.md)** — One queued wait expired; existing grants remain.
 

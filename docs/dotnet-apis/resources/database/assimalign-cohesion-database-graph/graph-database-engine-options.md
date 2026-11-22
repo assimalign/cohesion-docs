@@ -14,6 +14,9 @@ and snapshots valid options. `QueryMemoryBudget` defaults to 268,435,456 bytes (
 retained execution state; `QueryWorkBudget` defaults to 1,000,000 physical work units per statement.
 These are statement ceilings, not process working-set limits.
 
+Text-index extraction and posting maintenance are an exception to the 100,000-row envelope;
+see [write costs and capacity](../../../../database/graph/language/statements/create-index.md#write-costs-and-capacity).
+
 The default admits 100,000 one-property rows for SET, FOR … INSERT, RETURN n and QueryPaths.
 The regression cases refuse ten times that workload with `CG05020`. Capacity depends on row width
 and retained intermediate state. Shared containers and supported immutable leaves, including small

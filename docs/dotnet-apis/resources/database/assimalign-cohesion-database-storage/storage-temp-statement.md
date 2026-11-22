@@ -27,8 +27,8 @@ statement or space throws ObjectDisposedException; cancellation throws Operation
 
 Dispose deletes all owned runs, including partially written ones, and releases their quotas.
 It continues after close failures and throws AggregateException after all runs have been released.
-Dispose the statement after success, refusal or cancellation. This is the substrate only;
-no query operator uses it yet.
+Dispose the statement after success, refusal or cancellation. Eligible root SQL sorts use this
+substrate, including CTAS source sorts.
 
 ## Related reference
 

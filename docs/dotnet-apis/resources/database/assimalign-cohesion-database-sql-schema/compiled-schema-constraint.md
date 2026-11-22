@@ -34,7 +34,7 @@ invalid enum or nondefault CHECK update action. Construction itself does not enf
 
 Compiled format `cohesion/database-schema/v12` serializes onUpdate, including its default.
 Changing it changes the canonical document/hash and plans DropConstraint then AddConstraint.
-Serialization round-trips the action; provisioning, reconciliation, compensating statements,
+Serialization round-trips the action; provisioning, reconciliation, joint publication,
 catalog rename and reopen retain it. Earlier artifacts, applied markers and pending targets
 are refused at schema.format before comparison; no upgrade reader exists.
 

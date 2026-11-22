@@ -25,8 +25,8 @@ accounting. [StorageTempStatement](storage-temp-statement.md) owns each statemen
 [Runs](storage-temp-run.md) hold opaque records in checked 8 KiB pages; the
 [sorter](storage-temp-sorter.md) provides stable external sorting and a streaming final merge,
 and [partitions](storage-temp-partitions.md) route records by caller-supplied hashes.
-This is the substrate only: no query operator uses it on this branch. SQL owns its space
-internally and retains its memory refusals. See [SQL options](../assimalign-cohesion-database-sql/sql-database-engine-options.md#temporary-space).
+SQL owns its space internally and uses it for eligible root ORDER BY and ordered DISTINCT,
+including CTAS source sorts. Other query shapes retain their existing memory policy. See [SQL options](../assimalign-cohesion-database-sql/sql-database-engine-options.md#temporary-space).
 
 Every new physical page checks the statement quota, engine quota and model-supplied free-space
 floor. The engine quota is explicit or min(10 GiB, floor(available bytes / 4)), fixed after
@@ -60,6 +60,13 @@ exit; they close all owned runs, continuing cleanup after close failures.
 [StorageTempException](storage-temp-exception.md) exposes CK05001–CK05006 separately from its
 unprefixed message. [Storage events](#storage-eventsource) report reservations and refusals
 without paths, keys or rows.
+
+The sorter can drain an already sorted prefix before allocating its arena, and a maximumOpenRuns
+overload bounds live handles including merge output. Complete returns an owning merge; its
+OpenReader forks independent cursors while it stays unstarted and alive. Each cursor's BufferBytes
+uses the actual final-run maximum framed record length (at least 16):
+`run count * (8192 + actual maximum)`. SQL uses a 64-run ceiling per sort. See
+[sorter](storage-temp-sorter.md) and [reader ownership](storage-temp-sort-reader.md#openreader).
 
 ## The page model
 

@@ -2,7 +2,7 @@
 
 The relational Database engine parses, plans, and executes a measured SQL subset over the shared durable kernel.
 
-> **Status:** Partial. The profile measures 91 of 93 declared language clauses against the live engine.
+> **Status:** Partial. The profile measures 92 of 93 declared language clauses against the live engine.
 
 Model Catalog and Storage components ship inside their model assembly. Wire messages, codecs and
 transferred values ship in the model Protocol package, shared by engine and client. Remote clients
@@ -17,7 +17,9 @@ expressions, functions, types, and diagnostics. Start with
 The measured surface includes table and index data definition language (DDL), row mutations,
 session transactions, column constraints, and queries over stored tables and virtual system
 relations with N-way [INNER, LEFT, RIGHT, FULL, CROSS and comma joins](language/clauses/join.md).
-INNER/LEFT/RIGHT/FULL accept ON or USING; USING merges each named pair into one common-typed visible column.
+Non-NATURAL INNER/LEFT/RIGHT/FULL accept ON or USING; USING merges each named pair into one
+common-typed visible column. [NATURAL](language/clauses/join.md#natural-joins) derives those names;
+qualified SELECT wildcards expand each input's own columns.
 FULL preserves unmatched rows from both sides and requires a safe mandatory hash equality.
 Queries support filtering, grouping, aggregates, aliases and ordinals in ordering, pagination,
 collation, and bounded correlated and uncorrelated [subqueries](language/expressions/subqueries.md). `INSERT ... SELECT` uses transactional destination
@@ -44,10 +46,10 @@ rows and counts. Snapshot conflicts abort retryably; ReadCommitted skips or upda
 committed row. Multi-row UPDATE checks foreign keys against its
 [final replacements](language/constraints.md#update-final-row-examples), permitting consistent self-reference moves.
 
-The 91-of-93 measure includes aggregate [FILTER](language/clauses/filter.md), executable MERGE
+The 92-of-93 measure includes aggregate [FILTER](language/clauses/filter.md), executable MERGE
 and executable RECURSIVE and is not a percentage
 of complete SQL. The
-[unsupported matrix](language/unsupported.md) lists the 2 excluded named clauses and the further
+[unsupported matrix](language/unsupported.md) lists the one excluded named clause and the further
 boundaries inside supported clauses. [Operators and predicates](language/expressions/operators.md)
 describes PostgreSQL precedence, NULL-safe distinct predicates, Boolean truth tests and LIKE ESCAPE.
 
@@ -120,8 +122,8 @@ still lose that result. See [COMMIT](language/statements/commit-transaction.md).
 
 Compiled schemas own their tables and indexes. Session DDL cannot alter/drop schema-owned tables
 or drop schema-owned indexes, although ordinary row DML remains available. Provisioning records
-canonical state only after catalog convergence. Every deferred migration and every TYPE-rewrite
-plan publishes jointly; non-TYPE inline application keeps per-step commits and compensation.
+canonical state with the complete target in one catalog commit. Every schema apply publishes
+jointly, including deferred work, `RunMigrationsInline`, empty-table Build and `ApplySchemaAsync`.
 
 ## Execution limits
 
@@ -154,17 +156,15 @@ and [shared engine health](../overview.md#engine-health-and-version-purge).
 
 ### Typed migration health and recovery
 
-Every deferred migration, whether TYPE is present or not, and every
-[TYPE-rewrite plan](language/statements/alter-table.md#code-first-type-changes) prepares the whole
-target unpublished and publishes it in one catalog commit. Classification is
-per table: index additions and CHECK, NOT NULL, UNIQUE and foreign-key changes can keep an
-unchanged table's physical storage and retained indexes. Only new index trees are built for
-such tables. A dropped or replaced pre-existing index whose pages belong to the table forces
-that table to rewrite. Separately owned trees can be dropped or replaced while keeping the table.
-An additive index can keep a table that already has a primary key, and the key's observed name
-survives both kept and rewritten publication. Script-declared indexes on typed tables survive,
-including uniqueness, unless explicitly dropped or replaced by a same-name schema declaration.
-TYPE, default, column-order and primary-key changes still rewrite. See
+Every schema apply, including deferred work, `RunMigrationsInline`, empty-table Build and
+`ApplySchemaAsync`, prepares the whole target unpublished and publishes it in one catalog commit.
+Classification is per table. Nullable append, DROP COLUMN, compatible facet changes, SET/DROP
+DEFAULT and supported constraint/index changes keep the heap without rewriting rows; validation
+or new tree builds still run when required. A heap-owned DROP INDEX without a same-name
+replacement keeps the heap and leaves its pages allocated until heap retirement. A same-name
+heap-owned replacement requires a full rewrite; separately owned trees can be replaced while
+keeping the heap. Primary-key changes and required TYPE replacements rewrite. Script-declared
+indexes survive unless explicitly dropped or replaced by a same-name schema declaration. See
 [kept-table preparation](../../dotnet-apis/resources/database/assimalign-cohesion-database-sql/design.md#joint-tables-that-keep-storage).
 Hosting health is
 Degraded while it is queued/running. Every touched table, including affected foreign-key neighbors,
@@ -177,7 +177,7 @@ schema**, unless an independent storage latch fires. Nothing retries on its own.
 reported condition, then explicitly apply or Build the target again. A rolled-back application's
 Build declaring the old schema opens normally. A successful apply or Build clears the earlier
 failure, including an already-applied schema skip; health then returns to Healthy if no other
-condition prevents it. Non-TYPE inline per-step application keeps compensation and `CS03104`.
+condition prevents it. Inline apply uses the same joint publication boundary.
 
 After a crash before publication, only a Build declaring the same pending target resumes the
 migration by replanning preparation. A different-target Build discards with `CS03402` and replans
@@ -296,7 +296,9 @@ applied markers and pending targets fail with SqlSchemaValidationException, Inva
 a migration or changing inputs. Rebuild schema artifacts; export old data with the engine that
 wrote it, recreate the database and reapply the rebuilt declaration before reloading. There is
 no upgrade path or legacy reader (#1152). Shared physical storage remains format 4 and B-tree
-pages remain format 2; these have separate version gates.
+pages require format 3; format-2 trees refuse CK06101 before any write. These have separate
+version gates. If both the SQL marker and B-tree stamp are old, the marker refusal CS06041
+comes first; see [combined format refusals](../error-codes.md#combined-format-refusals).
 
 ## See also
 

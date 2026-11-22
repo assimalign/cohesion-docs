@@ -43,7 +43,8 @@ orders and defaults to ASC NULLS FIRST, matching ORDER BY.
 Current format 37 requires joint publication for every deferred job and fences per-step intents.
 Format 36 and every earlier format are refused before data recovery;
 compiled schema documents use v12. Shared physical storage format 4 and
-B-tree page format 2 are independent. Follow the [export/recreate and rebuild procedure](../../../../database/sql/index.md#sql-format-37-and-schema-v12);
+B-tree page format 3 are independent. Format-2 trees refuse CK06101 in read-only preflight
+before any write; when the SQL marker is also old, CS06041 takes precedence. Follow the [export/recreate and rebuild procedure](../../../../database/sql/index.md#sql-format-37-and-schema-v12);
 there is no upgrade reader.
 
 Identity and standalone sequences share [durable reservations](storage-design.md#identity-and-sequence-reservations)

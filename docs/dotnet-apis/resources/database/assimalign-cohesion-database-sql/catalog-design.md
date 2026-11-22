@@ -323,9 +323,8 @@ exception type. Direct catalog calls have no statement text. See the [complete c
 ## Non-goals
 
 - **Sequence permissions** — Identity integration, SERIAL, OWNED BY and sequence defaults execute; permissions remain future work, #177.
-- **Session multi-statement DDL atomicity.** Session DDL and non-TYPE inline migration steps
-  self-commit; the latter compensate completed reversible steps. Every deferred migration and
-  TYPE-rewrite plan instead prepares unpublished objects and publishes jointly in one catalog commit.
+- **Session multi-statement DDL atomicity.** Session DDL self-commits. Every schema apply instead
+  prepares unpublished objects and publishes the complete target and marker in one catalog commit.
 
 ## AOT posture
 

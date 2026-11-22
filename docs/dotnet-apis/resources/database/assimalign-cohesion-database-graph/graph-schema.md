@@ -171,7 +171,7 @@ transaction; schema writes require autocommit. An aborted transaction refuses wo
 Catalog snapshot changes raise DatabaseTransactionAbortedException with structured CG04007.
 Other deterministic identity/owner/index-target errors raise DatabaseException with CG03003,
 and malformed catalog records use CG06006. Unsupported catalog versions use CG06019 at open;
-only v3 records are admitted, with v2 refused before any write and no upgrade reader. Metadata records over 8,092 encoded bytes, including
+only v4 records are admitted, with v3 refused before any write and no upgrade reader. Metadata records over 8,092 encoded bytes, including
 names and owning schema, use CG02009. These engine exceptions retain ordinary unprefixed
 messages and their original cause. Disposal during an admitted operation uses CG09019;
 the direct Open/lifetime guard retains ObjectDisposedException. See [diagnostics](../../../../database/graph/language/diagnostics.md).

@@ -4,6 +4,14 @@ This page describes the boundaries and implementation shape of `Assimalign.Cohes
 
 > **Status:** Partial.
 
+## Text index grammar
+
+GqlClauses.CreateTextIndex is enabled beside CreateIndex. Contextual TEXT after CREATE sets
+[GqlSchemaCommand.IsText](gql-schema-command.md); semantic rendering preserves it. The node-only,
+single-property grammar, names, conditionals and autocommit policy remain shared. IsText is
+admitted only for CREATE INDEX; DROP TEXT INDEX keeps its unsupported DROP diagnostic.
+No query-expression or wire encoding changes. See [runtime choice, recheck and costs](../../../../database/graph/language/statements/create-index.md#text-indexes).
+
 ## Schema DDL
 
 [GqlSchemaCommand](gql-schema-command.md) stores standalone CREATE/DROP index, constraint,
