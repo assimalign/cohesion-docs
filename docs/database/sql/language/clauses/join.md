@@ -403,6 +403,12 @@ loop inners, normalized children, staged matches and its materialized result. Ha
 charge each wide-cell reference; other SELECT buffers deduplicate wide payloads per owner.
 Transient planning remains outside the grant. See [performance and configuration](../../performance.md#statement-memory).
 
+Eligible nested-loop inners now spool their pushed-filter rows once at the prior memory refusal,
+then reread the same run for every outer row. Normalized buffers containing a loop step share
+that stage. No base-table rescan or repeated predicate is introduced; ON keeps outer-times-inner
+order. RIGHT retains its loop direction; FULL still needs its safe hash key (CS05070 otherwise).
+See [reader limits and internal ownership](../../performance.md#record-workspace-and-quota-limits).
+
 ## Sources
 
 - **Large-join search and retention** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/src/Internal/Execution/SqlPlanExecutor.JoinSearch.Greedy.cs`, `SqlPlanExecutor.JoinSearch.cs` in the same directory, and `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/tests/SqlJoinSearchFixTests.cs`.

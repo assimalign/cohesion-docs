@@ -129,9 +129,9 @@ only the best OFFSET + LIMIT candidates while examining all qualifying inputs. T
 same input order as a full sort, including collation-equivalent keys and NULLs. Deferred ordering
 collations use full sorting with the last qualifying row's resolved collations; a later row rejected
 by WHERE or HAVING does not replace them. DISTINCT completes before pagination. SQL has no
-MISSING value. Eligible root sorts spill where they would refuse CS05067, including CTAS source
+MISSING value. Eligible sorts, including in independent nested SELECTs, spill where they would refuse CS05067, including CTAS source
 roots in sessions and declared scripts. Evaluation completes first; spilled delivery decodes
-lazily. Plain ordered index scans without DISTINCT gain no result-spooling permission. See
+lazily. Ordered index scans, primary or secondary, add no sort; they spool their output where they would refuse CS05067. See
 [root sort limits and capacity](../../performance.md#root-sort-spilling).
 
 ## Examples

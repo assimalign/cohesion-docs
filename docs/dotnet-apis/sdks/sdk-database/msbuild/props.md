@@ -12,9 +12,7 @@ Pin the base and Database SDKs together.
 ## `Targets/Sdk.Database.props`
 
 Property defaults apply when empty. Database props set schema-compilation and migration options;
-the SDK supplies no orchestration defaults. Configure wire listeners in application code and use
-[AddResource](../../../resources/database/assimalign-cohesion-database-hosting-applicationmodel/index.md)
-to register a managed instance.
+the SDK supplies no orchestration defaults. Configure wire listeners in application code.
 
 | Property | Value | Effect | Condition and source |
 |---|---|---|---|

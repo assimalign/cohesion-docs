@@ -35,10 +35,7 @@ failures. Repeated starts are no-ops. Disposal signals shutdown and bounds the w
 for the invocation.
 
 The program composes its engines, schemas, and listeners normally. The factory supplies no gateway
-platform or generated resource accessors. An `AddResource` call with no named platform remains
-unmanaged. Use the
-[managed-resource tests](../assimalign-cohesion-database-hosting-applicationmodel/examples/index.md)
-for publication, snapshot restore, and gateway action calls.
+platform or generated resource accessors.
 
 ## Public types
 

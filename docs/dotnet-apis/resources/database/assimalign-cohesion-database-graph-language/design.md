@@ -15,7 +15,8 @@ No query-expression or wire encoding changes. See [runtime choice, recheck and c
 ## Schema DDL
 
 [GqlSchemaCommand](gql-schema-command.md) stores standalone CREATE/DROP index, constraint,
-label and relationship-type commands. The parser checks FOR/property variable identity
+label and relationship-type commands, plus ALTER CURRENT GRAPH TYPE through GraphType. The parser
+checks FOR/property variable identity
 (CG01022); unsupported UNIQUE, composite, relationship-index and closed graph-type forms use
 CK00001. Commands render from semantic fields with quoted names and canonical types;
 relationship arrows normalize to an undirected constraint. The query-expression SchemaCommand
@@ -118,7 +119,8 @@ COALESCE/NULLIF use case-abbreviation AST nodes rather than registry functions.
 | `MERGE` | One fixed path with repeated ON CREATE/ON MATCH SET clauses | Match every complete path or create every unbound part |
 | `DELETE` | Bound node/relationship variables following a match | Refuses deleting a node that still has incident relationships |
 | `DETACH DELETE` | Bound node/relationship variables following a match | Deletes incident relationships with the node in one transaction |
-| `SHOW` | `LABELS`, `RELATIONSHIP TYPES`, `PROPERTY KEYS`, `INDEXES`, or `OBJECT OWNERSHIP`; Cohesion extension | Returns typed, read-only metadata from the session database's catalog snapshot |
+| `SHOW` | `LABELS`, `RELATIONSHIP TYPES`, `PROPERTY KEYS`, `INDEXES`, `CONSTRAINTS`, `CURRENT GRAPH TYPE`, or `OBJECT OWNERSHIP`; Cohesion extension | Returns typed, read-only metadata from the session database's catalog snapshot |
+| `ALTER CURRENT GRAPH TYPE` | SET, ADD, ALTER or DROP with a flat type body | Validates and atomically publishes the open node and edge declarations |
 
 `Match` patterns accept `(a)`, `(a:Label {key: value})`, `-[r:TYPE]->`, `<-[r:TYPE]-`, and
 `-[r:TYPE]-`, including anonymous bracketed relationships. Scalar literals are null, Boolean,
@@ -134,6 +136,24 @@ not accepted. Nested map access and entity access through value expressions exec
 The stage grammar is:
 
 ```text
+statement   := (query | EXPLAIN query | catalog | schema-ddl) [';']
+schema-ddl  := ALTER CURRENT GRAPH TYPE (SET | ADD | ALTER | DROP) '{' [graph-type-elements] '}'
+             | standalone-schema-object
+graph-type-elements := graph-type-element (',' graph-type-element)*
+graph-type-element := '(' [variable] ':' label ('=>' | IMPLIES) [':' label ('&' label)*] [type-properties] ')'
+             | type-endpoint '-[' [variable] ':' label ('=>' | IMPLIES) [type-properties] ']->' type-endpoint
+type-endpoint := '(' [variable] [':' label] ')'
+type-properties := '{' [type-property (',' type-property)*] '}'
+type-property := property [('::' | TYPED)] schema-type [NOT NULL]
+schema-type := BOOLEAN | BOOL | INT8 | INT16 | INT32 | INT64 | INTEGER | INT
+             | FLOAT32 | FLOAT64 | FLOAT | DECIMAL | STRING
+standalone-schema-object := CREATE [TEXT] INDEX [name] [IF NOT EXISTS] FOR schema-node ON '(' variable '.' property ')'
+             | CREATE CONSTRAINT [name] [IF NOT EXISTS] FOR (schema-node | schema-edge) REQUIRE schema-rule
+             | CREATE (LABEL | RELATIONSHIP TYPE) name [IF NOT EXISTS]
+             | DROP (INDEX | CONSTRAINT | LABEL | RELATIONSHIP TYPE) name [IF EXISTS]
+schema-node := '(' variable ':' label ')'
+schema-edge := '()' ('-' | '<-') '[' variable ':' label ']' ('-' | '->') '()'
+schema-rule := (variable '.' property | '(' variable '.' property ')') IS (NOT NULL | '::' schema-type)
 query       := stage+   // RETURN finishes a segment or precedes NEXT; writes can also finish
 stage       := [OPTIONAL] MATCH paths [ WHERE predicate ]
              | LET variable '=' expression (',' variable '=' expression)*
@@ -154,7 +174,7 @@ return      := RETURN [DISTINCT | ALL] ('*' | projection (',' projection)*)
                [ORDER BY sort-item (',' sort-item)*]
                [(OFFSET | SKIP) page-value] [LIMIT page-value]
 projection  := value-expression [AS alias]
-catalog     := SHOW (LABELS | RELATIONSHIP TYPES | PROPERTY KEYS | INDEXES | OBJECT OWNERSHIP)
+catalog     := SHOW (LABELS | RELATIONSHIP TYPES | PROPERTY KEYS | INDEXES | CONSTRAINTS | CURRENT GRAPH TYPE | OBJECT OWNERSHIP)
 ```
 
 Value pipelines, mutations and standalone RETURN can start without MATCH. Reading/deleting
@@ -503,6 +523,10 @@ and frames use CG05032; ordinary operand/output/forwarding frames use CG05020. N
 | CG05030 | UNION duplicate-elimination state exceeds the shared memory grant | — |
 | CG05031 | Internal statement lookup unexpectedly lacks its key; original KeyNotFoundException is retained | — |
 | CG05032 | EXCEPT/INTERSECT retained frames, rows or hash state exceed the shared memory grant | — |
+
+Open [current graph-type DDL](../../../../database/graph/language/statements/index.md#current-graph-type)
+parses through GqlSchemaCommand.GraphType; SHOW CURRENT GRAPH TYPE is read-only catalog metadata.
+CLOSED/OPEN mode clauses remain CK00001.
 
 ## Sources
 

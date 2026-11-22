@@ -40,13 +40,13 @@ the server. Cross-engine transactions are not provided.
 | `Assimalign.Cohesion.Database.Indexing` | Shared key/index structures, including B+Tree indexes |
 | `Assimalign.Cohesion.Database.Transactions` | Multi-version concurrency control (MVCC), snapshots, locks, transaction state, and durability binding |
 | `Assimalign.Cohesion.Database.Types` | Shared scalar identities, collation, binary encoding, and boxed-value codec |
+| [`Assimalign.Cohesion.Database.Types.Text`](../dotnet-apis/resources/database/assimalign-cohesion-database-types-text/index.md) | Versioned simple/English analysis and immutable tsvector values; no index/query consumer yet |
 | `Assimalign.Cohesion.Database.Language` | Shared lexer/parser/diagnostic infrastructure |
 | `Assimalign.Cohesion.Database.Execution` | Query request/result and execution-pipeline contracts |
 | `Assimalign.Cohesion.Database.Protocol` | Bounded framing, handshake, lifecycle, errors, version negotiation, fixed model-family binding |
 | `Assimalign.Cohesion.Database.Client` | Shared connection settings, pooling, authentication, framing, and exchange lifetime |
 | `Assimalign.Cohesion.Database.Security` | Authentication and authorization contracts; model-specific enforcement is a separate concern |
 | `Assimalign.Cohesion.Database.Hosting` | Application composition, configuration, services, and server lifecycle |
-| `Assimalign.Cohesion.Database.Hosting.ApplicationModel` | Managed-instance registration, publication, snapshot restore, and application-added actions |
 | `Assimalign.Cohesion.Database.Embedded` | In-process engine composition, lookup, and reverse-order disposal |
 
 The area root composes child roots; child roots do not depend on it. Each model composes the same
@@ -57,9 +57,10 @@ The former replication and governance placeholder projects and contracts are abs
 features have no current runtime API.
 
 The [temporary-space substrate](../dotnet-apis/resources/database/assimalign-cohesion-database-storage/design.md#disposable-query-storage)
-provides quotas, checked runs, sorting and hash partitions. SQL root ORDER BY and ordered DISTINCT
-use it, including CTAS source roots in sessions and scripts. Other shapes retain memory
-refusals; see [spill eligibility and lazy result lifetime](sql/performance.md#root-sort-spilling).
+provides quotas, checked runs, sorting and hash partitions. Eligible SQL sorts, hash aggregation and DISTINCT,
+hash joins, retained SELECT outputs (including nested SELECTs and unordered CTAS sources), partitioned
+window stages, set operations and nested-loop inners use it where they would otherwise refuse; excluded
+shapes keep their memory refusals. See [spill eligibility and lazy result lifetime](sql/performance.md#root-sort-spilling).
 
 ## Host composition
 
@@ -166,79 +167,23 @@ The repository's Database demo also creates all five engines directly, with no l
 
 ## Managed resources
 
-A Database program becomes a managed resource by adding this registration before Build:
+Database has no application-model integration at this revision. The old model's
+`Database.Hosting.ApplicationModel` (`builder.Services.AddResource(...)`, with its manifest
+publication, snapshot restore, application-added actions and health contributors) was removed in
+cohesion #1869 with the old application model. Database adopts the resource-provider design once it
+is in main.
 
-```csharp
-using Assimalign.Cohesion.ApplicationModel.Hosting.InProcess;
-using Assimalign.Cohesion.Database.Hosting.ApplicationModel;
-
-builder.Services.AddResource("orders-db", resource => resource.UseInProcess());
-```
-
-`UseInProcess()` opts into the platform's client. When the environment names no gateway platform,
-`AddResource` registers nothing and the program runs as a plain application. A named platform the
-program did not opt into fails registration. Managed registration adds one singleton lifecycle
-service. After Build has opened, recovered, and migrated the engines, that service publishes the
-instance's manifest and restores gateway snapshots in `StartingAsync`, before services or servers
-start. It opens the control plane in `StartAsync`; servers drain before it closes on stop.
-
-Database supplies no actions or instance health contributors of its own yet. The application adds
-actions with `AddAction`, using its source-generated JSON contexts. A gateway write runs on one
-instance and its snapshot is restored on the others. Catalog data and principals remain local to
-each instance, so the retired catalog-mutation commands have no replacement yet. See
-[the integration API](../dotnet-apis/resources/database/assimalign-cohesion-database-hosting-applicationmodel/index.md).
-
-The gateway is a separate `Sdk.Gateway` executable. It declares Database generically:
-
-```csharp
-using Assimalign.Cohesion.ApplicationModel.Gateway;
-using Assimalign.Cohesion.ApplicationModel.Gateway.InProcess;
-
-ApplicationGatewayBuilder builder = ApplicationGateway.CreateBuilder("local").UseInProcess();
-builder.AddResource("Database", "orders-db");
-
-await using ApplicationGateway gateway = builder.Build();
-await gateway.RunAsync();
-```
-
-Its project references the Database program and names the resource on that reference. The build
-exposes the program's entry point and registers it with the in-process platform:
-
-```xml
-<ItemGroup>
-  <ProjectReference Include="..\Orders.Database\Orders.Database.csproj" CohesionResource="orders-db" />
-</ItemGroup>
-```
-
-The Database program references `ApplicationModel.Hosting.InProcess` for its platform opt-in;
-`Database.Hosting.ApplicationModel` is already public in `App.Database`.
-
-Three limits apply today:
+Two runtime bindings stay in `Database.Hosting`:
 
 - **Endpoints** — When COHESION_GATEWAY is nonempty, a model server without an explicit listener
   consumes its named runtime assignment: `sql`, `documents`, `graph`, `kv` or `blob`. Explicit
-  listeners win. The in-process platform currently allocates only `http`, now used for Database
-  health; dependents still pass wire addresses as literal settings. Two servers of one model need
-  distinct listeners. See [server options](../dotnet-apis/resources/database/assimalign-cohesion-database/database-server-options.md).
-- **Readiness** — The gateway treats first publication as ready, before Database servers listen
-  and before its control plane opens. A dependent can deploy before Database accepts connections.
-  The Database admin readiness gate is separate and does not change that gateway behavior.
-- **Startup window** — The gateway's startup window must cover engine open, recovery, and inline
-  schema migration inside Build, because publication follows that work. The Database host's
-  `StartupTimeout` bounds service start only. Deferred migrations can continue on engine workers.
-
-The integration design records [seven open questions](../dotnet-apis/resources/database/assimalign-cohesion-database-hosting-applicationmodel/design.md#current-limits),
-including Database-owned actions, instance health, and the publication-to-open window. Managed HTTP
-health binds the platform's plain-HTTP `http` assignment at a literal IP or localhost. Unsupported
-schemes/hosts are skipped with Hosting event 18; a usable assignment replaces explicit health with
-event 19. Unmanaged applications opt in with
-[DatabaseApplicationBuilder.AddHealthEndpoint(Uri)](../dotnet-apis/resources/database/assimalign-cohesion-database-hosting/database-application-builder.md#addhealthendpoint).
-Health starts before model servers, stops after they drain, and retains its existing readiness
-gate. Socket bind failures report CK07102 and roll back startup.
-
-Gateway `StopAsync` leaves the Database application running. Disposing the gateway disposes its
-owned platform; the in-process platform then shuts down its Database program. See the
-[in-process example](../dotnet-apis/resources/database/assimalign-cohesion-database-hosting-applicationmodel/examples/database-resource-in-process-tests.md).
+  listeners win. Two servers of one model need distinct listeners. See [server options](../dotnet-apis/resources/database/assimalign-cohesion-database/database-server-options.md).
+- **Health** — Managed HTTP health binds the platform's plain-HTTP `http` assignment at a literal
+  IP or localhost. Unsupported schemes/hosts are skipped with Hosting event 18; a usable assignment
+  replaces explicit health with event 19. Unmanaged applications opt in with
+  [DatabaseApplicationBuilder.AddHealthEndpoint(Uri)](../dotnet-apis/resources/database/assimalign-cohesion-database-hosting/database-application-builder.md#addhealthendpoint).
+  Health starts before model servers, stops after they drain, and retains its existing readiness
+  gate. Socket bind failures report CK07102 and roll back startup.
 
 ## Pooled connection leases
 
@@ -352,6 +297,20 @@ After successful automatic commit, they report snapshot-cleanup failure without 
 their payload is `database`, `exceptionType`. `OutOfMemoryException` still propagates. Cleanup
 failure before commit success or in an explicit transaction still fails the operation. See
 [Documents](document/language/diagnostics.md#operation-cleanup) and [Blob](blob/operations.md#operation-cleanup).
+
+## Observed health and failed opens
+
+The host contributes health for each engine and each open, pending-reopen or failed-open database,
+plus database.accepting. Membership is live. Health never opens, reopens or waits for a database;
+a stored database this process never attempted is absent. /readyz takes the minimum over all
+components, /livez over engine/database components. database.accepting becomes Healthy at outer
+host Started after all servers confirmed accept.
+
+A failed stored open remains Unhealthy with code when present, exception type, UTC time and
+consecutive attempts, never its message. Successful open/create/drop, absence or engine disposal
+clears it. The reopen service does not retry these records: repair and explicitly open the database.
+See [names, escaping, status precedence and events](../dotnet-apis/resources/database/assimalign-cohesion-database-hosting/design.md#health-observations)
+and the [observation API](../dotnet-apis/resources/database/assimalign-cohesion-database-hosting/database-application-context.md).
 
 ## Engine health and version purge
 
@@ -537,8 +496,8 @@ SQL [UPDATE ... FROM](sql/language/statements/update.md#from-sources) and
 [DELETE ... USING](sql/language/statements/delete.md#using-sources) execute; UPDATE rejects
 multiple source matches per target with CS05068 before writes, while DELETE deduplicates targets.
 
-Use the managed-resource integration and current engine-builder APIs alongside the measured
-dialects to determine available behavior. Historical roadmap entries do not define the runtime.
+Use the current engine-builder APIs alongside the measured dialects to determine available
+behavior. Historical roadmap entries do not define the runtime.
 
 ## See also
 
@@ -572,10 +531,20 @@ statements keep their original charges, results, calls and first errors. See
 [aggregation exclusions](sql/performance.md#hash-aggregation-and-distinct-spilling) and
 [join temporary-space limits](sql/performance.md#hash-join-spilling).
 
+Every eligible retained SQL SELECT output has a spill owner: final results, unordered CTAS,
+ordered index scans (primary or secondary), nested SELECTs and hash-aggregation output. Partitioned windows spill one
+partition at a time; set operations and nested-loop inners use input-order stages. Internal
+runs take no client-result slot. INSERT SELECT does not spill and its source stays uncharged
+(#1828). A statement completing at the previous grant/quota keeps rows/order, calls, sequences,
+first error and RecordsExamined. See [remaining refusals and exact limits](sql/performance.md#root-sort-spilling).
+
 ## Format compatibility
 
 The current model formats are SQL **39**, Documents index **4** and KeyValuePair entry **3**.
-Graph remains catalog **4**, record **5** and B-tree **3**. SQL 38 introduced applied-schema
+Graph requires catalog **5**: kind-8 edge records now represent enforced invariants. V4 refuses
+CG06019 before any write, clean or after an abrupt stop, so every v4 Graph database must be
+recreated. Graph record **5** and B-tree **3**, SQL **39**, Documents index **4** and
+KeyValuePair entry **3** formats are unchanged. SQL 38 introduced applied-schema
 history and never shipped alone; SQL 39 also gives every index its own physical page owner.
 SQL 37/38 refuse CS06041, Documents index 3 refuses CD06105, and KeyValuePair entry 2 refuses
 CV06107. These gates run before any write, both for clean files and after an abrupt stop.
@@ -596,8 +565,6 @@ and reload. Shared physical storage remains format 4 and B-tree pages remain for
 - **Current hosting contract** — `cohesion/docs/programs/DATABASE_HOSTING_DESIGN.md`
 - **Hosting implementation** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Hosting/docs/DESIGN.md`
 - **Current composition and ordering** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Hosting/src/DatabaseApplicationBuilder.cs`
-- **Managed resources** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Hosting.ApplicationModel/docs/DESIGN.md` and `tests/TestObjects/RunningResource.cs`
-- **Gateway programs and project references** — `cohesion/docs/libraries/ApplicationModel/DESIGN.md`
 - **Embedded ownership** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Embedded/docs/DESIGN.md`
 - **Client API** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql.Client/docs/OVERVIEW.md`
 - **Client settings** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Client/src/DatabaseConnectionSettings.cs`

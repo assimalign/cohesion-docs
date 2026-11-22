@@ -57,8 +57,13 @@ and INSERT atomicity rules remain in force. `IN ((SELECT …))` is membership, n
 An unparenthesized ORDER BY/LIMIT/OFFSET/FETCH tail belongs to the combined result. Combined
 ORDER BY accepts only first-input output names or positive one-based ordinals, including implicit
 output names. Parenthesize an operand to give it its own tail. TOP belongs to its SELECT operand.
-Compatible UNION chains with the same quantifier execute as an N-way materialization; all set
-results materialize in memory, with no spilling or streaming guarantee.
+Compatible UNION chains with the same quantifier execute as an N-way materialization; eligible
+set results spill only at their previous grant refusal. Operands finish in order with
+common-type conversion before comparison. UNION ALL preserves operand order; UNION keeps
+the first occurrence. INTERSECT/EXCEPT restore left order and qualifying spelling; ALL keeps
+the first min(m,n) left copies or skips the first n respectively. NULLs compare equal.
+Internal operand/stage runs share the statement quota, take no client slot and close with the
+statement. See [record limits and exclusions](../../performance.md#root-sort-spilling).
 
 ## Diagnostics
 

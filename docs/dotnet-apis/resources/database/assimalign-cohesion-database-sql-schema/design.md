@@ -229,6 +229,15 @@ per-index owners; formats 37, 38 and all earlier formats refuse CS06041 before a
 Every earlier format is refused at open; there is no
 upgrade path. Compiled schema format remains version 12.
 
+## Shared ALTER COLUMN lowering
+
+The engine and SDK compile Sql.Schema's stateless shared MigrationLowering source; Sql.Schema
+itself stays parser-free. It owns ALTER COLUMN phase order, rewrite classification, type and
+identifier text, and portable payload/type refusals. Both consumers parse forward/rollback steps
+at the ceiling. The engine retains diagnostic carriers and literal tree comparison; the SDK
+retains engine reason text and a render fixed point. No public helper or engine dependency is
+added. See [file phases and remaining runtime checks](../../../sdks/sdk-database/assimalign-cohesion-sdk-database-tasks/design.md#alter-column-migration-files).
+
 ## Sources
 
 - **TYPE safety** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql.Schema/src/SqlSchemaMigrationPlanner.cs`, `tests/SqlTypeMigrationSafetyTests.cs` and `tests/SqlDomainMigrationTests.cs` at `0b00f181e`.

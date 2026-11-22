@@ -30,10 +30,8 @@ flowchart LR
 ```
 
 `COHRES001`–004 remain enforced. Private Web hosting/health references implement admin health.
-[Database.Hosting.ApplicationModel](../assimalign-cohesion-database-hosting-applicationmodel/index.md)
-supplies the managed-resource registration on `builder.Services`. Database.Hosting has no
-ApplicationModel reference. Resource publication, restoration, and action dispatch are composed by
-the integration package.
+Database.Hosting has no ApplicationModel reference; the old model's Database integration was
+removed in cohesion #1869.
 
 ## `Build` and configuration
 
@@ -142,8 +140,7 @@ the provider also owns, so both dispose it. Its `Dispose` must be idempotent. Us
 Provisioning belongs to each model's engine build. It opens or creates the databases declared on
 its builder and completes inline schema migration before returning. Deferred migrations can
 continue on engine workers with their admission gates. The concrete `Build(CancellationToken)`
-passes cancellation to construction; `StartupTimeout` only bounds service start. A managed
-program's gateway startup window must cover Build's recovery and inline migration.
+passes cancellation to construction; `StartupTimeout` only bounds service start.
 
 `DatabaseApplication` remains `Host<DatabaseApplicationContext>` and its context remains
 `HostContext` / `IHealthContributor`. `Run`, `RunAsync`, and `AsService` use the Hosting
@@ -188,6 +185,58 @@ pairs. Restoration carries the prior observed code/detail. A fresh process obser
 restoration for another process's condition. Reopen, rewrite and refused explicit apply retain
 the hold while the stored hash is unchanged; redeploying the stored or successfully applied
 newer declaration clears it. See [rollback](../assimalign-cohesion-database-sql/design.md#applied-schema-history-and-rollback).
+
+## Health observations
+
+[DatabaseApplicationContext](database-application-context.md) exposes live HealthComponentNames and
+both GetHealthAsync overloads, and HTTP health uses the same evaluation core. There is one
+component per engine and each open, pending-reopen or failed-open database,
+followed by database.accepting. Re-read membership to follow opens and drops; discovery evaluates
+no health and waits for no lifecycle operation. A stored database this process never attempted
+is absent. Every model reads OpenDatabases, pending reopens and FailedOpens without opening,
+reopening, I/O or an engine lock. GetDatabasesAsync retains its separate enumeration behavior.
+
+Names are `engine/<escaped engine>`, `database/<escaped engine>/<escaped lowercase database>`
+and `database.accepting`. URI-escape each segment separately. Engine identity is ordinal and
+registration rejects invalid UTF-16. Database names lower-case only ASCII letters before escaping;
+K and the Kelvin sign remain distinct. Engines follow registration order, each followed by its
+databases in ordinal ignore-case component-name order, with database.accepting last. Single lookup
+compares the complete name ordinally. A vanished database component answers Unhealthy, "not open".
+
+Running engines are Healthy, Faulted engines Degraded, and disposed/unknown engines Unhealthy.
+Database precedence is offline, admission pause, provisioning, then Healthy. Offline/pending
+reopen is Unhealthy; pauses and provisioning/held schemas are Degraded with their codes and bounded
+detail. Open instances outrank pending reopens, which outrank failed-open records. Online instances
+stay Healthy despite stale pending entries; offline instances merge cause with reopen attempts/fault.
+Engine observations include engine state, workers and counts without per-database provisioning,
+offline or failed-open detail. Observation data is immutable invariant strings.
+
+A failed open of stored data stays Unhealthy with reason `Open failed`, failureCode when present,
+reopenFault (exception type), failedAt (UTC round-trip time) and reopenAttempts (consecutive count).
+Messages and exception objects are never retained. This includes manual opens with automatic
+reopen disabled. Successful open/create/drop, a missing-database result or engine disposal clears
+the record. Repair the data and explicitly open it: the reopen service does not discover or retry
+these records. Aggregate data uses `engine.N.failedOpen.M.*`, engine failed-open counts/names and
+failedOpenDatabaseCount.
+
+All-component evaluation isolates engines. Single-component evaluation reads only its named engine;
+database.accepting reads only the host gate. Caller cancellation and OutOfMemoryException propagate.
+Other evaluation exceptions fail closed for that engine's components with exception types only;
+other engines and the accept gate stay independent. Discovery tolerates broken custom inventory
+by keeping the engine name, except OutOfMemoryException. Separate checks observe separate snapshots.
+
+/readyz takes the minimum status over all contributions; /livez takes the minimum over engine
+and database contributions. database.accepting is Healthy only when the outer host is Started,
+after all model servers confirmed accept, including the host gate for a serverless application.
+It alone describes accepting, not overall readiness. HTTP retains its throwing-check handling.
+
+### Failed-open transition events
+
+`Assimalign.Cohesion.Database.Hosting` emits observed HealthDegraded (Warning, 16) and
+HealthRestored (Informational, 17) once per condition transition. Failed opens use reason
+`Open failed` with empty cause/progress fields. Clearing on success, drop, absence or disposal
+emits 17 when observed. These records are distinct from offline/provisioning conditions;
+partial checks do not replace the aggregate observer's view of other engines.
 
 ## Platform endpoints and HTTP health
 

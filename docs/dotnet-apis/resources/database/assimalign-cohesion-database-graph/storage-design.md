@@ -109,7 +109,7 @@ UpdateNodeAsync replaces labels/properties; UpdateRelationshipAsync preserves en
 replaces properties. Both publish even equal values; GQL filters pure no-ops. Creation accepts
 complete records with caller-reserved identities and caller-resolved label GUIDs. Formats 1, 2, 3 and 4 are refused before logical
 recovery scrub with CG06017 and the recreation remedy; there is no upgrade reader. Graph records
-and tree registrations use version 5. Current catalog records use v4 and B-tree pages use
+and tree registrations use version 5. Current catalog records use v5 and B-tree pages use
 format 3, with independent gates. The low-level
 StorageCorruptionException carries the code in its message; the engine retains it alongside
 CK06003 and CG06018 in

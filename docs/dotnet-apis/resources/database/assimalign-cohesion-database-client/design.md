@@ -201,8 +201,8 @@ compatible with `net10.0` and NativeAOT. TLS remains a connection-factory concer
 
 ## Managed-resource boundary
 
-This package supplies wire clients. Managed instances use the platform client and application-added
-actions described by [Database.Hosting.ApplicationModel](../assimalign-cohesion-database-hosting-applicationmodel/index.md).
+This package supplies wire clients only. The old application model's Database integration was
+removed in cohesion #1869; no client-side counterpart remains.
 
 ## Duplex transport composition
 

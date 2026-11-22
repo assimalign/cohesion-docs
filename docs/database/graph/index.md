@@ -43,9 +43,11 @@ The typed [GraphType API](../../dotnet-apis/resources/database/assimalign-cohesi
 sets, adds, alters, drops and reads an open database type. Identifying labels select node members;
 each member must already carry implied labels and satisfy property types/NOT NULL. Extra labels
 and properties remain writable. Proposed types validate existing members (CG03010). Edge declarations
-are stored but their properties and endpoints are not yet enforced. Text graph-type DDL remains refused.
+enforce properties and source/target identifying-label membership. Text
+[ALTER CURRENT GRAPH TYPE](language/statements/index.md#current-graph-type) and
+[SHOW CURRENT GRAPH TYPE](language/statements/show.md#current-graph-type) execute with open semantics.
 
-Graph catalog records are v4; v3 and other record versions refuse at open with CG06019
+Graph catalog records are v5; v4 and other record versions refuse at open with CG06019
 and require recreation. There is no legacy reader. Graph entity/registration format remains 5;
 B-tree pages require format 3. Format-2 trees refuse CK06101 before writes; when both stamps
 are old this precedes CG06019. See [combined refusals](../error-codes.md#combined-format-refusals).

@@ -90,7 +90,7 @@ The payload begins at byte 16:
 | Offset / order | Encoding | Meaning |
 | --- | --- | --- |
 | 16 | byte | Kind: 1 label, 2 relationship type, 3 property key, 4 named index, 5 named constraint, 6 current type, 7 node type, 8 edge type |
-| 17 | byte | Format version 4 for every kind |
+| 17 | byte | Format version 5 for every kind |
 | 18 | 16 bytes | CLR `Guid.ToByteArray()` representation: definition ID for kinds 1/2, parent ID for kinds 3/4/5, private current-type GUID for kinds 6/7/8 |
 | 34 | string | Definition name, property key, index name, or constraint name |
 | Following name, kinds 1/2 | byte, string | `DatabaseObjectOwner` value and owning schema |
@@ -104,7 +104,7 @@ are projected through [GraphSchema](graph-schema.md#graph-type-operations), rath
 the catalog's internal declaration types. Changed and removed rules publish atomically with token
 discovery; unchanged declarations retain their physical identity and version chain.
 
-Only catalog v4 is admitted. Earlier/future record versions refuse with CG06019 before logical
+Only catalog v5 is admitted. Earlier/future record versions refuse with CG06019 before logical
 recovery scrub, with no legacy reader or upgrade path; recreate the database. The gate uses a
 recovered read-only preflight when replay is needed, before any writes. Clean and crashed refusals
 preserve all files byte for byte. Empty catalogs have no versioned records to refuse. The graph
@@ -122,7 +122,7 @@ before physical apply. Names, owning schema and index property text all count, i
 and lengths; this is not a character-count limit. Exact fit is accepted. Overflow throws
 GraphElementTooLargeException at the catalog and becomes structured CG02009 through the engine.
 
-Catalog v4's kind-4 discriminator is immutable: 0 exact, 1 text. Unknown values refuse CG06006.
+The kind-4 discriminator introduced in catalog v4 remains immutable in v5: 0 exact, 1 text. Unknown values refuse CG06006.
 Physical index-definition revisions and signed registration receipts are also checked by the
 recovered read-only gate. With both old B-tree pages and old catalog records, CK06101 occurs
 before CG06019; all files remain unchanged. See [combined refusal order](../../../../database/error-codes.md#combined-format-refusals).
@@ -169,6 +169,13 @@ The catalog supplies no server-scope names, security checks, wire client, replic
 schema provisioning. Graph index create/drop must coordinate catalog metadata with the corresponding
 physical store change; publishing only one side is not an engine operation.
 
+
+## Catalog v5 compatibility
+
+V5 makes kind-8 edge declarations enforced endpoint/property invariants. V4 files refuse
+CG06019 through the recovered read-only gate before any write, both clean and after an abrupt
+stop, preserving every file. Every Graph database from v4 must be recreated; no upgrade or
+legacy reader exists. Entity/registration format 5 and B-tree format 3 are unchanged.
 
 ## Sources
 
