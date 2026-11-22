@@ -36,6 +36,65 @@ inside parentheses stays in its operand. For example,
 `RETURN 1 AS x UNION ALL RETURN 2 AS x NEXT RETURN x*10 AS x` returns rows 10 and 20.
 Composite pipelines must be read-only (CG05029). Every operand is statically wire-admitted.
 
+## Inline CALL subqueries
+
+```syntaxsql
+[ OPTIONAL ] CALL [ (variable [ , ...n ]) | (*) | () ] { read_only_query_with_RETURN }
+```
+
+CALL invokes its body once per incoming row and joins every returned row to that input.
+An empty invocation removes the input row. OPTIONAL CALL instead emits one row with NULL for
+each returned binding; an actual NULL result still counts as a real row. Empty outer input
+invokes nothing. Even an uncorrelated body runs for each input row, without caching. Grouping,
+DISTINCT, ordering and paging apply separately to each invocation.
+
+| Scope | Imports |
+| --- | --- |
+| Omitted | None, except for the supported leading importing WITH translation below |
+| () | None explicitly |
+| (*) | All current bindings |
+| (a, b) | Exactly the named bindings |
+
+Imports retain their scalar/entity/path kinds and remain visible across inner WITH, NEXT and
+composite boundaries. They cannot be rebound (CG03003). A missing import uses CG05001; importing
+a deleted variable uses CG03003. Inner declarations stay local and escape only through the final
+RETURN. Returned bare variables or aliased expressions add names to the outer row; computed
+results require aliases (CG05001).
+
+Every returned name must be absent from the outer scope (CG01024), including imported names and
+RETURN * expansions. RETURN * still expands imports after an inner WITH, so it is conservatively
+refused with CG01024 when imports exist, even if WITH projects only local names. A returning CALL
+cannot conclude the enclosing query by itself (CG05001); follow it with the ordinary RETURN or
+mutation conclusion.
+
+With an omitted scope, a leading importing WITH translates to imports only when it contains bare
+variables without aliases, or star, and no DISTINCT, GROUP BY, ORDER BY, paging or WHERE. Explicit
+ALL is accepted. No later WITH, NEXT or composite stage may follow that importing WITH; composite
+operands must import the same set (order may differ). Otherwise this translation refuses CK00001.
+With an explicit scope clause, WITH is an ordinary inner projection.
+
+The read-only UNION, EXCEPT, INTERSECT, OTHERWISE and NEXT rules apply inside the braces.
+All operands validate even if empty or skipped. The body shares the outer GraphOperation,
+snapshot, parameters, transaction clock, cancellation and work/memory budgets. Each invocation
+and emitted CALL row adds one work unit beyond inner operator work. Grants and cursors release
+on completion, early exit, refusal or cancellation. EXPLAIN shows Apply/OptionalApply and nested
+plans without execution. A read-only CALL after an outer write sees that statement's update overlay.
+
+Writing and unit bodies (without RETURN) remain CK00001 for a later run. Named procedures,
+FOREACH and CALL IN TRANSACTIONS also remain CK00001. No disk or wire format changes apply.
+
+Execute each query separately:
+
+```sql
+CALL { RETURN 1 AS y } RETURN y;
+FOR x IN [1,2] CALL (x) { RETURN x+1 AS y } RETURN x,y;
+FOR x IN [1,2] OPTIONAL CALL (x) { FILTER x=1 RETURN x+1 AS y } RETURN x,y;
+```
+
+The results are `1`; `(1,2), (2,3)`; and `(1,2), (2,NULL)` respectively.
+`LET x=1 CALL (x) { RETURN x } RETURN x` instead refuses CG01024 before execution.
+The public node is [GqlCallStage](../../../../dotnet-apis/resources/database/assimalign-cohesion-database-graph-language/gql-call-stage.md).
+
 ## Diagnostics
 
 | Code | Meaning and trigger |
@@ -44,7 +103,8 @@ Composite pipelines must be read-only (CG05029). Every operand is statically wir
 | CG05001 | Reference to a name omitted by a projection or invalid path/wire result shape |
 | CG03003 | Reference to a deleted variable or a value used as an entity |
 | CG01015 | Duplicate carried name |
-| CK00001 | NEXT YIELD, CALL, FOREACH, standalone ordering/paging, or immediate RETURN after DELETE |
+| CG01024 | CALL result shadows an outer binding, including imports and RETURN * expansion |
+| CK00001 | NEXT YIELD, named CALL, writing/unit CALL bodies, FOREACH, standalone ordering/paging, or immediate RETURN after DELETE |
 
 These codes have no assigned SQLSTATE. See [Diagnostics](../diagnostics.md).
 
@@ -76,6 +136,7 @@ creations and SET changes. NEXT after a write without RETURN starts one empty bi
 
 ## Sources
 
+- **Inline CALL scope and execution** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Graph/tests/GqlCallSubqueryTests.cs`, `GqlCallReviewTests.cs` and `cohesion/resources/Database/Assimalign.Cohesion.Database.Graph.Language/docs/DIALECT.md`.
 - `cohesion/resources/Database/Assimalign.Cohesion.Database.Graph/src/Internal/Execution/GraphPlanExecutor.cs`.
 - `cohesion/resources/Database/Assimalign.Cohesion.Database.Graph/tests/GqlLinearCompositionTests.cs`.
 - `cohesion/resources/Database/Assimalign.Cohesion.Database.Graph.Client/tests/GraphLinearCompositionWireTests.cs`.

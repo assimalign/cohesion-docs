@@ -103,6 +103,7 @@ under EXPLAIN; unknown kinds are checked at evaluation. CG05026 is independent o
 | `CG02013` | Evaluated value error: non-list FOR/UNWIND input, non-Boolean condition, invalid arithmetic/concatenation/access, zero divisor, overflow, non-finite result, function/CAST domain, kind or conversion failure, unsupported computed property, SUM/AVG nonnumeric operand or constructed/collected value/row limit |
 | `CG01014` | Caller parameter keys collide after stripping one sigil |
 | `CG01015` | Duplicate final RETURN column name under ordinal, case-sensitive comparison; planning rejects the second expression before reads/mutations, even on empty matches or under EXPLAIN; no SQLSTATE assigned |
+| `CG01024` | CALL result shadows an outer binding, including imported names and RETURN * expansion; no assigned SQLSTATE |
 | `CG07016` | Possible composite wire projection without negotiated graph.composite-values; before reads, writer locks or writes, even for empty matches or skipped branches; no SQLSTATE assigned |
 | `CG06017` | Unsupported graph record or tree-registration format on open, including formats 1, 2, 3 and 4; requires format 5 and recreation, with no upgrade path or assigned SQLSTATE |
 | `CG09019` | Database/resource disposed during admitted execution, result streaming or a wire lifetime guard; ExecutionFailure preserves the authenticated session; no assigned SQLSTATE |
@@ -124,10 +125,14 @@ for invalid direct AST shapes/bounds. Group/singleton conflicts, group property 
 member access and group deletion use CG03003. Questioned/nested quantifiers and subpath
 assignment/WHERE use CK00001. These codes have no assigned SQLSTATE.
 
-[Composition](clauses/next.md) adds no new codes. Dropped/unbound names and aggregate calls in WITH
+[Composition](clauses/next.md) uses the existing scope/value codes, with CG01024 added for CALL
+output collisions. Dropped/unbound names and aggregate calls in WITH
 WHERE use CG05001; duplicate carried bindings use CG01015, including under EXPLAIN. Leading/
 trailing NEXT, NEXT after bare MATCH and WITH immediately followed by NEXT are CG00002. FOR
-WITH ORDINALITY/OFFSET, NEXT YIELD, CALL and FOREACH retain CK00001. NULL FOR/UNWIND inputs
+WITH ORDINALITY/OFFSET, NEXT YIELD, named CALL, writing/unit CALL bodies and FOREACH retain CK00001.
+Read-only [inline CALL](clauses/next.md#inline-call-subqueries) executes, with CG01024 for outer
+binding collisions. Computed exports without aliases, missing imports and a returning CALL used
+as the enclosing conclusion use CG05001; import rebinding uses CG03003. NULL FOR/UNWIND inputs
 give zero rows; non-lists use CG02013. These composition codes have no assigned SQLSTATE.
 Final lists of nodes/relationships over wire Execute remain CG05001 (#1662), even with composite
 negotiation. A read-only composed query may carry one mandatory final entity through ExecutePaths.

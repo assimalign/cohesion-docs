@@ -51,6 +51,7 @@ CREATE/DROP commands. Every statement evaluates in the session's bound logical d
 | [List comprehensions](expressions/list-comprehensions.md) and [slices](expressions/list-slices.md) | Supported | Scoped filtering/projection and bounded ranges; stored properties remain scalar |
 | [reduce](expressions/reduce.md) and [list predicates](expressions/list-predicates.md) | Supported | Ordered folds and all/any/none/single with lexical bindings and three-valued tests |
 | EXPLAIN | Supported | Chosen data plan without execution |
+| [Inline CALL](clauses/next.md#inline-call-subqueries) | Supported read-only subset | Per-input returning bodies, omitted/named/all/empty imports and OPTIONAL CALL; writing/unit bodies and named procedures remain refused |
 | [Path selectors](path-selectors.md) and inline WHERE | Supported | Per-pair execution under work/memory budgets; counted ANY remains refused |
 | [Scalar functions](functions/scalar-functions.md) and [CAST](expressions/cast.md) | Supported | Plan-time signatures, strict NULLs, code-point substring and transaction-start clocks |
 | [Aggregates](functions/aggregate-functions.md) | Supported | COUNT, SUM, AVG, MIN, MAX, COLLECT_LIST/collect; implicit and [ISO GROUP BY](clauses/group-by.md) |

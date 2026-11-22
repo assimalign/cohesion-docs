@@ -48,10 +48,15 @@ The changed parser and diagnostic members retain these signatures:
 
 ```csharp
 // QueryParser
-public virtual QueryStatement Parse(ReadOnlySpan<char> query);
+protected QueryParser(QueryParserOptions options, bool serializeCalls = false);
+public QueryStatement Parse(ReadOnlySpan<char> query);
+protected abstract QueryStatement ParseCore(TokenLexer lexer, ReadOnlySpan<char> query);
 // QueryAnalyzer
-public abstract Task AnalyzeAsync(QueryAnalyzerContext context,
+protected QueryAnalyzer();
+public Task AnalyzeAsync(QueryAnalyzerContext context,
     CancellationToken cancellationToken = default);
+protected abstract Task AnalyzeCoreAsync(QueryAnalyzerContext context,
+    CancellationToken cancellationToken);
 // QueryParserOptions
 public List<QueryAnalyzer> Analyzers { get; }
 public TimeSpan AnalyzerTimeout { get; set; } // default: five seconds
@@ -59,6 +64,20 @@ public TimeSpan AnalyzerTimeout { get; set; } // default: five seconds
 public virtual void AddDiagnostic(Diagnostic diagnostic);
 public IEnumerable<Diagnostic> Diagnostics { get; }
 ```
+
+Parse and AnalyzeAsync are non-virtual entry points. Parse owns lexer construction and analyzer
+orchestration; subclasses implement ParseCore with the configured lexer and borrowed source span.
+SQL, OQL and GQL retain their statement text before analysis, including empty and diagnostic-only
+statements. SQL analyzers can now read that text. Null parser options throw ArgumentNullException.
+SQL and application parsers do not request serialization by default; OQL and GQL serialize through
+analyzer completion in the base constructor.
+
+AnalyzeAsync rejects a null context before checking cancellation, then returns the protected
+core's task unchanged. A pre-canceled public call never enters the core. Parser-owned dispatch
+starts every registered analyzer even if a synchronous predecessor runs past the timer; the
+timeout governs the wait. If all tasks have completed, elapsed time alone does not fail parsing.
+A zero timeout checks cancellation before dispatch. If analyzer startup throws, earlier tasks
+are canceled and observed while the original startup exception propagates.
 
 Configure Analyzers before parsing. Parse invokes them in registration order and blocks without
 busy-spinning until all tasks complete, using one shared timeout. A timeout ends the wait with
@@ -81,8 +100,8 @@ using Assimalign.Cohesion.Database.Types;
 
 sealed class ExampleAnalyzer : QueryAnalyzer
 {
-    public override async Task AnalyzeAsync(QueryAnalyzerContext context,
-        CancellationToken cancellationToken = default)
+    protected override async Task AnalyzeCoreAsync(QueryAnalyzerContext context,
+        CancellationToken cancellationToken)
     {
         await Task.Delay(1, cancellationToken).ConfigureAwait(false);
         context.Statement.AddDiagnostic(new Diagnostic("TEST", "analyzed", 1, 2,
@@ -110,6 +129,7 @@ diagnostic creation require no reflection, dynamic code generation, or dependenc
 
 ## Sources
 
+- **Public entry points and protected cores** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Language/tests/QueryNviTests.cs`.
 - **Analyzer completion, timeout and null validation** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Language/tests/QueryAnalyzerTests.cs` and `QueryAnalyzerTimeoutTests.cs` in the same directory.
 - **Primary source** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Language/docs/DESIGN.md`.
 - **Source** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Language/src/Assimalign.Cohesion.Database.Language.csproj`.

@@ -277,7 +277,7 @@ Probes use tree read latches and catalog identity validation without transaction
 The primary-key/base-table total is probed only when a selected seek estimate exceeds 16.
 Join estimates are lazy and reuse input counts; complete unique probes skip pair costing.
 
-EXPLAIN ANALYZE executes and drains its SELECT under ordinary snapshot, cancellation, timeout and hash-memory rules. Scalar expressions and application functions run normally. Instrumented actual_rows counts candidates before residual predicates rather than final output rows. Repeated correlated invocations accumulate on child nodes; parent counts exclude descendant work. Unmeasured nodes remain NULL.
+EXPLAIN ANALYZE executes and drains its SELECT under ordinary snapshot, cancellation, timeout and statement-memory rules. All retained SELECT buffers and results share the grant. Scalar expressions and application functions run normally. Instrumented actual_rows counts candidates before residual predicates rather than final output rows. Repeated correlated invocations accumulate on child nodes; parent counts exclude descendant work. Unmeasured nodes remain NULL.
 
 Separate references to a cached view body have independent relation-path counters, including
 nested views. Repeated correlated invocations at one reference still accumulate. A SELECT with

@@ -41,6 +41,10 @@ Intersect, IntersectDistinct, IntersectAll and Otherwise are enabled for
 CG00015; mixing UNION and UNION ALL uses CG00016. EXCEPT/INTERSECT quantifiers may mix.
 All four operators have equal precedence and bind above NEXT.
 
+GqlClauses.Call is enabled for [read-only inline CALL](../../../../database/graph/language/clauses/next.md#inline-call-subqueries),
+including OPTIONAL CALL and variable scope clauses. Named procedures, writing/unit bodies and
+CALL IN TRANSACTIONS remain CK00001. The public node is [GqlCallStage](gql-call-stage.md).
+
 ## Example
 
 ```csharp

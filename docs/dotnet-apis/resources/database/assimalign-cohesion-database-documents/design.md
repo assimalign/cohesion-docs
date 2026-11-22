@@ -4,17 +4,26 @@ This page describes the boundaries and implementation shape of `Assimalign.Cohes
 
 > **Status:** Partial.
 
-## UNION query values
+## Compound query values
 
-Top-level UNION/UNION ALL consume the closed
+UNION, INTERSECT and EXCEPT, including ALL, consume the closed
 [query-expression family](../assimalign-cohesion-database-documents-language/oql-query-expression.md).
 UNION uses structural DISTINCT equality and retains the first representative; UNION ALL streams
-operand rows. Headers are planned as value, matching named columns or whole-document Json.
+operand rows. INTERSECT ALL keeps min(m,n) and EXCEPT ALL max(m-n,0) occurrences; distinct forms
+keep the first qualifying left representative. Both read the right input first and retain keys
+and counts, even when the left is empty; LIMIT 0 skips both. EXCEPT ALL discards successive
+matched left occurrences and retains later unmatched ones in left order.
+Headers are planned as value, matching named columns or whole-document Json.
 Compound ordering binds result members and reports CD01037 for all-RAW/VALUE ordering and CD01038
-for unbound members, META or star. Compound sorting, distinct keys and output share the memory
+for unbound members, META or star. Enclosing aliases cannot fill absent result members.
+Compound sorting, distinct keys, right-side multiset keys/counters and output share the memory
 grant; row/equality/sort work shares the work grant. Fixed-type unordered pages stop when complete;
 dynamic headers inspect pre-page values. LIMIT 0 does not open sources. EXPLAIN remains nonexecuting.
-INTERSECT/EXCEPT and nested compounds remain CK00001. No catalog or wire format changes.
+Compounds execute in expression subqueries, derived FROM, INSERT/UPSERT SELECT and correlated
+operands. Whole-document cells pass directly as array elements or derived rows; caching requires
+all operands to be uncorrelated and cacheable. Subqueries in compound ORDER BY remain CK00001.
+Planning, EXPLAIN or evaluation stack exhaustion reports CD05021 while preserving the session,
+including over TCP. No catalog or wire format changes.
 See [SELECT](../../../../database/document/language/statements/select.md#set-operations).
 
 ## Model component boundaries

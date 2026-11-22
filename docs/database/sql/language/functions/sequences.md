@@ -41,7 +41,10 @@ does not inherit them. [DISCARD ALL](../statements/discard-all.md) clears them.
 ## Evaluation order
 
 Calls are volatile and evaluate left to right once per reached expression. Repeated nextval calls
-allocate separately; [NEXT VALUE FOR](../expressions/next-value-for.md) shares per row instead.
+allocate separately, subject to [whole aggregate-key reuse](aggregate-functions.md#repeated-aggregate-calls)
+and shared window keys. Windows with equal specifications or compatible sort prefixes evaluate a
+scalar key once. Equal scalar keys in unrelated windows, or in both PARTITION BY and ORDER BY of
+one window, evaluate separately. [NEXT VALUE FOR](../expressions/next-value-for.md) shares per row instead.
 Short-circuited expressions do not allocate. Multi-row VALUES follows written tuple/expression
 order; INSERT SELECT follows source evaluation order. Source order without ORDER BY is unspecified,
 and allocation order is independent of transaction commit order.
@@ -56,6 +59,11 @@ Unordered grouped/correlated inputs project qualifying rows immediately and stop
 filter all candidate pairs before limited projection, so sequence calls in their predicates can
 run for more rows than the final page. LIMIT/OFFSET sequence calls evaluate once at execution
 before input rows. Plain EXPLAIN has no effects; EXPLAIN ANALYZE SELECT executes them.
+
+Unordered projection retains no deferred input, but kept results and group state charge the
+statement grant. Ordered sequence deferral retains its source buffers and uses budgeted sorting;
+OFFSET + LIMIT candidates charge like sequence-free queries. CTAS admits only kept output rows
+after pagination, while its source sorting, grouping and caches still charge normally.
 
 Function calls execute in RETURNING for INSERT, UPDATE, DELETE, joined writes, ON CONFLICT and
 MERGE. A RETURNING list containing sequence calls evaluates before the global apply gate, keeping

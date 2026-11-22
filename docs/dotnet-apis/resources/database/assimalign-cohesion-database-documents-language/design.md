@@ -10,10 +10,13 @@ base. Subqueries and INSERT/UPSERT sources retain it; statement roots keep OqlEx
 writes, DDL and transaction controls. [OqlSetOperationExpression](oql-set-operation-expression.md)
 retains two operands, an operator and ALL, with equal left-associative precedence.
 
-Top-level UNION/UNION ALL execute with compound ordering and paging. INTERSECT/EXCEPT, nested
-compounds and compound-order subqueries remain refused. Parentheses permit local operand tails
-and a single-block write source. Redundant single-query IN wrappers retain one array-valued list
-item; a parenthesis-led compound is query membership. Subscripts still require a named path.
+UNION, INTERSECT and EXCEPT, with and without ALL, execute in every query position, with equal
+left-associative precedence. Parentheses permit local operand tails. Subqueries in compound
+ORDER BY and explicit set-operator DISTINCT remain refused. Operator paths admit 128 levels,
+including compounds nested inside SELECT leaves; CD00005 locates the operator adding level 129.
+Redundant wrappers around a complete IN query keep one array-valued list item, including a
+compound. An operator or query tail after a leading parenthesized term selects RAW/VALUE query
+membership instead. Subscripts still require a named path.
 See [SELECT](../../../../database/document/language/statements/select.md#set-operations) for the
 result shapes, equality and CD01037/CD01038 ordering boundary.
 

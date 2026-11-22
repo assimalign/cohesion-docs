@@ -6,13 +6,13 @@ Identities are append-only; retired identities remain reserved and `00000` is un
 
 | Prefix | Owner | Authoritative per-model registry |
 | --- | --- | --- |
-| CK | Shared kernel and infrastructure | [Kernel](https://github.com/assimalign/cohesion/blob/ad0da989f/resources/Database/Assimalign.Cohesion.Database/docs/ERROR-CODES.md#kernel-migration) |
-| CS | SQL | [SQL](https://github.com/assimalign/cohesion/blob/0b00f181e/resources/Database/Assimalign.Cohesion.Database/docs/ERROR-CODES.md#sql-migration) |
-| CD | Documents | [Documents](https://github.com/assimalign/cohesion/blob/ad0da989f/resources/Database/Assimalign.Cohesion.Database/docs/ERROR-CODES.md#documents-migration) |
-| CB | Blob | [Blob](https://github.com/assimalign/cohesion/blob/ad0da989f/resources/Database/Assimalign.Cohesion.Database/docs/ERROR-CODES.md#blob-migration) |
-| CG | Graph | [Graph](https://github.com/assimalign/cohesion/blob/ad0da989f/resources/Database/Assimalign.Cohesion.Database/docs/ERROR-CODES.md#graph-migration) |
-| CV | KeyValuePair | [KeyValuePair](https://github.com/assimalign/cohesion/blob/ad0da989f/resources/Database/Assimalign.Cohesion.Database/docs/ERROR-CODES.md#keyvaluepair-migration) |
-| CC | Cache (reserved) | [Registry](https://github.com/assimalign/cohesion/blob/ad0da989f/resources/Database/Assimalign.Cohesion.Database/docs/ERROR-CODES.md) |
+| CK | Shared kernel and infrastructure | [Kernel](https://github.com/assimalign/cohesion/blob/51f90e28b/resources/Database/Assimalign.Cohesion.Database/docs/ERROR-CODES.md#kernel-migration) |
+| CS | SQL | [SQL](https://github.com/assimalign/cohesion/blob/51f90e28b/resources/Database/Assimalign.Cohesion.Database/docs/ERROR-CODES.md#sql-migration) |
+| CD | Documents | [Documents](https://github.com/assimalign/cohesion/blob/51f90e28b/resources/Database/Assimalign.Cohesion.Database/docs/ERROR-CODES.md#documents-migration) |
+| CB | Blob | [Blob](https://github.com/assimalign/cohesion/blob/51f90e28b/resources/Database/Assimalign.Cohesion.Database/docs/ERROR-CODES.md#blob-migration) |
+| CG | Graph | [Graph](https://github.com/assimalign/cohesion/blob/51f90e28b/resources/Database/Assimalign.Cohesion.Database/docs/ERROR-CODES.md#graph-migration) |
+| CV | KeyValuePair | [KeyValuePair](https://github.com/assimalign/cohesion/blob/51f90e28b/resources/Database/Assimalign.Cohesion.Database/docs/ERROR-CODES.md#keyvaluepair-migration) |
+| CC | Cache (reserved) | [Registry](https://github.com/assimalign/cohesion/blob/51f90e28b/resources/Database/Assimalign.Cohesion.Database/docs/ERROR-CODES.md) |
 
 The suffix allocates two category digits and three condition digits within these ranges.
 Categories help organize the registry; callers still match the complete identity.
@@ -46,12 +46,42 @@ are independent analyzer identities and remain unchanged.
 Use the model references for current conditions: [SQL](sql/language/diagnostics.md),
 [Documents](document/language/diagnostics.md), [Graph](graph/language/diagnostics.md),
 [Key-Value Pair](key-value-pair/diagnostics.md), [Blob](blob/operations.md) and [Cache](cache/index.md).
-The source registry also lists [newly coded conditions](https://github.com/assimalign/cohesion/blob/ad0da989f/resources/Database/Assimalign.Cohesion.Database/docs/ERROR-CODES.md#rules-audit-condition-additions).
+The source registry also lists [newly coded conditions](https://github.com/assimalign/cohesion/blob/51f90e28b/resources/Database/Assimalign.Cohesion.Database/docs/ERROR-CODES.md#rules-audit-condition-additions).
 
 The omitted SQL semicolon is informational `CS00009`; it does not refuse parsing or execution.
 `CS00100` is retired and remains reserved. Recognized unsupported clauses use `CK00001`.
 Hard SQL deadlocks carry `CS04065`, mapped to SQLSTATE `40P01` (`deadlock_detected`). These
 SQLSTATE mappings are documented code mappings, not separate wire fields.
+
+## Temporary storage
+
+StorageTempException exposes Code separately from its unprefixed message. These conditions
+refuse disposable work without taking durable databases offline; they have no assigned SQLSTATE.
+No query operator uses the temporary-space substrate yet.
+
+| Code | Meaning and trigger |
+| --- | --- |
+| CK05001 | Engine physical temporary-byte quota exceeded |
+| CK05002 | Statement physical temporary-byte quota exceeded |
+| CK05003 | New temporary page would cross the engine free-space floor |
+| CK05004 | Temporary page/record integrity failure or retry of a previously failed reader |
+| CK05005 | Temporary space unavailable: probe, lease, sweep, create, read, write or close I/O failure |
+| CK05006 | Encoded sort record exceeds its declared maximum |
+
+Failed-reader retries emit no further damage event/counter. See
+[temporary storage](../dotnet-apis/resources/database/assimalign-cohesion-database-storage/design.md#disposable-query-storage)
+and [SQL configuration](../dotnet-apis/resources/database/assimalign-cohesion-database-sql/sql-database-engine-options.md#temporary-space).
+
+## SQL statement memory
+
+CS05067 (53200) covers every retained plain SELECT buffer and materialized result, including
+joins, sorts, grouping, set operations and caches. The default StatementMemoryBudget is 64 MiB;
+large sorts and results refuse until the budget is raised. No query operator spills yet.
+When plain bytes fill the grant first, window/JSON memory refusals also use CS05067. With no
+plain bytes live, their grants retain CS05079 and CS05094. A declared-script CTAS refusal stays
+online, publishes no table and resumes at that statement on a later Build with a larger budget.
+INSERT SELECT and DML subquery sources keep their existing policy. See
+[statement memory](sql/performance.md#statement-memory).
 
 ## SQL COPY TO STDOUT
 
@@ -215,14 +245,16 @@ see [SQL diagnostics](sql/language/diagnostics.md#alter-column-type-conditions).
 | Code | Meaning and trigger | SQLSTATE |
 | --- | --- | --- |
 | CS03105 | Typed migration policy/metadata planning refused before steps or intent save, including conversions not proven lossless without destructive opt-in, namespace/dependency refusals and default changes without a TYPE rewrite | — |
-| CS03402 | Joint preparation, reservation or space admission failed; old schema retained online unless an independent storage latch fires; space refusals report needed/available bytes | — |
+| CS03402 | Joint preparation, reservation or space admission failed, or an unpublished target/route was discarded; old schema retained online unless an independent storage latch fires; space refusals report needed/available bytes | — |
 | CS03403 | Joint publication commit unconfirmed; recovery decides whether the old or new schema is current | — |
 | CS03404 | Session relation creation or table rename names a relation reserved by a pending joint plan | — |
 
 See [typed migration diagnostics](sql/language/diagnostics.md#typed-schema-migrations),
 [conversion safety](sql/language/statements/alter-table.md#conversion-safety-and-application-rollback)
 and [health/recovery](sql/index.md#typed-migration-health-and-recovery). Failed joint preparation
-does not retry automatically; non-TYPE deferred failures keep their CS03104 offline contract.
+does not retry automatically. Every deferred migration uses joint publication; non-TYPE inline
+per-step application retains compensation and CS03104. Formats 36 and 35 are refused with CS06041
+before writes; SQL record-space format 37 is current.
 
 ## SQL MERGE
 
@@ -235,14 +267,14 @@ Direct/referential overlaps compose without CS05036. CS04064 (40001) covers targ
 modified-row version conflicts, including stale Snapshot targets; shared cascade/parent checks and
 host-ended transactions retain their ordinary uncoded aborts. Direct uniqueness (CS03037, 23505)
 precedes final FK (CS03039, 23503) and referential SET-action constraint failures. Plain EXPLAIN
-remains nonexecuting; SQL storage stays at format 36.
+remains nonexecuting; SQL storage stays at format 37.
 
 ## SQL CREATE TABLE AS
 
 [CTAS](sql/language/statements/create-table.md#create-table-as) adds CS03068 for missing, blank,
 duplicate or wrong-width output names (42601, syntax_error). Existing CS03049 covers a destination
 collision (42P07); IF NOT EXISTS instead skips. Explicit transactions use CS04003 (25001), and
-retained source/copy memory exhaustion uses CS05067 (53200). SQL format 36 is unchanged.
+retained source/copy memory exhaustion uses CS05067 (53200). SQL format 37 is unchanged.
 
 ## SQL table rewrite
 
@@ -250,7 +282,7 @@ retained source/copy memory exhaustion uses CS05067 (53200). SQL format 36 is un
 reuses CS04006 (no SQLSTATE) for DML needing a retired layout, including stale foreign-key probes;
 retry the whole transaction. Its exclusive source-table lock is acquired before queueing and uses
 engine LockTimeout: expiry retains CS04044 / 55P03. Missing tables retain CS01051 / 42P01 and
-changed descriptions CS04064 / 40001. SQL format 36 is unchanged.
+changed descriptions CS04064 / 40001. SQL format 37 is unchanged.
 
 ## Document array indexes
 
@@ -562,14 +594,15 @@ Application/order-sensitive aggregates retain CS05084; volatile or subquery argu
 use restart semantics and that fallback can also reach CS05084 for native aggregates. Visits
 count before FILTER/arguments across functions, partitions and stages, including under LIMIT.
 Equal cached frames spend none. ANALYZE reports frame_visits, transitions, inverse_transitions
-and boundary_visits. CS05079 covers retained window state; admitting earlier CTE/subquery caches
-can use CS05067 (53200). See the linked memory section for default-grant fixture limits.
+and boundary_visits. CS05079 covers window grant exhaustion with no plain SELECT bytes live;
+when plain bytes fill the grant first it uses CS05067 (53200). DML/recursive cache admission to
+the window owner can also use CS05067. See the linked memory section for default-grant fixture limits.
 
 ## GQL composite queries
 
 [UNION, EXCEPT, INTERSECT and OTHERWISE](graph/language/clauses/union.md) execute with isolated operand scopes, matching case-sensitive
 columns, type reconciliation and one statement snapshot. UNION keeps the first structural
-occurrence; UNION ALL preserves duplicates. Paging is operand-local and NEXT binds above UNION.
+occurrence; UNION ALL preserves duplicates. Paging is operand-local and UNION binds above NEXT.
 All operands validate before execution. Other memory/work exhaustion retains CG05020/CG05004.
 EXCEPT/INTERSECT default to DISTINCT or accept ALL multiset counts. They retain eligible left
 occurrences and share structural row equality with UNION. OTHERWISE returns the whole left result
@@ -635,9 +668,20 @@ gateway readiness. See [health composition](../dotnet-apis/resources/database/as
 ## OQL compound queries
 
 OQL compound ordering reports CD01037 for an all-RAW/VALUE result with no named members, or
-CD01038 for an unbound member, META or star. Neither has an assigned SQLSTATE. UNION distinct,
-sort and output state uses CD05018; compound row/equality/sort work uses CD05020. INTERSECT/EXCEPT
-and nested compounds retain CK00001. See [set operations](document/language/statements/select.md#set-operations).
+CD01038 for an unbound member, META or star. Neither has an assigned SQLSTATE. Distinct keys,
+right-side multiset keys/counters, sort and output state use CD05018; compound row/equality/sort
+work uses CD05020. UNION, INTERSECT and EXCEPT, including ALL, execute in every query position.
+Explicit DISTINCT modifiers and subqueries in compound ORDER BY remain CK00001.
+CD05021 means planning, EXPLAIN or evaluation exhausted the executing thread's available stack;
+the statement fails and the session stays open, including over TCP. It has no assigned SQLSTATE.
+See [set operations](document/language/statements/select.md#set-operations).
+
+## GQL inline CALL
+
+CG01024 rejects a returned CALL name that shadows an outer binding, including imports and
+RETURN * expansion. It has no assigned SQLSTATE. Read-only returning bodies execute with
+omitted or explicit variable scopes; writing/unit bodies, named procedures, FOREACH and
+CALL IN TRANSACTIONS retain CK00001. See [CALL scope and diagnostics](graph/language/clauses/next.md#inline-call-subqueries).
 
 ## Sources
 

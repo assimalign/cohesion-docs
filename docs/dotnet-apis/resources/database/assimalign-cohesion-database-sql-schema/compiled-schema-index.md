@@ -47,7 +47,7 @@ Console.WriteLine(index.KeyOrders[0]); // DescendingNullsLast
 
 ## Related reference
 
-[Assembly](index.md) · [Design](design.md) · [Format and rebuild](../../../../database/sql/index.md#sql-format-36-and-schema-v12)
+[Assembly](index.md) · [Design](design.md) · [Format and rebuild](../../../../database/sql/index.md#sql-format-37-and-schema-v12)
 
 ## Sources
 

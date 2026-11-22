@@ -49,6 +49,14 @@ logical database.
 
 ## Parser and expression tree
 
+Read-only inline CALL uses [GqlCallStage](gql-call-stage.md): Body, Imports, ImportAll and Optional.
+Null Imports records an omitted scope; an empty list records (). The parser retains writing/unit
+bodies for the planner's read-only admission check, which refuses them with CK00001. Named
+procedures remain refused even though the profile admits inline CALL. The scanner visits each
+braced body in fresh query context, preserving map/label/property identifiers. Rendering walks
+semantic children; nested operands retain the captured statement source without overlapping
+substrings. See [CALL scope and execution](../../../../database/graph/language/clauses/next.md#inline-call-subqueries).
+
 `GqlQueryParser` derives from the shared `QueryParser`, and its `Profile` is
 `GqlLanguageProfile.Instance`. The shared `TokenLexer` supplies graph arrows and punctuation. The
 parser constructs immutable lists/maps in the AST and returns diagnostics on `GqlQueryStatement`.
@@ -92,6 +100,7 @@ COALESCE/NULLIF use case-abbreviation AST nodes rather than registry functions.
 | `LET`, `FILTER` | Ordered assignments; FILTER [WHERE] predicate | Adds names or keeps TRUE rows |
 | `FOR`, `UNWIND` | List expression and new variable | NULL gives zero rows; non-list CG02013; proven entity kinds retained |
 | `WITH`, `NEXT` | Intermediate projection or RETURN/write segment boundary | Eager materialization; WITH WHERE after paging; projected scope only carried forward |
+| `CALL` | Read-only inline query with RETURN and omitted, named, all or empty imports | Per-input Apply; OPTIONAL CALL NULL-extends empty invocations |
 | `RETURN` | Value expressions with aliases, optional ALL/DISTINCT or named-binding star; standalone or after MATCH/insertion | Projects tuples; DISTINCT compares exact values and entity/path identities |
 | `GROUP BY` | RETURN names or equivalent expressions, including () | Same exact keys as implicit aggregation; grouping before projection |
 | `ORDER BY` | Keys with ASC/ASCENDING/DESC/DESCENDING and NULLS FIRST/LAST | Sorts projected rows/paths after DISTINCT; stable ties |

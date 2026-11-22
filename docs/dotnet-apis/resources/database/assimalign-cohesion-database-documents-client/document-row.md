@@ -12,11 +12,9 @@ public sealed class DocumentRow : DatabaseRow, IReadOnlyList<object?>
     public int Count { get; }
     public object? this[int index] { get; }
     public object? this[string name] { get; }
-    public override bool IsNull(int ordinal);
-    public override object? GetValue(int ordinal);
-    public override ReadOnlyMemory<byte> GetBytes(int ordinal);
 }
-// Inherited: SupportsMissing, IsMissing(int), FieldCount and typed getters.
+// Inherited non-virtual access: SupportsMissing, IsMissing(int), IsNull(int),
+// GetValue(int), GetBytes(int) and typed getters. FieldCount overrides the base property.
 ```
 
 ## Behavior and exceptions
@@ -30,8 +28,8 @@ Int64 header columns decode to long. COUNT, LENGTH, POSITION, ARRAY_LENGTH and e
 functions preserve that type over the wire; GetInt64 reads those cells. Mixed Int64/Decimal columns
 promote to Decimal. See [Scalar functions](../../../../database/document/language/functions/scalar-functions.md).
 
-An invalid ordinal index throws IndexOutOfRangeException. IsMissing validates its ordinal with
-ArgumentOutOfRangeException. Unknown names throw KeyNotFoundException; null names
+An invalid ordinal, including the integer indexer, throws ArgumentOutOfRangeException through
+DatabaseRow's bounds guard. IsMissing checks capability before that guard. Unknown names throw KeyNotFoundException; null names
 ArgumentNullException. A typed numeric/Boolean getter on NULL/MISSING throws
 InvalidOperationException.
 

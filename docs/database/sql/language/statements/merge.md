@@ -144,8 +144,9 @@ serialization refusals abort the transaction and require a full transaction retr
 StatementMemoryBudget covers hash builds and retained target identities, source buffers,
 derived copies, intermediate frames, associations, selected values and encoded replacements,
 including joined-statement cascade state. Exhaustion reports CS05067 (53200) before any write;
-there is no spill. General result materialization and transient expression values are outside
-this grant. Reservations release on every exit. See [memory options](../../../../dotnet-apis/resources/database/assimalign-cohesion-database-sql/sql-database-engine-options.md#hash-build-memory).
+there is no spill. INSERT SELECT and DML subquery sources retain their existing policy; transient
+expression values remain outside the grant. Plain SELECT materialized results now charge it.
+Reservations release on every exit. See [memory options](../../../../dotnet-apis/resources/database/assimalign-cohesion-database-sql/sql-database-engine-options.md#statement-memory).
 
 ### Concurrent target changes
 
@@ -199,7 +200,7 @@ failure publishes no partial rows and restores the statement's original rows, pr
 explicit-transaction writes. SqlClientException.ConnectionUsable remains true for these refusals.
 Wire BEGIN uses Snapshot; a concurrent UPDATE/DELETE commit produces CS04064 and requires
 ROLLBACK before reuse. ReadCommitted is selected through the engine transaction API.
-SQL storage format 36 and wire frames are unchanged.
+SQL storage format 37 and wire frames are unchanged.
 
 [ON UPDATE actions](../constraints.md#on-update-declarations) execute CASCADE, SET NULL and
 SET DEFAULT for referenced-key changes. RESTRICT is immediate; NO ACTION checks the final state.

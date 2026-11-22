@@ -93,7 +93,9 @@ recursive `.**` and malformed accessors.
 A path may contain at most 65,536 UTF-16 code units and 256 accessors. Path execution shares a
 1,000,000-visit work cap per statement with window-frame recomputation. Transient DOM, result
 references and selected-result serialization share StatementMemoryBudget. CS05094 reports these
-path limits; cancellation remains cancellation.
+path limits; cancellation remains cancellation. If concurrently retained plain SELECT bytes fill
+the memory grant first, memory refusal instead reports CS05067. With no plain bytes live, the
+JSON grant retains CS05094. Neither memory refusal is handled by ON ERROR.
 
 ## Examples
 
@@ -125,9 +127,9 @@ retain their existing codes. Clause syntax errors use CS00003.
 
 ## Compatibility
 
-SQL catalog/record-space format **36** refuses format 35 and earlier before data recovery. There
+SQL catalog/record-space format **37** refuses format 36 and earlier before data recovery. There
 is no in-place upgrade; compiled schema is v12; JSONB storage bytes are unchanged. See the
-[export and rebuild procedure](../../index.md#sql-format-36-and-schema-v12).
+[export and rebuild procedure](../../index.md#sql-format-37-and-schema-v12).
 Ordinary function calls named json_value, json_query or json_exists now render with quoted names.
 A quoted `"json_value"(...)` remains an ordinary function call.
 

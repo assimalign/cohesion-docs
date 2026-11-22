@@ -339,7 +339,7 @@ columns use CS03025. Stable/Volatile defaults execute per assignment; subqueries
 | Code | Meaning and trigger | SQLSTATE |
 | --- | --- | --- |
 | `CS03105` | Permanent policy/metadata planning refusal before steps or intent save: includes conversions outside the lossless whitelist without destructive opt-in, namespace/dependency refusals and default changes without any TYPE rewrite | — |
-| `CS03402` | Joint migration preparation, reservation or space admission failed; old schema stays online unless an independent storage latch fires; space refusals include needed/available bytes | — |
+| `CS03402` | Joint migration preparation, reservation or space admission failed, or an unpublished target/route was discarded; old schema stays online unless an independent storage latch fires; space refusals include needed/available bytes | — |
 | `CS03403` | Joint catalog publication commit is unconfirmed; old/new outcome is unknown and reopen/recovery decides the schema | — |
 | `CS03404` | CREATE TABLE, CTAS, CREATE VIEW, CREATE SEQUENCE or table rename targets a name reserved by a queued/running joint plan | — |
 
@@ -347,7 +347,8 @@ Joint preparation has no automatic retry. A later explicit apply or Build declar
 can retry; a Build declaring the old schema opens normally. After successful publication, returning
 to an earlier declaration is a reverse migration with the same destructive-change gate.
 Provisioning health retains the failure code until a successful apply/Build, including an
-already-applied skip. Non-TYPE deferred failure retains `CS03104` and its offline/reopen contract.
+already-applied skip or successful Verify. Every deferred migration uses joint publication and
+`CS03402` before publication; non-TYPE inline per-step application keeps compensation and `CS03104`.
 See [code-first type changes](statements/alter-table.md#code-first-type-changes) and
 [health and recovery](../index.md#typed-migration-health-and-recovery).
 
@@ -364,7 +365,7 @@ CS03401 is an Error in DatabaseException.Diagnostics. A safely restartable pre-h
 DatabaseNotFoundException with that diagnostic preserved. Follow the message: ambiguous lost
 catalogs/missing sidecars require preservation and complete-backup recovery; short files beside
 other state cannot safely be restarted. No SQLSTATE is assigned. Transient inspection I/O asks for
-an OpenDatabaseAsync retry after resolution, without restore/drop advice. Current SQL format is 36;
+an OpenDatabaseAsync retry after resolution, without restore/drop advice. Current SQL format is 37;
 this completion path does not upgrade old databases. See
 [lifecycle APIs](../../../dotnet-apis/resources/database/assimalign-cohesion-database-sql/design.md#database-creation-open-and-drop).
 
@@ -507,10 +508,16 @@ The shared StatementFailed event takes its payload code from non-null Diagnostic
 
 ## Hash-build refusal
 
-CS05067 reports exhausted statement memory for hash builds, retained joined-DML state or CTAS source/copy buffers
+CS05067 reports exhausted statement memory for retained SELECT buffers and materialized results,
+hash builds, retained joined-DML state or CTAS source/copy buffers
 (SQLSTATE 53200, out_of_memory). Its diagnostic message is unprefixed. Configure
 SqlDatabaseEngineOptions.StatementMemoryBudget; there is no spill. See
 [hash joins](clauses/join.md#hash-joins-and-memory) and [CTAS](statements/create-table.md#create-table-as).
+
+Plain SELECT bytes that fill the grant first also make a window or JSON memory refusal report
+CS05067. With no plain bytes live, their grants retain CS05079 and CS05094. Large sorts/results
+need a larger budget; no query operator spills yet. A declared-script CTAS refusal remains online
+and a later Build with a larger budget resumes at the refused statement.
 
 ## CREATE TABLE AS conditions
 
@@ -680,8 +687,9 @@ Application/order-sensitive aggregates retain CS05084; volatile or subquery argu
 use restart semantics and that fallback can also reach CS05084 for native aggregates. Visits
 count before FILTER/arguments across functions, partitions and stages, including under LIMIT.
 Equal cached frames spend none. ANALYZE reports frame_visits, transitions, inverse_transitions
-and boundary_visits. CS05079 covers retained window state; admitting earlier CTE/subquery caches
-can use CS05067 (53200). See the linked memory section for default-grant fixture limits.
+and boundary_visits. CS05079 covers window grant exhaustion with no plain SELECT bytes live;
+when plain bytes fill the grant first it uses CS05067 (53200). DML/recursive cache admission to
+the window owner can also use CS05067. See the linked memory section for default-grant fixture limits.
 
 ## JSON access
 

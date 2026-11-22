@@ -23,6 +23,7 @@ public static class GqlClauses
     public const string Unwind = "UNWIND";
     public const string With = "WITH";
     public const string Next = "NEXT";
+    public const string Call = "CALL";
     public const string SetOperation = "UNION";
     public const string UnionDistinct = "UNION DISTINCT";
     public const string UnionAll = "UNION ALL";
@@ -61,6 +62,10 @@ The six composition names are enabled in GqlLanguageProfile.Instance. FOR/UNWIND
 GqlForStage; WITH/RETURN share GqlReturnStage. NEXT marks a segment boundary. The constants
 add no exceptions. [Composition](../../../../database/graph/language/clauses/next.md) documents
 scope, NULL handling and diagnostics; standalone ordering/page stages remain CK00001.
+
+Call is enabled for read-only inline bodies with RETURN, including OPTIONAL CALL and omitted,
+named, all or empty imports. It produces [GqlCallStage](gql-call-stage.md). Named procedures and
+writing/unit bodies retain CK00001; see [CALL](../../../../database/graph/language/clauses/next.md#inline-call-subqueries).
 
 ```csharp
 Console.WriteLine(GqlLanguageProfile.Instance.Supports(GqlClauses.Let)); // True

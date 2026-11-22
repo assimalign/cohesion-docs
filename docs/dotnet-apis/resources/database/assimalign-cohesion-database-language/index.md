@@ -15,6 +15,8 @@ The shared query-language substrate for database models.
 - **[Design](design.md)** — Dependency boundaries and implementation decisions.
 - **[Examples](examples/index.md)** — Source-backed usage and expected behavior.
 
+QueryParser.Parse and QueryAnalyzer.AnalyzeAsync are non-virtual entry points over protected
+grammar and analysis cores. Model parsers retain statement text before analyzers run.
 The shared parser blocks without busy-spinning for registered analyzers, propagating their faults
 and cancellation within one timeout. No analyzers means no analyzer wait or timeout work.
 See [signatures, exceptions and example](design.md#analyzer-completion-and-diagnostics).

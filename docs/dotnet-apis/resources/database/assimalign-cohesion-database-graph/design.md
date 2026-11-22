@@ -1239,6 +1239,24 @@ Scalar composite results use graph.composite-values; entity lists remain CG05001
 | CG00014 | Pattern comprehension requires a nonempty path and projection | — |
 | CG05028 | Malformed pattern comprehension, aggregate projection or missing collection plan | — |
 
+## Inline CALL subqueries
+
+Read-only inline CALL runs a returning query for each incoming row, including uncorrelated
+bodies. Explicit scope imports none, named bindings or all bindings; omitted scope imports none
+except for the restricted leading importing WITH translation. Imports retain their kinds and
+remain visible across inner scope boundaries. Returned names join the outer row and cannot shadow
+an outer binding, including imports and RETURN * expansions (CG01024). OPTIONAL CALL emits one
+NULL-extended row for an empty invocation; empty outer input invokes nothing.
+
+Each invocation shares GraphOperation, snapshot, parameters, clock, cancellation and work/memory
+budgets. Invocation and emitted rows each cost one work unit beyond inner work. Grouping,
+DISTINCT/order/page, composite state and cursors release reservations per invocation or early exit.
+EXPLAIN describes Apply/OptionalApply without execution. A read-only CALL can follow an outer write
+and sees its overlay. Writing/unit bodies remain refused at GraphPlanner.ValidateCallReadOnly;
+FOREACH, named procedures and CALL IN TRANSACTIONS remain CK00001. This adds no format or wire
+change. See [syntax and scope](../../../../database/graph/language/clauses/next.md#inline-call-subqueries)
+and [public AST](../assimalign-cohesion-database-graph-language/gql-call-stage.md).
+
 ## GQL composite queries
 
 [UNION, EXCEPT, INTERSECT and OTHERWISE](../../../../database/graph/language/clauses/union.md) execute with isolated operand scopes, matching case-sensitive
@@ -1287,6 +1305,7 @@ Evidence: this model project's `tests/RefusedOpenTests.cs` and `tests/FormatProb
 
 ## Sources
 
+- **Inline CALL** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Graph/tests/GqlCallSubqueryTests.cs`, `GqlCallReviewTests.cs` and `cohesion/resources/Database/Assimalign.Cohesion.Database.Graph.Client/tests/GraphCallSubqueryWireTests.cs`.
 - **Memory-only MERGE and lifecycle precedence** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Graph/tests/SavepointMergeLockTests.cs`, `src/Internal/Execution/GraphMergeLocks.cs` and `cohesion/resources/Database/Assimalign.Cohesion.Database/tests/SavepointSeamTests.cs`.
 - **Composite set queries** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Graph/tests/GraphSetQueryTests.cs`.
 

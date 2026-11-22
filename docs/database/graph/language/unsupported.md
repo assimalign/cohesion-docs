@@ -31,7 +31,7 @@ The examples below are rejected forms, not executable syntax diagrams.
 | Full-query EXISTS bodies, parenthesized EXISTS operands, COUNT/COLLECT blocks and bare pattern predicates | Recognized, not supported (`CK00001`) | [Braced pattern EXISTS](expressions/exists.md) and NOT EXISTS execute |
 | Pattern-comprehension extensions | Outside the form | Explicit modes/selectors and parenthesized quantified groups; [pattern comprehensions](expressions/pattern-comprehensions.md) execute |
 | Projection after deletion | Recognized, not supported (`CK00001`) | `DELETE a RETURN a` |
-| Procedure calls | Recognized, not supported (`CK00001`) | `CALL` |
+| Named procedures, writing/unit CALL bodies and CALL IN TRANSACTIONS | Recognized, not supported (`CK00001`) | `CALL proc(...) YIELD ...`; read-only [inline CALL](clauses/next.md#inline-call-subqueries) with RETURN executes |
 | Server, database, graph, or schema selection | Recognized, not supported (`CK00001`) | `USE`, `CREATE DATABASE`, `CREATE GRAPH`, `DROP GRAPH`, `ALTER SCHEMA`, `SHOW DATABASES`, `SESSION SET GRAPH` |
 | Schema forms beyond the subset | Recognized, not supported (`CK00001`) | UNIQUE/KEY constraints, composite indexes/constraints, relationship-property indexes, closed graph types and unsupported constraint type forms; [schema DDL](statements/create-index.md) executes |
 | Transaction options | Rejected (`CG00002`) | WORK, TRAN, READ ONLY/WRITE, isolation and DEFERRABLE suffixes on BEGIN/START |

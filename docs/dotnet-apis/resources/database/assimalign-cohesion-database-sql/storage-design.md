@@ -70,7 +70,8 @@ reuse rules still apply. Write-back, truncation and allocation policies are unch
 
 ## Joint migration space admission
 
-Build checks only a small, declaration-sized space floor before saving a joint TYPE intent.
+Build checks only a small, declaration-sized space floor before saving a joint intent, including
+every deferred migration whether it contains TYPE or not.
 It takes no owner-directory snapshot, visits no data/index page and decodes zero rows. The floor
 is `F = 1 MiB + (ceil(I / 3072) + 4) * (5B + 168)`, where I is the serialized intent's UTF-8 byte
 length and B is 8,192 bytes. A floor refusal reports `CS03402` online and preserves a kept crash
@@ -88,15 +89,22 @@ stamps; failed preparation reclaims only unpublished tree owners. See
 
 Admission requires `N = R + J + ceil((R + J) / 4) + V + E`: replacement allocation R after reusable
 free pages, bounded copy WAL J, a 25% estimate margin, metadata-derived publication allowance V
-and engine reserve E. Copy-owned WAL forces a checkpoint at 16 MiB plus the next bracket's bound;
-busy brackets retry the checkpoint with cancellation. These checkpoints briefly stall all database
+and engine reserve E. Jobs rewriting an existing table use a 16 MiB copy-owned WAL threshold,
+plus one committed bracket's bound. Jobs that only keep owners or create new tables may use a
+larger nonzero engine CheckpointJournalSize if the same admission formula fits; otherwise they
+fall back to 16 MiB without refusing the job. Busy brackets retry the checkpoint with cancellation.
+These checkpoints briefly stall all database
 writers under the apply gate, including writers on untouched tables.
 
 The volume watchdog checks each index-root/copy bracket and checks again immediately before
 catalog publication, after validation. It requires enough free space for the next bracket plus
 E, or V plus E at publication. Bounds include measured index heights, possible splits, row bytes
 and reusable free pages. Sparse growth also charges copy-owned unflushed allocations, capped at
-the data pool capacity and reset by a successful forced checkpoint. A refusal stops with `CS03402`
+the data pool capacity and reset by a successful forced checkpoint or a journal-length sample
+that proves an engine checkpoint flushed those allocations. A truncation hidden by intervening
+journal regrowth can conservatively overcharge until a proven flush. The copy-owned WAL bound
+covers job start through CatalogPublished, before old-owner reclamation is released; it does not
+bound unrelated writers or post-publication reclamation. A refusal stops with `CS03402`
 and needed/available bytes, discards preparation and leaves the old schema online, subject to the
 storage exceptions below. It retains headroom for cleanup after either failure or publication.
 
@@ -145,21 +153,21 @@ The explicit offline exceptions remain:
 | Failure after issuing a checkpoint header-slot write | HeaderWrite |
 | Repeated page write-back, checkpoint, write-ahead-flush or version-purge failures reaching the engine failure window | PageWriteBackFailures, CheckpointFailures, WriteAheadFlushFailures, VersionPurgeFailures |
 | Second consecutive failed checkpoint at the journal size cap | JournalSizeLimit |
-| Non-TYPE deferred provisioning step failure | ProvisioningFailure |
+| In-memory publication fault after a catalog commit | ProvisioningFailure |
 | Interrupted open-time recovery | RecoveryInterrupted |
 
-The joint path never requests ProvisioningFailure. Unknown WAL/commit outcomes cannot safely
+Pre-publication preparation failures leave the old schema online with CS03402. Unknown WAL/commit outcomes cannot safely
 retry online. An unconfirmed joint publication uses `CS03403`, retains new trees/directory records
 and lets reopen/recovery decide old versus new; it does not claim the old schema is unchanged.
 Other corruption/recovery fences keep their existing policies. See
-[joint publication and recovery](design.md#joint-type-migrations) and
+[joint publication and recovery](design.md#joint-migrations) and
 [operator health](../../../../database/sql/index.md#typed-migration-health-and-recovery).
 
 ## Identity and sequence reservations
 
-SQL format 36 persists standalone and identity-owned definitions as catalog kind 18 and
+SQL format 37 persists standalone and identity-owned definitions as catalog kind 18 and
 reservations as kind 19. Kind 18 includes owning table id, column name and identity ownership;
-kind 16 is retired and never decoded. Compiled schemas use v12. Format 35 and earlier SQL
+kind 16 is retired and never decoded. Compiled schemas use v12. Format 36 and earlier SQL
 formats are refused with no upgrade reader. See [catalog sequence objects](catalog-design.md#standalone-sequences).
 
 Identity and sequences share a catalog-serialized allocator using Int128 intermediate arithmetic.

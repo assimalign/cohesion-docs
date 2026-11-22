@@ -18,7 +18,7 @@ The model enforces engine → Catalog → Storage → shared kernel through arch
 ## Partial-index metadata
 
 SqlCatalogIndex stores nullable Predicate text plus copied PredicateColumns and
-PredicateFunctionCalls dependency vectors. Catalog format 36's mandatory index extension 3
+PredicateFunctionCalls dependency vectors. Catalog format 37's mandatory index extension 3
 persists these alongside an immutable KeyOrders vector, one effective order per key column.
 Omitting keyOrders supplies ASC NULLS FIRST. Invalid width/value or directed primary-key
 metadata uses SqlCatalogException/CS03085 (42P17); loaded malformed vectors use CS06059 and
@@ -111,7 +111,7 @@ those same transforms for uniqueness enforcement.
   record cannot be told apart record-by-record, and version 2 vs 3 (shared page
   stream vs per-object page chains) is a page-placement property no record
   carries — so the database-grain marker is catalog metadata, read by the
-  engine at open to enforce format 36. Earlier or newer markers, including format 26, are
+  engine at open to enforce format 37. Earlier or newer markers, including format 26, are
   refused without an upgrade reader. An absent marker does not authorize migration; only
   proven interrupted creation can complete under the engine's creation rules.
 - **The applied compiled-schema state lives here** (kind-6 records). The catalog
@@ -183,19 +183,24 @@ no marker and load as ordinary indexes.
 
 ## Physical table replacement
 
-Typed migrations containing a TYPE rewrite prepare their complete target unpublished and publish
+Every deferred migration, and typed plans containing a TYPE rewrite, prepare their complete target unpublished and publish
 it in one catalog commit. That commit writes table/index/constraint descriptions, registrations,
 dependent view identities, retirement records and the applied kind-6 marker, removes prepared
 kind-14 records and deletes the pending kind-9 intent. Directory allocations precede the commit.
 Format 34 introduced the changed kind-9 meaning (`Joint/` step kinds). Format 35 added per-table
 Joint/KeepOwner and Joint/RewriteOwner choices and separately owned trees, without changing
-kind-6/kind-14 encodings or compiled schema v11. Current format **36** and compiled schema v12
-change effective key-order defaults; earlier formats and artifacts are refused before recovery
-writes. Index additions and constraint-only changes can preserve a table's heap and retained
+kind-6/kind-14 encodings or compiled schema v11. Format 36 and compiled schema v12
+changed effective key-order defaults. Current format **37** requires joint publication for every
+deferred job; earlier formats and artifacts are refused before recovery writes. Index additions and constraint-only changes can preserve a table's heap and retained
 trees. New trees have separate physical owners recorded in root headers; logical registrations
 still name the heap. Publication commits their descriptions and registrations with every rewritten
 table in the joint target. See [kept-table preparation](design.md#joint-tables-that-keep-storage)
-and [joint migration execution and recovery](design.md#joint-type-migrations).
+and [joint migration execution and recovery](design.md#joint-migrations).
+
+An unchanged primary key keeps its observed name across both kept and rewritten tables; additive
+indexes can keep a primary-key table's heap. Script-declared indexes, including uniqueness, survive
+publication unless the target declares that name or the plan drops it. The declaration wins over
+a stale receipt. Retained registrations keep their durable order; new indexes follow plan order.
 
 Pending new table names are reserved across the case-insensitive table/view/sequence namespace.
 Session relation creation or table rename cannot claim one (`CS03404`). Planning refuses an
@@ -208,7 +213,7 @@ ordinals and rebuilds indexes before atomic catalog publication. Dropped ordinal
 with the old owner for pinned snapshots. Logical schema, identity allocation, ownership and
 dependent view identities survive. Prepared and retired owners use durable kind-14 reclamation
 intents; recovery selects a complete old or replacement layout/index set and maintenance reclaims
-abandoned storage. This reuses format 36 and the TRUNCATE replacement contract.
+abandoned storage. This reuses format 37 and the TRUNCATE replacement contract.
 
 ## Single source for SQL system views (C1)
 
@@ -292,7 +297,7 @@ hidden table identity with a durable kind-14 abandonment intent, using the same 
 reclamation mechanism as TRUNCATE. One builder transaction writes all rows before catalog
 publication removes the intent and exposes the table. Recovery retains either the whole table or
 an abandoned owner to reclaim, with no partial table. A lost name race uses CS03049 (42P07), or a
-zero-row no-op with IF NOT EXISTS. The protocol reuses SQL format 36.
+zero-row no-op with IF NOT EXISTS. The protocol reuses SQL format 37.
 
 ## Error model
 
@@ -318,9 +323,9 @@ exception type. Direct catalog calls have no statement text. See the [complete c
 ## Non-goals
 
 - **Sequence permissions** — Identity integration, SERIAL, OWNED BY and sequence defaults execute; permissions remain future work, #177.
-- **Multi-statement DDL atomicity (see** — self-committing DDL above). The migration
-  layer compensates completed reversible statements on failure; an MVCC bracket
-  spanning catalog and data DDL requires a future catalog batch-transaction seam.
+- **Session multi-statement DDL atomicity.** Session DDL and non-TYPE inline migration steps
+  self-commit; the latter compensate completed reversible steps. Every deferred migration and
+  TYPE-rewrite plan instead prepares unpublished objects and publishes jointly in one catalog commit.
 
 ## AOT posture
 
@@ -348,7 +353,7 @@ captures namespaces with tables/indexes, and CASCADE removes contents and incomi
 while preserving outside tables. The SQL executor owns DDL locks and ownership/protection checks.
 SQL database creation seeds dbo; low-level catalog open does not mutate or seed records.
 
-The integration branch uses SQL row-storage format 36 and compiled schema version 12.
+The integration branch uses SQL row-storage format 37 and compiled schema version 12.
 Format 17 introduced the insert-default/frozen-missing-value split (table extension 6); format 18
 separately changes quoting for newly executable function names in persisted canonical SQL.
 The formats preserve resolved shared type identity/modifiers across contextual multi-word and
@@ -366,8 +371,9 @@ Format 31 added partial-index predicates in index extension 2. Format 32 added p
 direction and NULL placement in mandatory index extension 3 and retained TYPE default assignment coercion.
 Format 33 fenced SQL/JSON names and ordinary-call quoting. Format 34 introduced joint typed
 migration intent semantics. Format 35 introduced separate physical owners for kept-table index trees and durable per-table
-classification. Current format 36 changes effective index orders and defaults to ASC NULLS FIRST,
-matching ORDER BY; format 35 and earlier are refused before recovery writes.
+classification. Format 36 changed effective index orders and defaults to ASC NULLS FIRST,
+matching ORDER BY. Current format 37 requires joint publication for every deferred job and fences
+per-step intents; format 36 and earlier are refused before recovery writes.
 Every earlier format is refused at open; there is no
 upgrade path. Compiled schema format remains version 12.
 
@@ -378,14 +384,15 @@ Format 31 added partial-index predicates in index extension 2. Format 32 added p
 direction and NULL placement in mandatory index extension 3 and retained TYPE default assignment coercion.
 Format 33 fenced SQL/JSON names and ordinary-call quoting. Format 34 introduced joint typed
 migration intent semantics. Format 35 introduced separate physical owners for kept-table index trees and durable per-table
-classification. Current format 36 changes effective index orders and defaults to ASC NULLS FIRST,
-matching ORDER BY; format 35 and earlier are refused before recovery writes. Format 31 and
+classification. Format 36 changed effective index orders and defaults to ASC NULLS FIRST,
+matching ORDER BY. Current format 37 requires joint publication for every deferred job and fences
+per-step intents; format 36 and earlier are refused before recovery writes. Format 31 and
 every earlier catalog are refused before definitions bind, carrying CS06041; they are never
 silently rewritten. Format 26 introduced the temporal DEFAULT/frozen missing-value fence.
-Compiled documents must be v12. See the [format and rebuild procedure](../../../../database/sql/index.md#sql-format-36-and-schema-v12).
+Compiled documents must be v12. See the [format and rebuild procedure](../../../../database/sql/index.md#sql-format-37-and-schema-v12).
 
 [SqlCatalogView](sql-catalog-view.md) stores canonical bodies, nullable frozen columns and resolved
-dependencies in kind 17 records introduced by format 23. Current format is 36. Publication checks
+dependencies in kind 17 records introduced by format 23. Current format is 37. Publication checks
 collisions, live dependencies, cycles and append-only compatible replacement atomically; records
 larger than 8,092 bytes use CS03033. DROP RESTRICT protects dependents; CASCADE removes dependent
 views. Table/function/domain/column changes independently protect view dependencies with CS03302.

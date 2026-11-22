@@ -31,12 +31,15 @@ array gives FALSE for IN and TRUE for NOT IN. Extra parentheses around a subquer
 it one array-valued item in the ordinary value-list grammar: `x IN ((SELECT ...))` has one item
 containing the subquery array, with no RAW/VALUE requirement. Redundant wrappers preserve that rule.
 A compound beginning with a parenthesized operand, such as
-`x IN ((SELECT RAW a FROM d) UNION SELECT RAW b FROM e)`, is instead a query. It retains the current
-CK00001 refusal for nested compounds. A scalar operator or comma after a leading wrapper keeps
+`x IN ((SELECT RAW a FROM d) UNION SELECT RAW b FROM e)`, is instead a query and requires RAW/VALUE.
+Redundant wrappers around a complete compound keep the one-item list rule too: `x IN ((S UNION T))`
+compares x to the complete subquery array. With x = 1, 2, 3 and RAW S = 1, T = 3, it returns no
+rows; `x IN (((S) UNION T))` selects query membership and returns 1 and 3. Here S and T stand for
+complete SELECT blocks. A scalar operator or comma after a leading wrapper keeps
 the expression/value-list grammar. A query tail after that wrapper selects query grammar.
 
-Top-level [UNION/UNION ALL](../statements/select.md#set-operations) execute; compounds in expression
-subqueries, derived sources and write sources remain refused. A lone parenthesized SELECT is valid
+[UNION, INTERSECT and EXCEPT](../statements/select.md#set-operations), including ALL, execute in expression
+subqueries, derived sources and write sources. A lone parenthesized SELECT is valid
 as an INSERT/UPSERT source. Subscripts require a named path, so bind a subquery result to a name
 before indexing it.
 
@@ -56,6 +59,8 @@ expression sources. All depths and cache hits share the counter. Unreached expre
 work; exhaustion reports CD05020 before the next evaluation and rolls back statement writes.
 
 Only deterministic uncorrelated results cache, lazily by AST identity for the current statement.
+For a compound, every operand must be uncorrelated and cacheable. The static compound header
+shape applies here too; whole-document cells enter the result array without another wrapper.
 NOW_STR, NOW_MILLIS and any registered developer callback disable caching, including calls in
 deeper nested queries. Plans still bind once per statement and rebuild on the next execution.
 An unreached CASE branch, short-circuited AND/OR operand or lazy conditional argument executes

@@ -51,12 +51,47 @@ var options = new SqlDatabaseEngineOptions { StatementMemoryBudget = 32L * 1024 
 await using var engine = SqlDatabaseEngine.Create("orders", options);
 ```
 
-The positive byte budget accounts for concurrently live hash builds, including nested queries and growth overlap. Exhaustion reports CS05067 (53200); there is no spill. [CTAS](language/statements/create-table.md#create-table-as) also charges retained source results and copy buffers. [Joined mutations](#joined-mutations) also charge retained targets, sources, associations and
-selected writes. Recursive queries also charge their retained results and scratch; ordinary nonrecursive result materialization and transient planning remain outside this accounting.
+The positive byte budget defaults to 64 MiB and covers every retained SELECT buffer, including
+its materialized result. Exhaustion reports CS05067 (53200). Large sorts and results can refuse
+at the default grant; raise StatementMemoryBudget to admit them. Query operators do not spill
+on this branch, even though the temporary-space substrate exists.
+
+## Statement memory
+
+Joins charge hash builds, nested-loop inners, normalized child buffers and staged matches.
+Grouping charges keys, aggregate state, DISTINCT tuples and ordered aggregate inputs. Full sorts,
+bounded top-N entries, output rows, DISTINCT membership, derived/view/CTE caches, subquery values
+and correlated vectors, and set operands, seen sets and counts share the statement grant.
+Every buffer reserves before retention and releases on consumption or scope exit, including
+failure and cancellation. Child execution releases its result charge; a consumer that keeps the
+materialized result admits it again. Charges follow retained rows, never list capacity.
+
+A cell of at least 256 bytes charges its payload once per buffer owner by reference identity,
+plus 64 bytes per distinct wide cell. Further references pay array slots; smaller cells pay per
+reference. Equal values in separate objects, including binary clones, each pay. Outputs and sort
+keys share their collector's map. A value in two live buffers charges in each; hash builds still
+charge each reference. Dead top-N identities release when replaced.
+
+Eligible aggregation and DISTINCT consume input without retaining every input row. Join matches
+can stream into projection, which stops at an unordered LIMIT; ON/WHERE still drain every
+candidate, even at LIMIT 0. Eligible EXISTS/scalar bodies retain at most two result rows but
+still evaluate every projection the ordinary body would reach. EXISTS stops reading the completed
+result after one row; a scalar result's second row establishes its cardinality error.
+Paths that preserve volatile evaluation or resolve deferred collations can still stage input.
+The final selected result materializes before delivery and remains subject to the grant.
+Plan-sized traversal, current-row state, storage iterator scratch and transient planning are
+outside it. INSERT SELECT and DML subquery sources keep their existing policy.
+
+[CTAS](language/statements/create-table.md#create-table-as) charges like any SELECT, including
+sorting, grouping and caches, then charges kept output and copy buffers. Pagination does not
+reserve collection capacity. [Joined mutations](#joined-mutations) and recursive query state
+retain their existing accounting. Refusal stops input immediately, even before a later input error.
 
 [SQL/JSON paths](language/functions/json-path.md#limits) charge transient DOM, result references
 and selected-result serialization to the same statement memory grant (CS05094 / 54000).
 They also share a 1,000,000-visit work cap with window-frame recomputation.
+If plain SELECT bytes fill the grant first, window or JSON memory refusal reports CS05067.
+With no plain bytes live, window and JSON grants retain CS05079 and CS05094 respectively.
 
 FULL JOIN always hashes the written right child, including duplicate and NULL-key rows, with
 match flags charged to the same budget. There is no loop fallback: conditions without a safe
@@ -106,8 +141,9 @@ index probe or hash build on that source. EXPLAIN shows the access paths, join a
 CS05067 (53200) before writes. UPDATE FROM, DELETE USING and MERGE also charge retained
 target identities, non-hash input buffers, derived copies, intermediate frames, associations,
 selected values, encoded replacements and joined cascade state. Exhaustion refuses before any
-write and releases reservations on every exit. Shared objects are charged once; general result
-materialization and transient expression values remain outside the grant.
+write and releases reservations on every exit. Shared DML objects are charged once; INSERT SELECT
+and DML subquery sources keep their existing policy. Transient expression values remain outside
+the grant; plain SELECT result materialization now charges it.
 
 Equality-driven steps follow written source order. If only b is connected to the target by
 equality, list b first: `FROM b, a` or `USING b, a`. In
@@ -133,6 +169,7 @@ ANALYZE reports frame_visits, transitions, inverse_transitions and boundary_visi
 
 ## Sources
 
+- **SELECT retention and memory** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/tests/SqlSelectRetentionTests.cs`, `SqlSelectMemoryTests.cs`, `SqlSelectWideMemoryTests.cs` and `SqlJointTypeMigrationTests.BatchIntegration.cs` in the same directory; implementation is `src/Internal/Execution/SqlPlanExecutor.Retention.cs` and `SqlSelectMemory.cs` in that project.
 - **Large-join planning and memory admission** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/src/Internal/Execution/SqlPlanExecutor.JoinSearch.Greedy.cs`, `SqlPlanExecutor.JoinSearch.cs` in the same directory, and `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/tests/SqlJoinSearchFixTests.cs`.
 - **Planning work bounds and fallback** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/tests/SqlGreedyJoinSearchTests.cs` and `SqlLanguageConformanceTests.cs` in the same directory.
 - `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/tests/SqlDmlSourceReviewTests.cs`.

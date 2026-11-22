@@ -26,11 +26,14 @@ public sealed class OqlUpsertExpression : OqlExpression
 ## Behavior and exceptions
 
 Select uses [OqlQueryExpression](oql-query-expression.md). A lone parenthesized SELECT is a valid
-source; compound write sources remain refused with CK00001.
+source; UNION, INTERSECT and EXCEPT sources, including ALL and parenthesized first operands,
+execute. KEY/VALUE bind static columns or declared result members; omitted VALUE keeps the
+complete compound row value. Every source row is staged and validated before mutation.
 
 The constructor retains arguments and child references without executing or validating a query.
 Parser lists are read-only snapshots. VALUES has ordered key/value pairs; SELECT has output names
-bound case-sensitively. Null ValueName stores the entire projected object. The engine validates
+bound case-sensitively. Null ValueName stores the entire projected object for a SELECT block,
+or the complete row value for a compound. The engine validates
 all parameters and expressions before writes, including for EXPLAIN or an empty source.
 
 [UPSERT](../../../../database/document/language/statements/upsert.md) inserts or replaces whole

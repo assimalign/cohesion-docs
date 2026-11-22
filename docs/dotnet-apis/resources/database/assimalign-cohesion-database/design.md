@@ -259,6 +259,11 @@ classDiagram
   engine or network stack. The former root schema's collection shape was removed;
   the document model will define its own vocabulary in its own model family.
   If another model needs a different shape, it does not belong in this root.
+  Every deferred SQL migration publishes jointly in one catalog commit, whether TYPE is present
+  or not. Before-publication failure leaves the old schema online (CS03402); an unconfirmed
+  commit reports CS03403 and recovery decides old or new. Non-TYPE inline per-step application
+  keeps compensation and CS03104. The root's Provisioning observation reports this model-owned
+  work; see [SQL provisioning](../assimalign-cohesion-database-sql/design.md#joint-migrations).
 - **`Object` ownership separates code-first provisioning from ad-hoc statements.**
   `DatabaseObjectOwner.Adhoc` objects remain fully mutable through session
   statements. `DatabaseObjectOwner.Schema` objects can change only through schema
